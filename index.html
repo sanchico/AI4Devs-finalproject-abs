@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trazo a Mermaid</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="bar">
+  <h1>Trazo a Mermaid</h1>
+  <label>Diagrama
+    <select id="kind">
+      <option value="flow">Flujo</option>
+      <option value="state">Estados (UML)</option>
+    </select>
+  </label>
+  <label>Dirección
+    <select id="dir"><option value="TD">Arriba → abajo</option><option value="LR">Izquierda → derecha</option></select>
+  </label>
+  <button class="btn" id="mode" title="Solo afecta al ratón: con lápiz siempre se dibuja y con el dedo siempre se mueve">Ratón: dibuja</button>
+  <span class="spacer"></span>
+  <button class="btn" id="undo">Deshacer</button>
+  <button class="btn" id="clear">Limpiar</button>
+</div>
+
+<div class="main">
+  <div class="stage" id="stage">
+    <canvas id="c"></canvas>
+    <div class="legend" id="legend"></div>
+    <div class="toast" id="toast"></div>
+    <div class="editor" id="editor">
+      <input id="editInput" type="text" aria-label="Etiqueta">
+      <button class="btn" id="editOk">OK</button>
+      <button class="btn" id="editDel" title="Borrar elemento">🗑</button>
+    </div>
+  </div>
+  <div class="side">
+    <div class="tabs">
+      <button class="on" id="tabPrev">Vista previa</button>
+      <button id="tabCode">Código Mermaid</button>
+    </div>
+    <div class="pane" id="preview"></div>
+    <div class="pane" id="codePane" hidden><pre id="code"></pre></div>
+    <div class="side-foot">
+      <button class="btn" id="copy">Copiar código</button>
+      <span id="stats"></span>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
