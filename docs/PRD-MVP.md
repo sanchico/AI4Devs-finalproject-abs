@@ -1,298 +1,359 @@
-# PRD · MVP de Trazo a Mermaid en 30 horas
+# PRD · MVP de Trazo a Mermaid colaborativo
 
 | | |
 |---|---|
 | Estado | Borrador para revisión |
-| Versión | 0.4 · 30 sep 2026 (backend con Spring Boot y Supabase) |
+| Versión | 0.5 · 30 sep 2026 (colaboración en tiempo real) |
 | Base | commit `5ea5e8a` (prototipo de flujo y estados) |
-| Presupuesto | 30 horas, una persona con Claude Code |
+| Presupuesto | 33 horas, una persona con Claude Code (30 h si se aplican los recortes de la sección 6) |
 | Calendario | Más de un mes, en sesiones de 2–3 h |
 | Propósito | Entrega de curso; se evalúa el uso del agente de IA en el proceso |
 
 ## 1. Resumen
 
 El prototipo reconoce rectángulos, rombos, elipses y conectores dibujados con lápiz y genera Mermaid para
-dos tipos de diagrama, todo en el navegador y sin guardar nada. El MVP lo convierte en una **aplicación
-completa**:
+diagramas de flujo y de estados, en un solo navegador y sin guardar nada. El MVP lo convierte en una
+**pizarra colaborativa**: varios usuarios dibujan con lápiz en el mismo diagrama a la vez, cada uno desde
+su dispositivo, y todos ven el mismo grafo y el mismo código Mermaid.
 
-- **Frontend:** el lienzo actual, modularizado, con tests del reconocedor y un tipo nuevo, **clases UML**.
-- **Backend:** API REST en **Spring Boot** que guarda los diagramas de cada usuario en **PostgreSQL**.
-- **Usuarios:** registro e inicio de sesión con **Supabase Auth**. La API valida el token de Supabase y
-  solo devuelve los diagramas de su dueño.
+- **Frontend:** el lienzo actual, modularizado. Cada trazo se sigue reconociendo en el dispositivo de
+  quien dibuja y se convierte en una **operación** sobre el grafo ("añadir nodo", "conectar", "cambiar
+  etiqueta"). Lo que viaja por la red son esas operaciones, no los trazos.
+- **Backend:** Spring Boot con un servidor de colaboración por **WebSocket** que autentica, comprueba
+  permisos, ordena las operaciones, las reenvía y las guarda en **PostgreSQL**. Una API REST gestiona la
+  lista de diagramas, los miembros y las invitaciones.
+- **Usuarios:** registro e inicio de sesión con **Supabase Auth**. El backend valida el token de Supabase
+  tanto en la API como en el WebSocket.
 
-El reconocimiento de trazos sigue en el navegador. Es el principio central del producto: tiene que ser
-instantáneo y funcionar sin red. El backend solo guarda y sirve diagramas. Se puede dibujar sin haber
-iniciado sesión; guardar y abrir diagramas requiere cuenta.
+El principio de reconocimiento local se mantiene y ahora es una ventaja: los mensajes son pequeños y no
+hay ambigüedad, porque cada cliente envía el resultado ya interpretado. El Mermaid se genera en cada
+cliente a partir del mismo grafo.
 
-Es un recorte del PRD completo, que cubre los 22 tipos de Mermaid. Como el curso evalúa el uso del agente,
-**el proceso de trabajo con Claude Code es un entregable más** (bloques B8 y B9). El formato de entrega
-sigue la plantilla del [proyecto de ejemplo del curso](https://github.com/LIDR-academy/AI4Devs-finalproject-Example1/),
-y con backend y base de datos sus secciones 3, 4 y 6 encajan sin adaptaciones (ver sección 8).
+Es un recorte del PRD completo, que cubre los 22 tipos de Mermaid: el MVP no añade tipos nuevos y dedica
+el tiempo a la colaboración. Como el curso evalúa el uso del agente, **el proceso de trabajo con Claude
+Code es un entregable más** (P1 y P2). El formato sigue la plantilla del
+[proyecto de ejemplo del curso](https://github.com/LIDR-academy/AI4Devs-finalproject-Example1/).
 
 ## 2. Criterios de terminado
 
-El MVP está terminado cuando se cumple todo esto:
-
-1. Flujo, estados y clases UML generan código que renderiza sin error en la vista previa (Mermaid 10.9.1).
-2. Un diagrama de 5 clases con herencia, composición y asociación se dibuja con lápiz, usando el teclado
-   solo para textos.
-3. Un usuario se registra, inicia sesión, guarda un diagrama, lo ve en su lista desde otro dispositivo y
-   lo sigue editando.
-4. Un usuario no puede leer ni modificar diagramas de otro, ni a través de la API ni a través de la API
-   pública de Supabase.
-5. `node --test` y `mvn verify` pasan. La precisión del reconocedor sobre los trazos grabados es ≥ 90 %
+1. Dos usuarios dibujan a la vez en el mismo diagrama desde dos dispositivos y cada uno ve los cambios
+   del otro en menos de 1 s con la app desplegada.
+2. Las ediciones simultáneas convergen: tras una ráfaga de operaciones concurrentes, todos los clientes
+   muestran el mismo grafo y el mismo código Mermaid. Lo comprueba un test automático.
+3. Deshacer solo deshace las operaciones propias.
+4. El dueño invita por enlace como editor o como lector. El servidor rechaza las operaciones de un lector.
+5. Se ve quién está conectado al diagrama.
+6. Si se corta la red, al reconectar el cliente recupera los cambios que se ha perdido. Al volver otro
+   día, el diagrama está intacto.
+7. Nadie accede a un diagrama sin ser miembro: ni por la API, ni por el WebSocket, ni por la API pública
+   de Supabase.
+8. Las etiquetas no pueden inyectar HTML en la vista previa de ningún usuario.
+9. `node --test` y `mvn verify` pasan. La precisión del reconocedor sobre los trazos grabados es ≥ 90 %
    por forma.
-6. La app está desplegada en una URL pública y funciona en la tablet.
-7. Las etiquetas y los diagramas guardados no pueden inyectar HTML en la vista previa.
-8. La ficha y las secciones 1–7 del curso y `prompts.md` están completas, con capturas y
-   3 pull requests documentadas.
-9. El total de horas registradas es ≤ 30.
+10. La app está desplegada en una URL pública y funciona en la tablet.
+11. La ficha y las secciones 1–7 del curso y `prompts.md` están completas, con capturas y 3 pull
+    requests documentadas.
 
 ## 3. Fuera de alcance
 
-- Entidad-relación, mapa mental, secuencia y el resto de tipos del PRD completo.
-- Pan y zoom con gestos: solo hay botones de zoom y "Encajar".
-- Guardado sin conexión en el navegador. Sin red se puede dibujar y copiar el código, pero no guardar.
-- Compartir diagramas entre usuarios.
-- Importar código Mermaid al lienzo, escritura a mano, autolayout e IA de visión.
-- Subir a Mermaid 11. Los tipos del MVP ya existen en 10.9.1.
-- CI con GitHub Actions: los tests se ejecutan en local y con el hook de B8.
-- Vídeo tutorial. La plantilla pide "imágenes y/o videotutorial"; se entregan capturas.
+- Tipos nuevos: clases UML, ER, mapa mental, secuencia y el resto del PRD completo.
+- Pan y zoom.
+- Ver el cursor o el trazo en curso de otros usuarios; solo se ve el resultado reconocido.
+- Edición simultánea de una misma etiqueta letra a letra: gana el último que la confirma.
+- Varias instancias del servidor: las salas viven en memoria de una sola instancia.
+- Edición sin conexión con fusión posterior. Sin red se puede dibujar un diagrama nuevo sin guardar.
+- Historial de versiones navegable.
+- Importar Mermaid, escritura a mano, autolayout e IA de visión.
+- CI con GitHub Actions y vídeo tutorial.
 
 ## 4. Arquitectura
 
 | Capa | Tecnología | Responsabilidad |
 |---|---|---|
-| Frontend | HTML y JS en módulos ES, sin build; mermaid.js y supabase-js por CDN | Dibujo, reconocimiento, generación de Mermaid, login, lista de diagramas |
+| Frontend | HTML y JS en módulos ES, sin build; mermaid.js y supabase-js por CDN | Dibujo, reconocimiento, operaciones, generación de Mermaid, login, lista, presencia |
 | Autenticación | Supabase Auth (email y contraseña) | Registro, sesión, contraseñas; emite el JWT |
-| Backend | Java 21, Spring Boot 3, Spring Security (resource server), Spring Data JPA, Flyway, springdoc-openapi | Valida el JWT, aplica la propiedad de cada diagrama, guarda y sirve diagramas |
-| Base de datos | PostgreSQL de Supabase; PostgreSQL en Docker para desarrollo y tests | Tabla `diagrams` |
-| Despliegue | Un contenedor con Spring Boot que sirve también el frontend estático | Una sola URL, sin CORS |
+| Backend | Java 21, Spring Boot 3, Spring WebSocket, Spring Security (resource server), Spring Data JPA, Flyway, springdoc-openapi | Salas de colaboración, orden y validación de operaciones, permisos, API REST |
+| Base de datos | PostgreSQL de Supabase; PostgreSQL en Docker para desarrollo y tests | Diagramas, miembros, invitaciones y registro de operaciones |
+| Despliegue | Un contenedor con Spring Boot que sirve también el frontend | Una sola URL para la API, el WebSocket y la app |
 
-**Flujo:** el frontend inicia sesión con supabase-js y recibe un token de acceso. Lo envía en cada llamada
-como `Authorization: Bearer`. Spring Boot valida la firma con las claves públicas del proyecto de Supabase
-(JWKS) y usa el `sub` del token como dueño del diagrama.
+### Modelo de colaboración
 
-**Estructura del repositorio:** `frontend/` (el código actual, sin build) y `backend/` (proyecto Maven).
-Maven copia `frontend/` como recursos estáticos al empaquetar. El principio de "usable sin build" pasa a
-aplicarse solo al frontend, que se puede seguir probando solo con `python -m http.server`.
+- **Operaciones:** todo cambio del modelo pasa por `apply(op)`: `addNode`, `updateNode` (campos
+  concretos: posición, tamaño, etiqueta), `removeNode` (borra también sus aristas), `addEdge`,
+  `updateEdge`, `removeEdge` y `setMeta` (título, tipo, dirección). Los identificadores pasan a ser UUID,
+  porque los actuales (`n1`, `n2`…) colisionarían entre usuarios.
+- **Servidor como autoridad:** cada diagrama abierto es una sala en memoria. El servidor procesa sus
+  operaciones de una en una, las valida (esquema, permisos, que los elementos referenciados existan), les
+  asigna un número de secuencia, las guarda y las reenvía a todos.
+- **Conflictos:** operaciones sobre elementos distintos no chocan. Sobre el mismo campo gana la última en
+  el orden del servidor (*last-writer-wins*). Una actualización de un elemento borrado se descarta.
+- **Respuesta inmediata:** el cliente aplica sus operaciones al momento, sin esperar al servidor. Mientras
+  una operación propia está pendiente de confirmación, las remotas sobre ese mismo campo no la pisan. Al
+  confirmarse, el estado converge con el del servidor. Es el enfoque que describe Figma para su editor
+  multijugador.
+- **Deshacer:** cada cliente guarda las operaciones inversas de las suyas. Deshacer envía la inversa; si
+  otro usuario ya borró el elemento, se salta.
+- **Presencia:** al entrar y salir de una sala, el servidor difunde la lista de usuarios conectados, cada
+  uno con un color.
+
+### Protocolo WebSocket
+
+Mensajes JSON sobre `/ws/diagrams`:
+
+| Sentido | Mensaje | Contenido |
+|---|---|---|
+| Cliente → servidor | `hello` | JWT, id del diagrama y último número de secuencia conocido |
+| Cliente → servidor | `op` | Operación con un id generado en el cliente |
+| Cliente → servidor | `auth` | JWT renovado, antes de que caduque el anterior |
+| Servidor → cliente | `snapshot` | Estado completo y su número de secuencia (al entrar, o si el cliente está muy atrasado) |
+| Servidor → cliente | `ops` | Operaciones con número de secuencia y autor; incluye la confirmación de las propias |
+| Servidor → cliente | `presence` | Usuarios conectados |
+| Servidor → cliente | `error` | Operación rechazada y motivo |
+
+El JWT va en el primer mensaje y no en la URL, porque el navegador no permite cabeceras en WebSocket y
+las URL acaban en los logs.
 
 ### Modelo de datos
 
-Tabla `diagrams`, en el esquema `public`:
+Cuatro tablas en el esquema `public`, relacionadas con `auth.users` de Supabase:
 
-| Columna | Tipo | Restricciones |
+| Tabla | Columnas principales | Restricciones |
 |---|---|---|
-| `id` | `uuid` | PK, generado |
-| `owner_id` | `uuid` | NOT NULL, FK → `auth.users(id)` ON DELETE CASCADE |
-| `title` | `text` | NOT NULL, 1–120 caracteres |
-| `kind` | `text` | NOT NULL, `flow` \| `state` \| `class` |
-| `direction` | `text` | NOT NULL, `TD` \| `LR` |
-| `content` | `jsonb` | NOT NULL; nodos y aristas (`{version, nodes, edges}`) |
-| `mermaid` | `text` | Código generado en el cliente, para la vista previa de la lista |
-| `version` | `integer` | NOT NULL; bloqueo optimista (`@Version`) |
-| `created_at`, `updated_at` | `timestamptz` | NOT NULL |
+| `diagrams` | `id` uuid, `owner_id` uuid, `title` text, `kind` text, `direction` text, `content` jsonb, `snapshot_seq` bigint, `created_at`, `updated_at` | PK `id`; FK `owner_id` → `auth.users`; `kind` en (`flow`, `state`) |
+| `diagram_members` | `diagram_id` uuid, `user_id` uuid, `role` text, `added_at` | PK (`diagram_id`, `user_id`); FK a `diagrams` y `auth.users`; `role` en (`owner`, `editor`, `viewer`) |
+| `diagram_invites` | `token` text, `diagram_id` uuid, `role` text, `created_by` uuid, `expires_at` | PK `token`; FK a `diagrams`; `role` en (`editor`, `viewer`) |
+| `diagram_ops` | `diagram_id` uuid, `seq` bigint, `user_id` uuid, `op` jsonb, `created_at` | PK (`diagram_id`, `seq`); FK a `diagrams` y `auth.users` |
 
-Índice en `(owner_id, updated_at DESC)` para la lista. Los usuarios viven en `auth.users`, gestionada por
-Supabase. En los tests con Testcontainers, una migración solo de test crea una tabla `auth.users` mínima.
+`content` guarda una instantánea del grafo cada 50 operaciones y al vaciarse la sala. `diagram_ops`
+permite reconstruir el estado desde la última instantánea y enviar a un cliente reconectado solo lo que
+se ha perdido.
 
-### API
+### API REST
 
 | Método y ruta | Uso |
 |---|---|
-| `GET /api/diagrams` | Lista los diagramas del usuario (sin `content`), ordenados por fecha |
+| `GET /api/diagrams` | Diagramas propios y compartidos, con el rol del usuario |
 | `POST /api/diagrams` | Crea un diagrama |
-| `GET /api/diagrams/{id}` | Abre un diagrama |
-| `PUT /api/diagrams/{id}` | Guarda cambios; responde 409 si la versión no coincide |
-| `DELETE /api/diagrams/{id}` | Borra un diagrama |
+| `DELETE /api/diagrams/{id}` | Borra un diagrama (solo el dueño) |
+| `GET /api/diagrams/{id}/members` | Miembros y roles |
+| `POST /api/diagrams/{id}/invites` | Crea un enlace de invitación con rol y caducidad |
+| `POST /api/invites/{token}/accept` | Acepta una invitación y añade al usuario como miembro |
 
-Un diagrama de otro usuario responde 404, no 403, para no revelar que existe. El JSON de `content` se
-valida en el servidor (esquema, versión, tamaño máximo de 1 MB).
+La edición del contenido va siempre por WebSocket. Un diagrama del que no se es miembro responde 404.
 
 ## 5. Bloques de trabajo
 
 | Bloque | Horas | Depende de |
 |---|---:|---|
-| B1 Modularizar el frontend | 3 | — |
-| B2 Tests del reconocedor y de la generación | 2,5 | B1 |
-| B3 Backend: proyecto, base de datos y modelo | 3 | — |
-| B4 API de diagramas | 3 | B3 |
-| B5 Autenticación con Supabase | 1,5 | B4 |
-| B6 Frontend conectado: login, lista y guardado | 2,5 | B1, B5 |
-| B7 Tests del backend | 2 | B4, B5 |
-| B8 Despliegue | 1,5 | B6 |
-| B9 Zoom con botones | 1 | B1 |
-| B10 Clases UML | 6,5 | B1, B2 |
-| B11 Configuración de Claude Code | 0,5 | repartido |
-| B12 Documentación de entrega | 3 | repartido |
-| **Total** | **30** | |
+| F1 Modularizar el frontend | 3 | — |
+| F2 Modelo de operaciones | 3 | F1 |
+| F3 Tests del frontend | 2 | F2 |
+| B1 Backend: proyecto, base de datos y migraciones | 3 | — |
+| B2 Autenticación con Supabase | 1,5 | B1 |
+| B3 API REST: diagramas, miembros e invitaciones | 2,5 | B2 |
+| B4 Servidor de colaboración | 3,5 | B2, F2 |
+| B5 Persistencia de operaciones y reconexión | 2 | B4 |
+| B6 Tests del backend | 2,5 | B3, B5 |
+| F4 Cliente colaborativo | 2,5 | F2, B4 |
+| F5 Login, lista, invitaciones y presencia | 2,5 | B3, F4 |
+| D1 Despliegue | 1,5 | F4 |
+| P1 Configuración de Claude Code | 0,5 | repartido |
+| P2 Documentación de entrega | 3 | repartido |
+| **Total** | **33** | |
 
-**No hay colchón.** El punto de control de la sección 6 es el único mecanismo de ajuste.
+### F1 · Modularizar el frontend (3 h)
 
-### B1 · Modularizar el frontend (3 h)
-
-- Mover el código actual a `frontend/` y separarlo en módulos ES nativos: `geometry.js`,
-  `recognizer.js`, `model.js`, `kinds/*.js`, `render.js`, `input.js`, `api.js` y `main.js`.
-- `KINDS` pasa a ser un registro de tipos con un contrato común: formas, `generate(model)`, render
-  específico y menú.
-- La vista previa pasa de `securityLevel: 'loose'` a `'strict'`. Con diagramas guardados en un
-  servidor, una etiqueta con HTML sería un XSS persistente.
+- Mover el código a `frontend/` y separarlo en módulos ES nativos: `geometry.js`, `recognizer.js`,
+  `model.js`, `ops.js`, `kinds/*.js`, `render.js`, `input.js`, `api.js`, `collab.js` y `main.js`.
+- La vista previa pasa de `securityLevel: 'loose'` a `'strict'`. En un diagrama compartido, una etiqueta
+  con HTML se ejecutaría en el navegador de todos los miembros.
 - **Aceptación:** el comportamiento es idéntico al del commit base, comprobado con la skill
   `run-trazo-mermaid`. Una etiqueta `<img src=x onerror=alert(1)>` se muestra como texto.
 
-### B2 · Tests del frontend (2,5 h)
+### F2 · Modelo de operaciones (3 h)
 
-- Test runner nativo de Node (`node --test`), sin dependencias.
-- Modo de grabación (`?grabar` en la URL) que copia los trazos como JSON.
-- Fixtures con al menos 10 trazos por forma (rectángulo, rombo, elipse, triángulo), dibujados con el
-  S Pen.
-- Tests de generación: un modelo de ejemplo por tipo y el texto Mermaid esperado.
+- Todo cambio del modelo pasa por `apply(op)`, con los tipos de operación de la sección 4.
+- Identificadores UUID (`crypto.randomUUID()`).
+- Deshacer por usuario con operaciones inversas, en lugar de las instantáneas actuales.
+- **Aceptación:** la app funciona igual que antes en modo local, pero todo cambio es una operación
+  serializable.
+
+### F3 · Tests del frontend (2 h)
+
+- `node --test`, sin dependencias.
+- Modo de grabación de trazos (`?grabar`) y fixtures de rectángulo, rombo y elipse (10 por forma,
+  dibujados con el S Pen).
+- Tests de generación de Mermaid por tipo.
+- **Fixtures de operaciones compartidas** en `shared/fixtures/ops/*.json`: una secuencia de operaciones y
+  el grafo esperado. Las ejecutan tanto los tests de JS como los de Java (B6), para que las dos
+  implementaciones de `apply` no diverjan.
 - **Aceptación:** `node --test` en verde; precisión ≥ 90 % por forma.
 
-### B3 · Backend: proyecto, base de datos y modelo (3 h)
+### B1 · Backend: proyecto, base de datos y migraciones (3 h)
 
 - Proyecto Spring Boot 3 con Java 21 y Maven en `backend/`.
-- PostgreSQL 16 en Docker (`docker compose`) para desarrollo; proyecto de Supabase para producción.
-- Migraciones Flyway: tabla `diagrams`, índice y seguridad de fila (ver B5).
-- Entidad JPA y repositorio.
+- PostgreSQL 16 en Docker para desarrollo; proyecto de Supabase para producción.
+- Migraciones Flyway de las cuatro tablas, índices y seguridad de fila (ver B2).
+- Entidades JPA y repositorios.
 - **Aceptación:** `mvn spring-boot:run` arranca contra el PostgreSQL local y aplica las migraciones.
 
-### B4 · API de diagramas (3 h)
+### B2 · Autenticación con Supabase (1,5 h)
 
-- Los cinco endpoints de la sección 4 con DTOs y validación (Bean Validation).
-- Errores con formato común (`application/problem+json`).
-- Documentación OpenAPI generada con springdoc y Swagger UI en `/docs`.
+- Spring Security como resource server OAuth2: valida el JWT con el JWKS de Supabase, el emisor y la
+  audiencia `authenticated`. El mismo decodificador valida el JWT del mensaje `hello` y del `auth` del
+  WebSocket.
+- **Seguridad de fila (RLS):** Supabase expone las tablas de `public` en su propia API REST con la clave
+  pública del proyecto. Se activa RLS en las cuatro tablas sin políticas, de modo que esa vía queda
+  cerrada. Spring Boot se conecta con un rol de servidor que no está sujeto a RLS.
+- Secretos en variables de entorno, nunca en el repositorio.
+- **Aceptación:** sin token, 401; sin ser miembro, 404; una consulta a `/rest/v1/diagrams` con la clave
+  pública de Supabase no devuelve filas.
+
+### B3 · API REST (2,5 h)
+
+- Los endpoints de la sección 4 con DTOs, Bean Validation y errores `application/problem+json`.
+- Invitaciones con token aleatorio de 32 bytes, rol y caducidad de 7 días.
+- OpenAPI con springdoc y Swagger UI en `/docs`.
 - **Aceptación:** los endpoints funcionan desde Swagger UI con un token de prueba.
 
-### B5 · Autenticación con Supabase (1,5 h)
+### B4 · Servidor de colaboración (3,5 h)
 
-- Spring Security como resource server OAuth2: valida el JWT con el JWKS de Supabase
-  (`https://<proyecto>.supabase.co/auth/v1/.well-known/jwks.json`), el emisor y la audiencia
-  `authenticated`.
-- El `sub` del token es el `owner_id`. Todas las consultas filtran por él.
-- **Seguridad de fila (RLS):** Supabase expone las tablas de `public` a través de su propia API REST con
-  la clave pública del proyecto. Se activa RLS en `diagrams` sin políticas, de modo que esa vía queda
-  cerrada. Spring Boot se conecta con un rol de servidor que no está sujeto a RLS.
-- Los secretos (URL y credenciales de la base de datos) van en variables de entorno, nunca en el
-  repositorio.
-- **Aceptación:** sin token, 401; con el token de otro usuario, 404; una consulta a
-  `/rest/v1/diagrams` con la clave pública de Supabase no devuelve filas.
+- `WebSocketHandler` de Spring con el protocolo de la sección 4.
+- Una sala por diagrama abierto, en memoria. Las operaciones de cada sala se procesan de una en una
+  (una cola por sala), así que no hay carreras entre ellas.
+- Validación de cada operación: esquema, tamaño (etiquetas de 200 caracteres como máximo, 500 nodos por
+  diagrama), rol de editor y existencia de los elementos referenciados.
+- La operación se guarda antes de confirmarla y reenviarla.
+- Presencia al entrar y salir.
+- Cierra la conexión si el JWT caduca sin renovarse.
+- **Aceptación:** dos clientes de prueba conectados al mismo diagrama reciben las operaciones del otro
+  en orden, y un lector recibe `error` al enviar una.
 
-### B6 · Frontend conectado (2,5 h)
+### B5 · Persistencia de operaciones y reconexión (2 h)
 
-- supabase-js por CDN: registro, inicio y cierre de sesión con email y contraseña.
-- Panel "Mis diagramas" con título, tipo, fecha y miniatura del código Mermaid; abrir, renombrar y borrar.
-- Botón Guardar y autoguardado cada pocos segundos si hay cambios. Aviso si hay un conflicto de versión.
-- Sin sesión se puede dibujar como ahora; al guardar se pide iniciar sesión.
-- **Aceptación:** el criterio de terminado 3 de la sección 2.
+- Registro en `diagram_ops`; instantánea en `diagrams.content` cada 50 operaciones y al vaciarse la sala.
+- Al abrir una sala, el estado se reconstruye desde la última instantánea y las operaciones posteriores.
+- En `hello`, si el cliente trae un número de secuencia, recibe solo las operaciones que le faltan; si
+  está demasiado atrasado, una instantánea.
+- **Aceptación:** reiniciar el servidor no pierde nada confirmado; un cliente que pierde la red 30 s
+  recupera los cambios al reconectar.
 
-### B7 · Tests del backend (2 h)
+### B6 · Tests del backend (2,5 h)
 
-- Tests de controlador con MockMvc y tokens simulados (`spring-security-test`).
-- Tests de repositorio y migraciones con Testcontainers (PostgreSQL real).
-- Casos obligatorios: sin token, dueño correcto, otro usuario, conflicto de versión, JSON inválido.
+- MockMvc con tokens simulados (`spring-security-test`) para la API.
+- Testcontainers (PostgreSQL real) para migraciones y repositorios.
+- Tests de `apply` en Java con las fixtures compartidas de F3.
+- **Test de convergencia:** varios clientes WebSocket envían operaciones concurrentes sobre los mismos
+  elementos; al final todos tienen el mismo estado que el servidor.
 - **Aceptación:** `mvn verify` en verde.
 
-### B8 · Despliegue (1,5 h)
+### F4 · Cliente colaborativo (2,5 h)
 
-- `Dockerfile` multi-etapa: compila con Maven y ejecuta el JAR, que incluye el frontend.
-- Servicio de contenedores con plan gratuito (Render, Railway o Fly.io, a decidir en la sesión).
-  La base de datos y la autenticación ya están alojadas en Supabase.
-- **Aceptación:** la URL pública carga en la tablet, permite iniciar sesión y guarda diagramas.
+- `collab.js`: conexión, `hello`, cola de operaciones pendientes, aplicación de operaciones remotas y
+  reconciliación con las confirmaciones.
+- Reconexión automática con espera creciente; renovación del JWT con supabase-js.
+- Modo solo lectura para lectores.
+- **Aceptación:** criterios de terminado 1, 2 y 3 de la sección 2.
 
-### B9 · Zoom con botones (1 h)
+### F5 · Login, lista, invitaciones y presencia (2,5 h)
 
-- Transformación de vista (desplazamiento y escala); el modelo guarda coordenadas de mundo.
-- Botones de acercar, alejar y "Encajar". Sin gestos de dos dedos.
-- **Aceptación:** dibujar, mover y editar funcionan igual a 50 % y a 200 %.
+- Registro, inicio y cierre de sesión con supabase-js.
+- Panel "Mis diagramas" con los propios y los compartidos, y el rol de cada uno.
+- Botón "Invitar" que crea y copia un enlace de editor o de lector; abrir un enlace de invitación la
+  acepta tras iniciar sesión.
+- Avatares con iniciales y color de los usuarios conectados.
+- **Aceptación:** criterios de terminado 4 y 5 de la sección 2.
 
-### B10 · Clases UML (6,5 h)
+### D1 · Despliegue (1,5 h)
 
-- **Clase:** rectángulo. El editor pasa a ser un área de texto: la primera línea es el nombre, las
-  líneas con `(` son métodos y el resto son atributos. El lienzo dibuja los compartimentos.
-- **Relaciones por marca dibujada en el extremo:** justo después de un conector, un trazo cerrado
-  pequeño cerca de uno de sus extremos se interpreta como marca. Triángulo → herencia `<|--`.
-  Rombo → composición `*--`. Sin marca → asociación `-->`.
-- **Menú del conector:** agregación, dependencia y realización; cardinalidad en cada extremo; etiqueta.
-- **Aceptación:** el criterio de terminado 2 de la sección 2.
+- `Dockerfile` multi-etapa que compila con Maven y ejecuta el JAR, que incluye el frontend.
+- Servicio de contenedores con plan gratuito y soporte de WebSocket (Render, Railway o Fly.io, a decidir
+  en la sesión).
+- **Aceptación:** dos dispositivos colaboran a través de la URL pública.
 
-### B11 · Configuración de Claude Code (0,5 h, repartido)
+### P1 · Configuración de Claude Code (0,5 h, repartido)
 
-- **`CLAUDE.md`:** se actualiza al cerrar cada bloque. Incluye la estructura `frontend/` y `backend/`,
+- **`CLAUDE.md`:** se actualiza al cerrar cada bloque: estructura `frontend/`, `backend/` y `shared/`,
   cómo arrancar cada parte y cómo ejecutar sus tests.
-- **Skill `run-trazo-mermaid`:** se versiona y se amplía para arrancar el backend y probar el flujo
-  con sesión iniciada.
+- **Skill `run-trazo-mermaid`:** se versiona y se amplía para abrir dos navegadores contra el mismo
+  diagrama y comprobar que convergen.
 - **Hook:** ejecuta `node --test` si Claude ha modificado `.js`, y `mvn test` si ha modificado `.java`.
 
-### B12 · Documentación de entrega (3 h, repartido)
+### P2 · Documentación de entrega (3 h, repartido)
 
-- **Bitácora (`docs/bitacora.md`):** una entrada por sesión con prompts literales. Es la materia prima de
-  `prompts.md` y el traspaso entre sesiones.
-- **`prompts.md`:** un máximo de 3 prompts por sección, con el formato del ejemplo, y las
-  conversaciones completas adjuntas.
+- **Bitácora (`docs/bitacora.md`):** una entrada por sesión con los prompts literales.
+- **`prompts.md`:** un máximo de 3 prompts por sección, con el formato del ejemplo, y las conversaciones
+  completas adjuntas.
 - **Secciones de la plantilla:**
-  - **0. Ficha:** 0.4, la URL del despliegue de B8; 0.5, la del repositorio.
-  - **1. Producto:** 1.3 con capturas de flujo, estados, clases, login y lista.
+  - **0. Ficha:** 0.4, la URL del despliegue; 0.5, la del repositorio.
+  - **1. Producto:** 1.3 con capturas de dos dispositivos editando el mismo diagrama, la invitación y
+    la lista.
   - **2. Arquitectura:** la sección 4 de este documento, más despliegue (2.4), seguridad (2.5: JWT,
-    RLS, XSS, secretos) y tests (2.6).
-  - **3. Modelo de datos:** la tabla `diagrams` y su relación con `auth.users`, en Mermaid `erDiagram`
-    con PK y FK, como recomienda la plantilla.
-  - **4. API:** OpenAPI de `GET /api/diagrams`, `POST /api/diagrams` y `PUT /api/diagrams/{id}`,
-    exportado de springdoc.
-  - **5. Historias de usuario:** dibujar un diagrama de clases, guardar y recuperar diagramas, y cuenta
-    de usuario.
-  - **6. Tickets:** uno de backend (B4 y B5), uno de frontend (B10) y uno de base de datos (B3).
-  - **7. Pull requests:** 3 documentadas. Cada bloque entra por PR.
+    RLS, permisos por operación, XSS, secretos) y tests (2.6, con el de convergencia).
+  - **3. Modelo de datos:** las cuatro tablas en Mermaid `erDiagram` con PK y FK.
+  - **4. API:** OpenAPI de `GET /api/diagrams`, `POST /api/diagrams/{id}/invites` y
+    `POST /api/invites/{token}/accept`, más el protocolo WebSocket.
+  - **5. Historias de usuario:** dibujar juntos en tiempo real, invitar a un diagrama y recuperar el
+    trabajo tras un corte.
+  - **6. Tickets:** backend (B4, servidor de colaboración), frontend (F4, cliente colaborativo) y base
+    de datos (B1 y B5, esquema y registro de operaciones).
+  - **7. Pull requests:** 3 documentadas; cada bloque entra por PR.
 
 ## 6. Plan de sesiones
 
-Unas 12 sesiones de 2–3 h. Primero la base del frontend, después el backend completo y al final el tipo
-nuevo. Así, si hay que recortar, el recorte cae sobre clases UML y no sobre la aplicación completa.
+Unas 13 sesiones de 2–3 h. Primero se consigue que dos dispositivos colaboren a través de la URL pública;
+después se completan persistencia, invitaciones y tests.
 
 | Sesión | Trabajo | Acumulado |
 |---|---|---:|
-| 1 | B1 modularizar, más B11 (versionar la skill) | 3,5 h |
-| 2 | B2 tests del frontend | 6 h |
-| 3 | B3 proyecto Spring Boot, PostgreSQL local, Supabase y migraciones | 9 h |
-| 4 | B4 API de diagramas y OpenAPI | 12 h |
-| 5 | B5 autenticación y B7 tests del backend | 15,5 h |
-| 6 | B6 frontend conectado | 18 h |
-| 7 | B8 despliegue y B9 zoom con botones | 20,5 h |
-| 8–10 | B10 clases UML | 27 h |
-| 11 | B12 capturas, secciones, `prompts.md` y PR documentadas | 30 h |
+| 1 | F1 modularizar, más P1 (versionar la skill) | 3,5 h |
+| 2 | F2 modelo de operaciones | 6,5 h |
+| 3 | F3 tests del frontend y fixtures compartidas | 8,5 h |
+| 4 | B1 backend, PostgreSQL local, Supabase y migraciones | 11,5 h |
+| 5 | B2 autenticación y B3 API REST | 15,5 h |
+| 6 | B4 servidor de colaboración | 19 h |
+| 7 | F4 cliente colaborativo y el login de F5 | 22,5 h |
+| 8 | D1 despliegue y prueba con dos dispositivos | 24 h |
+| 9 | B5 persistencia de operaciones y reconexión | 26 h |
+| 10 | Resto de F5: lista, invitaciones y presencia | 27,5 h |
+| 11 | B6 tests del backend | 30 h |
+| 12–13 | P2 capturas, secciones, `prompts.md` y PR documentadas | 33 h |
 
-La bitácora se escribe al final de cada sesión (unos 5 minutos, contados en B12).
+La bitácora se escribe al final de cada sesión (unos 5 minutos, contados en P2).
 
-**Punto de control tras la sesión 7.** La aplicación completa con flujo y estados ya es entregable. Si las
-horas acumuladas superan 21,5, se recorta en este orden:
+**Punto de control tras la sesión 8.** Dos dispositivos ya colaboran a través de la URL pública. Si las
+horas acumuladas superan 25, o si el límite de 30 horas resulta ser estricto, se recorta en este orden:
 
-1. Zoom con botones.
-2. En clases, la composición se elige por menú; solo se dibuja la herencia.
-3. En clases, los compartimentos se muestran como texto en el lienzo, sin separadores dibujados.
+1. Presencia (−1 h).
+2. Reconexión: al volver, siempre se recarga la instantánea completa (−0,5 h).
+3. Invitaciones: solo como editor, sin rol de lector (−0,5 h).
+4. Tests de reconocedor limitados a los fixtures existentes, sin grabar nuevos (−1 h).
+
+Con los cuatro recortes, el total queda en 30 h.
 
 ## 7. Riesgos
 
 | Riesgo | Mitigación |
 |---|---|
-| El plan gratuito de Supabase pausa el proyecto tras una semana sin actividad, y el evaluador encontraría la app caída | Reactivarlo y comprobar la URL justo antes de entregar; indicarlo en la ficha |
-| El plan gratuito del servicio de contenedores duerme el servicio, y el primer acceso tarda | Indicarlo en el README; abrir la app antes de una demo |
-| Cambios de Supabase en la firma de los JWT (claves asimétricas frente al secreto compartido) | Validar con JWKS; si el proyecto usa el secreto antiguo, cambiar a HS256 por configuración |
-| La API REST de Supabase expone la tabla | RLS activado sin políticas y test de aceptación en B5 |
-| Añadir Java supone un segundo lenguaje y más configuración | JDK 21, Maven y Docker ya están instalados; el hook ejecuta los tests de las dos partes |
-| Las marcas pequeñas de extremo (triángulo y rombo) se confunden | Solo se evalúan cerca de un extremo y justo después del conector; menú como alternativa |
-| Sin colchón, cualquier desvío retrasa la entrega | Punto de control tras la sesión 7 con recortes ya decididos |
+| Las dos implementaciones de `apply` (JS y Java) divergen y los clientes dejan de converger | Fixtures de operaciones compartidas que ejecutan ambos lados; test de convergencia en B6 |
+| Errores de concurrencia en el servidor | Una cola por sala: las operaciones de un diagrama nunca se procesan en paralelo |
+| El plan gratuito del hosting duerme el servicio y corta los WebSocket | Reconexión automática con recuperación de operaciones (B5, F4); abrir la app antes de una demo |
+| El plan gratuito de Supabase pausa el proyecto tras una semana sin actividad | Reactivarlo y comprobar la URL justo antes de entregar |
+| El JWT caduca durante una sesión larga de dibujo | Renovación con supabase-js y mensaje `auth`; el servidor cierra la conexión si caduca |
+| La API REST de Supabase expone las tablas | RLS activado sin políticas y test de aceptación en B2 |
+| Varias instancias del servidor romperían las salas en memoria | Fuera de alcance: se despliega una sola instancia y se documenta |
+| El presupuesto supera las 30 h de referencia | Recortes ya decididos en el punto de control tras la sesión 8 |
 
-## 8. Decisiones y encaje con la plantilla del curso
+## 8. Decisiones
 
-| Decisión | Motivo |
-|---|---|
-| Backend con Spring Boot y PostgreSQL | Hace la app completa y persistente entre dispositivos. Además, las secciones 3 (modelo de datos), 4 (API) y 6 (tickets de backend, frontend y base de datos) de la plantilla encajan sin adaptaciones |
-| Login con Supabase Auth en lugar de implementarlo en Spring | Registro, sesiones y contraseñas los resuelve Supabase; la API solo valida el JWT. Ahorra unas 3,5 h |
-| El reconocimiento sigue en el navegador | Principio central del producto: instantáneo y sin red |
-| Un solo despliegue que sirve frontend y API | Una URL para la ficha (0.4), sin CORS ni un segundo hosting |
-| Se quitan ER y mapa mental; pan y zoom queda en botones | Liberan el tiempo del backend |
-| Publicar la app | La ficha pide la URL del proyecto aparte de la del repositorio |
-| Capturas, no vídeo | La plantilla pide "imágenes y/o videotutorial" |
+| Decisión | Alternativas descartadas | Motivo |
+|---|---|---|
+| Colaboración en tiempo real en lugar de clases UML | Solo persistencia (v0.4); compartir sin tiempo real | Da al backend un papel real (autoridad, permisos, orden, persistencia) y diferencia el producto |
+| Operaciones sobre el grafo con servidor autoritativo y *last-writer-wins* por campo | CRDT (Yjs); transformación operacional | El modelo es un grafo con campos discretos, no texto largo; basta con ordenar y resolver por campo. Yjs está pensado para servidores en JavaScript |
+| WebSocket propio en Spring Boot | Supabase Realtime; STOMP | Supabase Realtime dejaría el backend casi vacío. Un protocolo JSON propio es más simple de documentar que STOMP |
+| Supabase Auth y PostgreSQL de Supabase | Login propio en Spring | Registro, sesiones y contraseñas resueltos; la API solo valida el JWT |
+| El reconocimiento sigue en el navegador | — | Principio central del producto, y ahora reduce la colaboración a mensajes pequeños y sin ambigüedad |
+| Un solo despliegue para frontend, API y WebSocket | Frontend en GitHub Pages | Una URL para la ficha (0.4), sin CORS |
 
-**Pendiente de decidir en la sesión 7:** el servicio de despliegue (Render, Railway o Fly.io) según sus
-planes gratuitos en ese momento.
+**Pendiente de decidir en la sesión 8:** el servicio de despliegue (Render, Railway o Fly.io), según sus
+planes gratuitos y su soporte de WebSocket en ese momento.

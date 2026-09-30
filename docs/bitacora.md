@@ -199,6 +199,31 @@ almacenarlos en el navegador
   riesgos de seguridad: la API pública de Supabase expone las tablas si no se activa RLS, y
   `securityLevel: 'loose'` se convierte en un XSS persistente al guardar diagramas.
 
+**Prompt 6: colaboración en tiempo real**
+
+```
+La verdad es que crear un backend sólo para guardar una tabla me parece desaprovecharlo, ¿Cambiaría
+mucho la arquitectura para hacer la app colaborativa de manera que varios usuarios pudieran estar
+trabajando en el mismo diagrama?
+```
+
+- **Qué hizo el agente:** respondió que el cambio era moderado, porque el prototipo ya usa un modelo de
+  grafo. Cada trazo reconocido se convierte en una operación pequeña, que es lo que se comparte.
+  Comparó lo que cambiaba en cada pieza (modelo, deshacer, backend, conflictos, base de datos,
+  presencia) y descartó Supabase Realtime y Yjs. Estimó 14,5 h y ofreció cuatro niveles de
+  colaboración.
+  - Respuesta del PO: tiempo real, sin clases UML, aunque el total pase de 30 h.
+- **Resultado:** PRD-MVP v0.5:
+  - servidor de colaboración por WebSocket en Spring Boot, que actúa como autoridad;
+  - operaciones con *last-writer-wins* por campo y deshacer por usuario;
+  - cuatro tablas (diagramas, miembros, invitaciones y registro de operaciones);
+  - 33 h, con recortes definidos para bajar a 30 h.
+- **Impacto:** redefine el producto como pizarra colaborativa. Al diseñarlo, el agente identificó el
+  riesgo principal: las dos implementaciones de `apply`, en JS y en Java, pueden divergir. Como
+  mitigación propuso fixtures de operaciones compartidas que ejecutan ambos lados. Es candidato a la
+  sección 2 de `prompts.md` junto con el prompt 5; entre los dos cuentan cómo evolucionó la
+  arquitectura.
+
 ### Correcciones
 
 - v0.2 afirmaba que el ejemplo tenía una demo en vivo publicada y que el vídeo quedaba fuera. Con la
