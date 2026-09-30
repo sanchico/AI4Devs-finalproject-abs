@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Estado | Borrador para revisión |
-| Versión | 0.3 · 29 sep 2026 (ajustada a la plantilla de entrega del curso) |
+| Versión | 0.4 · 30 sep 2026 (backend con Spring Boot y Supabase) |
 | Base | commit `5ea5e8a` (prototipo de flujo y estados) |
 | Presupuesto | 30 horas, una persona con Claude Code |
 | Calendario | Más de un mes, en sesiones de 2–3 h |
@@ -12,248 +12,287 @@
 ## 1. Resumen
 
 El prototipo reconoce rectángulos, rombos, elipses y conectores dibujados con lápiz y genera Mermaid para
-dos tipos de diagrama. El MVP lo amplía a **cinco tipos** (flujo, estados, clases UML, entidad-relación y
-mapa mental) sobre una base que aguante el crecimiento: código en módulos, tests del reconocedor,
-guardado y pan/zoom.
+dos tipos de diagrama, todo en el navegador y sin guardar nada. El MVP lo convierte en una **aplicación
+completa**:
 
-Es un recorte del PRD completo, que cubre los 22 tipos de Mermaid. Del plan por fases de ese documento,
-el MVP toma la fase F0 casi entera, parte de F1 (clases y ER) y el mapa mental de F2.
+- **Frontend:** el lienzo actual, modularizado, con tests del reconocedor y un tipo nuevo, **clases UML**.
+- **Backend:** API REST en **Spring Boot** que guarda los diagramas de cada usuario en **PostgreSQL**.
+- **Usuarios:** registro e inicio de sesión con **Supabase Auth**. La API valida el token de Supabase y
+  solo devuelve los diagramas de su dueño.
 
-Como el curso evalúa el uso del agente, **el proceso de trabajo con Claude Code es un entregable más**,
-con horas asignadas y criterios de aceptación propios (bloques B8 y B9). El formato de entrega sigue el
-[proyecto de ejemplo del curso](https://github.com/LIDR-academy/AI4Devs-finalproject-Example1/): ficha y
-secciones 1–7 en el README o en archivos numerados, capturas de la experiencia de usuario, `prompts.md`
-con los prompts principales y 3 pull requests documentadas (ver sección 8).
+El reconocimiento de trazos sigue en el navegador. Es el principio central del producto: tiene que ser
+instantáneo y funcionar sin red. El backend solo guarda y sirve diagramas. Se puede dibujar sin haber
+iniciado sesión; guardar y abrir diagramas requiere cuenta.
+
+Es un recorte del PRD completo, que cubre los 22 tipos de Mermaid. Como el curso evalúa el uso del agente,
+**el proceso de trabajo con Claude Code es un entregable más** (bloques B8 y B9). El formato de entrega
+sigue la plantilla del [proyecto de ejemplo del curso](https://github.com/LIDR-academy/AI4Devs-finalproject-Example1/),
+y con backend y base de datos sus secciones 3, 4 y 6 encajan sin adaptaciones (ver sección 8).
 
 ## 2. Criterios de terminado
 
 El MVP está terminado cuando se cumple todo esto:
 
-1. Los cinco tipos generan código que renderiza sin error en la vista previa (Mermaid 10.9.1).
-2. Hay un recorrido de demostración por tipo que se completa con lápiz, usando el teclado solo para textos.
-3. `node --test` pasa, y la precisión del reconocedor sobre los trazos grabados es ≥ 90 % por forma.
-4. Recargar la página no pierde el diagrama, y se puede exportar e importar JSON y exportar `.mmd`.
-5. Un diagrama más grande que la pantalla se recorre con pan y zoom en la tablet.
-6. La bitácora, el CLAUDE.md, la skill y el hook del bloque B8 están en el repositorio.
-7. Las secciones 0–7 del curso y `prompts.md` están completas, con capturas de cada tipo y
+1. Flujo, estados y clases UML generan código que renderiza sin error en la vista previa (Mermaid 10.9.1).
+2. Un diagrama de 5 clases con herencia, composición y asociación se dibuja con lápiz, usando el teclado
+   solo para textos.
+3. Un usuario se registra, inicia sesión, guarda un diagrama, lo ve en su lista desde otro dispositivo y
+   lo sigue editando.
+4. Un usuario no puede leer ni modificar diagramas de otro, ni a través de la API ni a través de la API
+   pública de Supabase.
+5. `node --test` y `mvn verify` pasan. La precisión del reconocedor sobre los trazos grabados es ≥ 90 %
+   por forma.
+6. La app está desplegada en una URL pública y funciona en la tablet.
+7. Las etiquetas y los diagramas guardados no pueden inyectar HTML en la vista previa.
+8. La ficha y las secciones 1–7 del curso y `prompts.md` están completas, con capturas y
    3 pull requests documentadas.
-8. La app está publicada en GitHub Pages y se puede abrir desde la tablet.
-9. Las etiquetas y los JSON importados no pueden inyectar HTML en la vista previa.
-10. El total de horas registradas es ≤ 30.
+9. El total de horas registradas es ≤ 30.
 
 ## 3. Fuera de alcance
 
-- Diagrama de secuencia y el resto de tipos del PRD completo.
-- Importar código Mermaid al lienzo.
-- Escritura a mano de etiquetas; se sigue usando el teclado.
-- Contención: subgrafos, estados compuestos, paquetes.
-- Autolayout e IA de visión.
-- Subir a Mermaid 11. Los cinco tipos ya existen en 10.9.1, así que no hace falta.
-- Cardinalidad ER dibujada (patas de gallo a mano). En el MVP se elige por menú y el lienzo la dibuja.
-- CI con GitHub Actions. El proyecto de ejemplo solo la propone; aquí los tests se ejecutan en local y
-  con el hook de B8.
-- Vídeo tutorial. La plantilla pide "imágenes y/o videotutorial"; se entregan capturas (B9).
-- Tests end-to-end con Cypress o similar. La skill `run-trazo-mermaid` cubre la prueba en navegador.
+- Entidad-relación, mapa mental, secuencia y el resto de tipos del PRD completo.
+- Pan y zoom con gestos: solo hay botones de zoom y "Encajar".
+- Guardado sin conexión en el navegador. Sin red se puede dibujar y copiar el código, pero no guardar.
+- Compartir diagramas entre usuarios.
+- Importar código Mermaid al lienzo, escritura a mano, autolayout e IA de visión.
+- Subir a Mermaid 11. Los tipos del MVP ya existen en 10.9.1.
+- CI con GitHub Actions: los tests se ejecutan en local y con el hook de B8.
+- Vídeo tutorial. La plantilla pide "imágenes y/o videotutorial"; se entregan capturas.
 
-## 4. Bloques de trabajo
+## 4. Arquitectura
+
+| Capa | Tecnología | Responsabilidad |
+|---|---|---|
+| Frontend | HTML y JS en módulos ES, sin build; mermaid.js y supabase-js por CDN | Dibujo, reconocimiento, generación de Mermaid, login, lista de diagramas |
+| Autenticación | Supabase Auth (email y contraseña) | Registro, sesión, contraseñas; emite el JWT |
+| Backend | Java 21, Spring Boot 3, Spring Security (resource server), Spring Data JPA, Flyway, springdoc-openapi | Valida el JWT, aplica la propiedad de cada diagrama, guarda y sirve diagramas |
+| Base de datos | PostgreSQL de Supabase; PostgreSQL en Docker para desarrollo y tests | Tabla `diagrams` |
+| Despliegue | Un contenedor con Spring Boot que sirve también el frontend estático | Una sola URL, sin CORS |
+
+**Flujo:** el frontend inicia sesión con supabase-js y recibe un token de acceso. Lo envía en cada llamada
+como `Authorization: Bearer`. Spring Boot valida la firma con las claves públicas del proyecto de Supabase
+(JWKS) y usa el `sub` del token como dueño del diagrama.
+
+**Estructura del repositorio:** `frontend/` (el código actual, sin build) y `backend/` (proyecto Maven).
+Maven copia `frontend/` como recursos estáticos al empaquetar. El principio de "usable sin build" pasa a
+aplicarse solo al frontend, que se puede seguir probando solo con `python -m http.server`.
+
+### Modelo de datos
+
+Tabla `diagrams`, en el esquema `public`:
+
+| Columna | Tipo | Restricciones |
+|---|---|---|
+| `id` | `uuid` | PK, generado |
+| `owner_id` | `uuid` | NOT NULL, FK → `auth.users(id)` ON DELETE CASCADE |
+| `title` | `text` | NOT NULL, 1–120 caracteres |
+| `kind` | `text` | NOT NULL, `flow` \| `state` \| `class` |
+| `direction` | `text` | NOT NULL, `TD` \| `LR` |
+| `content` | `jsonb` | NOT NULL; nodos y aristas (`{version, nodes, edges}`) |
+| `mermaid` | `text` | Código generado en el cliente, para la vista previa de la lista |
+| `version` | `integer` | NOT NULL; bloqueo optimista (`@Version`) |
+| `created_at`, `updated_at` | `timestamptz` | NOT NULL |
+
+Índice en `(owner_id, updated_at DESC)` para la lista. Los usuarios viven en `auth.users`, gestionada por
+Supabase. En los tests con Testcontainers, una migración solo de test crea una tabla `auth.users` mínima.
+
+### API
+
+| Método y ruta | Uso |
+|---|---|
+| `GET /api/diagrams` | Lista los diagramas del usuario (sin `content`), ordenados por fecha |
+| `POST /api/diagrams` | Crea un diagrama |
+| `GET /api/diagrams/{id}` | Abre un diagrama |
+| `PUT /api/diagrams/{id}` | Guarda cambios; responde 409 si la versión no coincide |
+| `DELETE /api/diagrams/{id}` | Borra un diagrama |
+
+Un diagrama de otro usuario responde 404, no 403, para no revelar que existe. El JSON de `content` se
+valida en el servidor (esquema, versión, tamaño máximo de 1 MB).
+
+## 5. Bloques de trabajo
 
 | Bloque | Horas | Depende de |
 |---|---:|---|
-| B1 Modularizar `app.js` | 3 | — |
-| B2 Tests del reconocedor y de la generación | 3,5 | B1 |
-| B3 Guardar y abrir | 2 | B1 |
-| B4 Pan y zoom | 2,5 | B1 |
-| B5 Clases UML | 7 | B1, B2 |
-| B6 Entidad-relación | 4 | B5 (reutiliza menú y compartimentos) |
-| B7 Mapa mental | 3 | B1 |
-| B8 Configuración de Claude Code | 0,5 | repartido |
-| B9 Documentación de entrega | 3,5 | repartido |
-| B10 Publicación en GitHub Pages | 0,5 | B1 |
-| Colchón | 0,5 | — |
+| B1 Modularizar el frontend | 3 | — |
+| B2 Tests del reconocedor y de la generación | 2,5 | B1 |
+| B3 Backend: proyecto, base de datos y modelo | 3 | — |
+| B4 API de diagramas | 3 | B3 |
+| B5 Autenticación con Supabase | 1,5 | B4 |
+| B6 Frontend conectado: login, lista y guardado | 2,5 | B1, B5 |
+| B7 Tests del backend | 2 | B4, B5 |
+| B8 Despliegue | 1,5 | B6 |
+| B9 Zoom con botones | 1 | B1 |
+| B10 Clases UML | 6,5 | B1, B2 |
+| B11 Configuración de Claude Code | 0,5 | repartido |
+| B12 Documentación de entrega | 3 | repartido |
 | **Total** | **30** | |
 
-Respecto a la versión 0.1, la documentación del curso (B9, incluidas las capturas) y la publicación (B10)
-añaden 4 h. Salen de recortar pan y zoom (sin espacio + arrastrar con ratón), clases (dependencia y
-realización solo por menú), ER (la relación no identificante solo por menú), B8 (la bitácora pasa a B9)
-y 1,5 h de colchón. Con solo media hora de colchón, el punto de control de la sección 5 es el
-mecanismo real de ajuste.
+**No hay colchón.** El punto de control de la sección 6 es el único mecanismo de ajuste.
 
-### B1 · Modularizar `app.js` (3 h)
+### B1 · Modularizar el frontend (3 h)
 
-Separar en módulos ES nativos, sin build: `geometry.js`, `recognizer.js`, `model.js`, `kinds/*.js`
-(uno por tipo), `render.js`, `input.js`, `storage.js` y `main.js`. `KINDS` pasa a ser un registro de
-tipos con un contrato común: formas, `generate(model)`, `render` específico y menú.
-
+- Mover el código actual a `frontend/` y separarlo en módulos ES nativos: `geometry.js`,
+  `recognizer.js`, `model.js`, `kinds/*.js`, `render.js`, `input.js`, `api.js` y `main.js`.
+- `KINDS` pasa a ser un registro de tipos con un contrato común: formas, `generate(model)`, render
+  específico y menú.
+- La vista previa pasa de `securityLevel: 'loose'` a `'strict'`. Con diagramas guardados en un
+  servidor, una etiqueta con HTML sería un XSS persistente.
 - **Aceptación:** el comportamiento es idéntico al del commit base, comprobado con la skill
-  `run-trazo-mermaid`. Ningún módulo toca el DOM salvo `render.js`, `input.js` y `main.js`.
-- **Consecuencia:** los módulos ES no cargan desde `file://`. La app pasa a requerir servidor
-  (`python -m http.server`). Hay que actualizar README y CLAUDE.md.
+  `run-trazo-mermaid`. Una etiqueta `<img src=x onerror=alert(1)>` se muestra como texto.
 
-### B2 · Tests (3,5 h)
+### B2 · Tests del frontend (2,5 h)
 
 - Test runner nativo de Node (`node --test`), sin dependencias.
-- Modo de grabación (`?grabar` en la URL): cada trazo se añade a una lista que se copia como JSON.
-- Fixtures en `tests/fixtures/*.json`: al menos 10 trazos por forma usada en el MVP, dibujados con el
-  S Pen en la tablet.
+- Modo de grabación (`?grabar` en la URL) que copia los trazos como JSON.
+- Fixtures con al menos 10 trazos por forma (rectángulo, rombo, elipse, triángulo), dibujados con el
+  S Pen.
 - Tests de generación: un modelo de ejemplo por tipo y el texto Mermaid esperado.
-- **Aceptación:** `node --test` en verde; precisión ≥ 90 % por forma, mostrada en la salida del test.
+- **Aceptación:** `node --test` en verde; precisión ≥ 90 % por forma.
 
-### B3 · Guardar y abrir (2 h)
+### B3 · Backend: proyecto, base de datos y modelo (3 h)
 
-- Autoguardado en `localStorage` en cada cambio.
-- Exportar JSON (`{version: 1, kind, dir, nodes, edges}`) y `.mmd`; abrir JSON con un selector de archivo.
-- **Seguridad:** hoy la vista previa usa `securityLevel: 'loose'`, que permite HTML en las etiquetas.
-  Con la importación de JSON, un archivo ajeno podría inyectar HTML en la página. Se pasa a `'strict'`
-  y se valida el JSON importado (esquema y versión) antes de cargarlo. Esto alimenta la sección 2.5
-  (Seguridad) de la plantilla.
-- **Aceptación:** recargar restaura el diagrama. Exportar y volver a abrir da el mismo código Mermaid.
-  Un JSON con una etiqueta `<img src=x onerror=alert(1)>` se muestra como texto.
+- Proyecto Spring Boot 3 con Java 21 y Maven en `backend/`.
+- PostgreSQL 16 en Docker (`docker compose`) para desarrollo; proyecto de Supabase para producción.
+- Migraciones Flyway: tabla `diagrams`, índice y seguridad de fila (ver B5).
+- Entidad JPA y repositorio.
+- **Aceptación:** `mvn spring-boot:run` arranca contra el PostgreSQL local y aplica las migraciones.
 
-### B4 · Pan y zoom (2,5 h)
+### B4 · API de diagramas (3 h)
 
-- Transformación de vista (desplazamiento y escala). El modelo guarda coordenadas de mundo, así que
-  el reconocedor no cambia.
-- Dos dedos: desplazar y pellizcar. Ratón: rueda con Ctrl para el zoom. Botón "Encajar".
-- Un dedo sigue moviendo nodos y el toque sigue editando.
-- **Aceptación:** dibujar, mover y editar funcionan igual a 50 % y a 200 % de zoom.
+- Los cinco endpoints de la sección 4 con DTOs y validación (Bean Validation).
+- Errores con formato común (`application/problem+json`).
+- Documentación OpenAPI generada con springdoc y Swagger UI en `/docs`.
+- **Aceptación:** los endpoints funcionan desde Swagger UI con un token de prueba.
 
-### B5 · Clases UML (7 h)
+### B5 · Autenticación con Supabase (1,5 h)
+
+- Spring Security como resource server OAuth2: valida el JWT con el JWKS de Supabase
+  (`https://<proyecto>.supabase.co/auth/v1/.well-known/jwks.json`), el emisor y la audiencia
+  `authenticated`.
+- El `sub` del token es el `owner_id`. Todas las consultas filtran por él.
+- **Seguridad de fila (RLS):** Supabase expone las tablas de `public` a través de su propia API REST con
+  la clave pública del proyecto. Se activa RLS en `diagrams` sin políticas, de modo que esa vía queda
+  cerrada. Spring Boot se conecta con un rol de servidor que no está sujeto a RLS.
+- Los secretos (URL y credenciales de la base de datos) van en variables de entorno, nunca en el
+  repositorio.
+- **Aceptación:** sin token, 401; con el token de otro usuario, 404; una consulta a
+  `/rest/v1/diagrams` con la clave pública de Supabase no devuelve filas.
+
+### B6 · Frontend conectado (2,5 h)
+
+- supabase-js por CDN: registro, inicio y cierre de sesión con email y contraseña.
+- Panel "Mis diagramas" con título, tipo, fecha y miniatura del código Mermaid; abrir, renombrar y borrar.
+- Botón Guardar y autoguardado cada pocos segundos si hay cambios. Aviso si hay un conflicto de versión.
+- Sin sesión se puede dibujar como ahora; al guardar se pide iniciar sesión.
+- **Aceptación:** el criterio de terminado 3 de la sección 2.
+
+### B7 · Tests del backend (2 h)
+
+- Tests de controlador con MockMvc y tokens simulados (`spring-security-test`).
+- Tests de repositorio y migraciones con Testcontainers (PostgreSQL real).
+- Casos obligatorios: sin token, dueño correcto, otro usuario, conflicto de versión, JSON inválido.
+- **Aceptación:** `mvn verify` en verde.
+
+### B8 · Despliegue (1,5 h)
+
+- `Dockerfile` multi-etapa: compila con Maven y ejecuta el JAR, que incluye el frontend.
+- Servicio de contenedores con plan gratuito (Render, Railway o Fly.io, a decidir en la sesión).
+  La base de datos y la autenticación ya están alojadas en Supabase.
+- **Aceptación:** la URL pública carga en la tablet, permite iniciar sesión y guarda diagramas.
+
+### B9 · Zoom con botones (1 h)
+
+- Transformación de vista (desplazamiento y escala); el modelo guarda coordenadas de mundo.
+- Botones de acercar, alejar y "Encajar". Sin gestos de dos dedos.
+- **Aceptación:** dibujar, mover y editar funcionan igual a 50 % y a 200 %.
+
+### B10 · Clases UML (6,5 h)
 
 - **Clase:** rectángulo. El editor pasa a ser un área de texto: la primera línea es el nombre, las
   líneas con `(` son métodos y el resto son atributos. El lienzo dibuja los compartimentos.
-- **Relaciones por marca en el extremo:** justo después de un conector, un trazo cerrado pequeño cerca
-  de uno de sus extremos se interpreta como la marca de ese extremo:
-  - triángulo → herencia `<|--`
-  - rombo → composición `*--`, que se puede cambiar a agregación `o--` en el menú
-  - sin marca → asociación `-->`
-- **Menú del conector:** tipo de relación (incluye dependencia `..>` y realización `..|>`),
-  cardinalidad en cada extremo y etiqueta.
-- El reconocedor gana el prototipo `triangle`, solo activo en marcas de extremo.
-- **Aceptación:** un diagrama de 5 clases con herencia, composición y asociación se dibuja sin menú
-  salvo para los textos, y el código es correcto.
+- **Relaciones por marca dibujada en el extremo:** justo después de un conector, un trazo cerrado
+  pequeño cerca de uno de sus extremos se interpreta como marca. Triángulo → herencia `<|--`.
+  Rombo → composición `*--`. Sin marca → asociación `-->`.
+- **Menú del conector:** agregación, dependencia y realización; cardinalidad en cada extremo; etiqueta.
+- **Aceptación:** el criterio de terminado 2 de la sección 2.
 
-### B6 · Entidad-relación (4 h)
+### B11 · Configuración de Claude Code (0,5 h, repartido)
 
-- **Entidad:** rectángulo, con atributos en el área de texto (`tipo nombre PK|FK`), igual que las clases.
-- **Relación:** conector con etiqueta. La cardinalidad de cada extremo se elige en el menú
-  (`||`, `|o`, `}o`, `}|`) y el lienzo dibuja la pata de gallo correspondiente. Por defecto `||--o{`.
-- Identificante (continua) o no (discontinua) por menú.
-- **Aceptación:** un modelo de 4 entidades con PK/FK y las cuatro cardinalidades renderiza bien. Si
-  la etiqueta está vacía, se genera `: ""` y está cubierto por un test.
+- **`CLAUDE.md`:** se actualiza al cerrar cada bloque. Incluye la estructura `frontend/` y `backend/`,
+  cómo arrancar cada parte y cómo ejecutar sus tests.
+- **Skill `run-trazo-mermaid`:** se versiona y se amplía para arrancar el backend y probar el flujo
+  con sesión iniciada.
+- **Hook:** ejecuta `node --test` si Claude ha modificado `.js`, y `mvn test` si ha modificado `.java`.
 
-### B7 · Mapa mental (3 h)
+### B12 · Documentación de entrega (3 h, repartido)
 
-- La primera forma dibujada es la raíz. Forma → sintaxis: rectángulo `[ ]`, elipse `( )`, rombo `{{ }}`.
-- **Gesto rama:** un trazo abierto que sale de un nodo y acaba en un hueco crea un hijo en ese punto.
-- Cada nodo tiene un solo padre. Conectar un nodo a otro padre lo mueve, con aviso.
-- El código se genera por indentación recorriendo el árbol; las aristas se dibujan sin flecha.
-- **Aceptación:** un mapa de 3 niveles y 10 nodos se crea sin dibujar ninguna forma después de la raíz.
+- **Bitácora (`docs/bitacora.md`):** una entrada por sesión con prompts literales. Es la materia prima de
+  `prompts.md` y el traspaso entre sesiones.
+- **`prompts.md`:** un máximo de 3 prompts por sección, con el formato del ejemplo, y las
+  conversaciones completas adjuntas.
+- **Secciones de la plantilla:**
+  - **0. Ficha:** 0.4, la URL del despliegue de B8; 0.5, la del repositorio.
+  - **1. Producto:** 1.3 con capturas de flujo, estados, clases, login y lista.
+  - **2. Arquitectura:** la sección 4 de este documento, más despliegue (2.4), seguridad (2.5: JWT,
+    RLS, XSS, secretos) y tests (2.6).
+  - **3. Modelo de datos:** la tabla `diagrams` y su relación con `auth.users`, en Mermaid `erDiagram`
+    con PK y FK, como recomienda la plantilla.
+  - **4. API:** OpenAPI de `GET /api/diagrams`, `POST /api/diagrams` y `PUT /api/diagrams/{id}`,
+    exportado de springdoc.
+  - **5. Historias de usuario:** dibujar un diagrama de clases, guardar y recuperar diagramas, y cuenta
+    de usuario.
+  - **6. Tickets:** uno de backend (B4 y B5), uno de frontend (B10) y uno de base de datos (B3).
+  - **7. Pull requests:** 3 documentadas. Cada bloque entra por PR.
 
-### B8 · Configuración de Claude Code (0,5 h, repartido)
+## 6. Plan de sesiones
 
-- **`CLAUDE.md`:** se actualiza al cerrar cada bloque (estructura de módulos, cómo ejecutar tests,
-  convenciones nuevas).
-- **Skill `run-trazo-mermaid`:** se versiona, que hoy no lo está, y se amplía para ejecutar los
-  recorridos de demostración de los cinco tipos.
-- **Hook:** ejecuta `node --test` cuando Claude termina un turno que ha modificado `.js`.
-
-### B9 · Documentación de entrega (3,5 h, repartido)
-
-El criterio de evaluación del curso es el uso del agente. El formato sigue la plantilla del README del
-proyecto de ejemplo:
-
-- **Bitácora (`docs/bitacora.md`):** una entrada por sesión con fecha, objetivo, **prompts literales**,
-  qué hizo el agente, qué se corrigió a mano y horas. Es la materia prima de `prompts.md` y sirve de
-  traspaso entre sesiones separadas por días. La primera entrada es la sesión que ha producido este PRD.
-- **`prompts.md`:** un máximo de 3 prompts por sección (1–7). Cada uno con el mismo formato que el
-  ejemplo: título, contexto, prompt literal, respuesta clave del agente e impacto en el proyecto.
-  La plantilla admite adjuntar la conversación completa; se adjuntan las sesiones exportadas con
-  `/export` de Claude Code.
-- **Secciones de la plantilla**, adaptadas a una app sin backend:
-  - **0. Ficha:** nombre, descripción breve, 0.4 URL del proyecto (la de GitHub Pages) y 0.5 URL del
-    repositorio.
-  - **1. Producto:** 1.1 objetivo, 1.2 funcionalidades, **1.3 capturas** de cada tipo (se generan con la
-    skill `run-trazo-mermaid`) y 1.4 instalación.
-  - **2. Arquitectura:** 2.1 diagrama de módulos y justificación, 2.2 componentes, 2.3 estructura de
-    ficheros, 2.4 despliegue en GitHub Pages, 2.5 seguridad (la de B3 y que ningún trazo sale del
-    dispositivo) y 2.6 tests (B2).
-  - **3. Modelo de datos:** el modelo del diagrama (`nodes`, `edges`, tipo) y el formato JSON de B3. La
-    plantilla recomienda Mermaid con claves primarias y foráneas, así que el diagrama ER se dibuja con
-    la propia app; sirve también como demostración.
-  - **4. API:** la plantilla la pide solo "si tu backend se comunica a través de API". Se indica que no
-    aplica y se describe en pocas líneas el contrato de tipo de B1.
-  - **5. Historias de usuario:** 3, las de clases, ER y mapa mental.
-  - **6. Tickets:** 3. La plantilla pide backend, frontend y base de datos; se equiparan con lógica
-    (B5, reconocedor), interfaz (B4, interacción) y datos (B3, persistencia y formato).
-  - **7. Pull requests:** 3 documentadas. Cada bloque se hace en una rama y entra por PR con `gh`, así
-    que sobran candidatas.
-- **Aceptación:** cada sesión tiene su entrada en la bitácora; todas las secciones y `prompts.md` están
-  completos; el historial de git y las PR permiten seguir los bloques en orden.
-
-### B10 · Publicación en GitHub Pages (0,5 h)
-
-- La app es estática, así que se publica tal cual desde `main`. Además, HTTPS evita el problema de
-  `file://` con los módulos ES.
-- La URL va en la ficha (sección 0) y en el README; sirve para que el evaluador la pruebe y para
-  abrirla en la tablet sin montar un servidor.
-- **Aceptación:** la URL publicada carga, dibuja y genera Mermaid en la tablet.
-
-## 5. Plan de sesiones
-
-Unas 12 sesiones de 2–3 h. El orden prioriza la base, porque abarata todo lo demás.
+Unas 12 sesiones de 2–3 h. Primero la base del frontend, después el backend completo y al final el tipo
+nuevo. Así, si hay que recortar, el recorte cae sobre clases UML y no sobre la aplicación completa.
 
 | Sesión | Trabajo | Acumulado |
 |---|---|---:|
-| 1 | B1 modularizar, más B8 (versionar la skill), B9 (crear la bitácora) y B10 (GitHub Pages) | 4,5 h |
-| 2 | B2 grabador y fixtures de las formas actuales; tests de generación | 8 h |
-| 3 | B3 guardar y abrir, más B8: hook de tests | 10,5 h |
-| 4 | B4 pan y zoom | 13 h |
-| 5–7 | B5 clases UML | 20 h |
-| 8–9 | B6 entidad-relación | 24 h |
-| 10 | B7 mapa mental | 27 h |
-| 11 | B9: capturas, secciones 0–7, `prompts.md` y PR documentadas; colchón | 30 h |
+| 1 | B1 modularizar, más B11 (versionar la skill) | 3,5 h |
+| 2 | B2 tests del frontend | 6 h |
+| 3 | B3 proyecto Spring Boot, PostgreSQL local, Supabase y migraciones | 9 h |
+| 4 | B4 API de diagramas y OpenAPI | 12 h |
+| 5 | B5 autenticación y B7 tests del backend | 15,5 h |
+| 6 | B6 frontend conectado | 18 h |
+| 7 | B8 despliegue y B9 zoom con botones | 20,5 h |
+| 8–10 | B10 clases UML | 27 h |
+| 11 | B12 capturas, secciones, `prompts.md` y PR documentadas | 30 h |
 
-La bitácora se escribe al final de cada sesión (unos 5 minutos, contados en B9). Publicar en la sesión 1
-hace que cada PR fusionada quede desplegada y probada en la tablet.
+La bitácora se escribe al final de cada sesión (unos 5 minutos, contados en B12).
 
-**Punto de control tras la sesión 4.** Si las horas acumuladas superan 15, se recorta en este orden:
+**Punto de control tras la sesión 7.** La aplicación completa con flujo y estados ya es entregable. Si las
+horas acumuladas superan 21,5, se recorta en este orden:
 
-1. Pan y zoom se queda en botones de zoom y "Encajar", sin gestos.
-2. En ER, la pata de gallo se muestra como texto en el lienzo.
-3. En clases, la agregación se elige solo por menú.
+1. Zoom con botones.
+2. En clases, la composición se elige por menú; solo se dibuja la herencia.
+3. En clases, los compartimentos se muestran como texto en el lienzo, sin separadores dibujados.
 
-## 6. Riesgos
+## 7. Riesgos
 
 | Riesgo | Mitigación |
 |---|---|
-| Los módulos ES rompen la apertura directa de `index.html` | Documentarlo en B1; la skill ya sirve la carpeta por HTTP |
-| Las marcas pequeñas de extremo (triángulo y rombo) se confunden | Solo se evalúan cerca de un extremo y justo después del conector; menú como alternativa; fixtures específicos |
-| El pan de dos dedos choca con mover nodos con un dedo | Se distingue por número de punteros activos; test manual en la tablet en la sesión 4 |
-| Se pierde contexto entre sesiones separadas por días | Bitácora y CLAUDE.md al cierre de cada sesión |
-| Las horas se desbordan en clases | Punto de control tras la sesión 4; el colchón es solo de media hora |
+| El plan gratuito de Supabase pausa el proyecto tras una semana sin actividad, y el evaluador encontraría la app caída | Reactivarlo y comprobar la URL justo antes de entregar; indicarlo en la ficha |
+| El plan gratuito del servicio de contenedores duerme el servicio, y el primer acceso tarda | Indicarlo en el README; abrir la app antes de una demo |
+| Cambios de Supabase en la firma de los JWT (claves asimétricas frente al secreto compartido) | Validar con JWKS; si el proyecto usa el secreto antiguo, cambiar a HS256 por configuración |
+| La API REST de Supabase expone la tabla | RLS activado sin políticas y test de aceptación en B5 |
+| Añadir Java supone un segundo lenguaje y más configuración | JDK 21, Maven y Docker ya están instalados; el hook ejecuta los tests de las dos partes |
+| Las marcas pequeñas de extremo (triángulo y rombo) se confunden | Solo se evalúan cerca de un extremo y justo después del conector; menú como alternativa |
+| Sin colchón, cualquier desvío retrasa la entrega | Punto de control tras la sesión 7 con recortes ya decididos |
 
-## 7. Entregables
+## 8. Decisiones y encaje con la plantilla del curso
 
-- Código en el repositorio, con los tests en verde, y la URL de GitHub Pages.
-- README con la ficha y las secciones 1–7 (o archivos numerados enlazados desde él), `prompts.md`,
-  `docs/PRD-MVP.md` (este documento) y `docs/bitacora.md`.
-- README actualizado: cómo ejecutar la app y los tests.
-- `.claude/`: skill y configuración del hook.
+| Decisión | Motivo |
+|---|---|
+| Backend con Spring Boot y PostgreSQL | Hace la app completa y persistente entre dispositivos. Además, las secciones 3 (modelo de datos), 4 (API) y 6 (tickets de backend, frontend y base de datos) de la plantilla encajan sin adaptaciones |
+| Login con Supabase Auth en lugar de implementarlo en Spring | Registro, sesiones y contraseñas los resuelve Supabase; la API solo valida el JWT. Ahorra unas 3,5 h |
+| El reconocimiento sigue en el navegador | Principio central del producto: instantáneo y sin red |
+| Un solo despliegue que sirve frontend y API | Una URL para la ficha (0.4), sin CORS ni un segundo hosting |
+| Se quitan ER y mapa mental; pan y zoom queda en botones | Liberan el tiempo del backend |
+| Publicar la app | La ficha pide la URL del proyecto aparte de la del repositorio |
+| Capturas, no vídeo | La plantilla pide "imágenes y/o videotutorial" |
 
-## 8. Decisiones tomadas a partir del proyecto de ejemplo
-
-El README del [proyecto de ejemplo del curso](https://github.com/LIDR-academy/AI4Devs-finalproject-Example1/)
-incluye la plantilla de entrega con sus instrucciones. Responde a las preguntas abiertas de la versión 0.1:
-
-| Pregunta | Lo que dice la plantilla | Decisión para este MVP |
-|---|---|---|
-| ¿Qué se evalúa? | Ficha (0.1–0.5) y secciones 1–7 con subapartados: producto (1.1–1.4), arquitectura (2.1–2.6: diagrama, componentes, ficheros, despliegue, seguridad, tests), modelo de datos, API, 3 historias, 3 tickets, 3 PR; y `prompts.md` | Se cubren todas en B9 |
-| ¿Hay que publicar la app? | La ficha pide por separado "0.4 URL del proyecto" y "0.5 URL o archivo comprimido del repositorio". El ejemplo no tiene la app publicada: su apartado de demo en vivo no lleva URL | Sí, en GitHub Pages (B10): la 0.4 queda cubierta y cuesta media hora |
-| ¿Prompts literales o resumen? | "Máximo de 3 por sección", que justifiquen el uso del asistente en todas las fases; se puede adjuntar la conversación completa | Literales en la bitácora; `prompts.md` es la selección final, con las sesiones exportadas adjuntas |
-| ¿Vídeo? | 1.3 pide "imágenes y/o videotutorial" de la experiencia de usuario | Capturas por tipo; vídeo fuera de alcance |
-| ¿CI? | 2.6 pide describir "algunos de los tests"; el ejemplo propone GitHub Actions pero no lo implementa | Fuera de alcance |
-| ¿API sin backend? | 4 se pide "si tu backend se comunica a través de API" | No aplica; se describe el contrato de tipo |
-
-**Pendiente:** la sección 6 pide un ticket de backend, uno de frontend y uno de base de datos. La
-equivalencia con lógica, interfaz y datos que propone B9 es razonable para una app sin servidor, pero
-conviene confirmarla con el profesorado.
+**Pendiente de decidir en la sesión 7:** el servicio de despliegue (Render, Railway o Fly.io) según sus
+planes gratuitos en ese momento.

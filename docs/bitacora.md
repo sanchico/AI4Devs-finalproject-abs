@@ -176,6 +176,29 @@ Para solucionar los problemas de red he descargado el proyecto en C:\dev\lidr\AI
 - **Qué hizo el agente:** leyó la plantilla completa en el README del ejemplo y el formato de `prompts.md`.
 - **Resultado:** PRD-MVP v0.3.
 
+**Prompt 5: cambio a aplicación con backend**
+
+```
+Creo que este proyecto encajaría mejor si fuera una app completa con backend y base de datos en vez de
+almacenarlos en el navegador
+```
+
+- **Qué hizo el agente:** valoró el cambio a favor, porque encaja con las secciones 3, 4 y 6 de la
+  plantilla, y mantuvo el reconocimiento en el navegador como principio. Estimó el coste y preguntó qué
+  recortar, qué stack usar y si hacía falta login.
+  - Respuestas: recortar mapa mental y dejar pan y zoom en botones; stack Java con PostgreSQL; usuarios
+    con login.
+  - El agente comprobó que había JDK 21, Maven y Docker instalados, y avisó de que Java con login propio
+    llevaba el MVP a unas 42,5 h. Ofreció cuatro formas de ajustarlo.
+  - Respuesta del PO, fuera de las opciones: *"Quitar E-R y login más simple con Supabase Auth + API
+    Spring Boot que valida el JWT y gestiona datos con JPA sobre el Postgres de Supabase."*
+- **Resultado:** PRD-MVP v0.4: Spring Boot, Supabase Auth y PostgreSQL; clases UML como único tipo
+  nuevo; 30 h sin colchón.
+- **Impacto:** es la decisión de arquitectura del MVP. Es el mejor candidato para la sección 2 de
+  `prompts.md`, junto con el prompt 3 de la sesión −1. Al diseñar el backend, el agente detectó dos
+  riesgos de seguridad: la API pública de Supabase expone las tablas si no se activa RLS, y
+  `securityLevel: 'loose'` se convierte en un XSS persistente al guardar diagramas.
+
 ### Correcciones
 
 - v0.2 afirmaba que el ejemplo tenía una demo en vivo publicada y que el vídeo quedaba fuera. Con la
@@ -187,7 +210,8 @@ Para solucionar los problemas de red he descargado el proyecto en C:\dev\lidr\AI
 
 ### Pendiente
 
-- Confirmar con el profesorado la equivalencia de los tickets de la sección 6 (backend, frontend y
-  base de datos frente a lógica, interfaz y datos).
+- Elegir el servicio de despliegue del backend (Render, Railway o Fly.io) en la sesión 7.
+- La duda sobre los tickets de la sección 6 quedó resuelta con el backend: ya hay uno de backend, uno de
+  frontend y uno de base de datos.
 
 **Horas:** fuera del presupuesto de 30 h (definición previa del proyecto).
