@@ -224,6 +224,22 @@ trabajando en el mismo diagrama?
   sección 2 de `prompts.md` junto con el prompt 5; entre los dos cuentan cómo evolucionó la
   arquitectura.
 
+**Prompt 7: nombre del producto**
+
+```
+propón nombres para al app que estén disponibles
+```
+
+- **Qué hizo el agente:** propuso candidatos y comprobó su disponibilidad: dominios .com y .app
+  consultando por RDAP a Verisign y a Google, nombres en GitHub y npm, y repositorios con el mismo
+  nombre. Al preguntarle el PO por otras webs con "mermaid" en el nombre, comprobó que mermaid.ai es de
+  Mermaid Chart y que mermaidflow.app y mermaideditor.io parecen independientes. Señaló el riesgo de un
+  nombre que parezca un producto oficial.
+  - El PO propuso "pen2mermaid"; el agente comprobó que estaba libre (.com, .app, .io, .dev, GitHub,
+    npm) y valoró sus pros y contras.
+- **Resultado:** el producto pasa a llamarse **pen2mermaid**. Se actualizaron el readme, el PRD, el
+  CLAUDE.md, el título de la app y la descripción de la skill.
+
 ### Correcciones
 
 - v0.2 afirmaba que el ejemplo tenía una demo en vivo publicada y que el vídeo quedaba fuera. Con la

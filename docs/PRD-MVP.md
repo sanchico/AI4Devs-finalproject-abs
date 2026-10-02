@@ -1,4 +1,4 @@
-# PRD · MVP de Trazo a Mermaid colaborativo
+# PRD · MVP de pen2mermaid colaborativo
 
 | | |
 |---|---|
