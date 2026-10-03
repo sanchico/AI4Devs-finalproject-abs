@@ -47,7 +47,7 @@ usuarios pueden dibujar a la vez en el mismo diagrama y todos ven el mismo resul
 
 > Puedes tenerlo alojado en público o en privado, en cuyo caso deberás compartir los accesos de manera segura. Puedes enviarlos a [alvaro@lidr.co](mailto:alvaro@lidr.co) usando algún servicio como [onetimesecret](https://onetimesecret.com/). También puedes compartir por correo un archivo zip con el contenido
 
-*Pendiente:* el repositorio todavía no está publicado en GitHub.
+https://github.com/sanchico/AI4Devs-finalproject-abs
 
 ---
 
@@ -259,10 +259,10 @@ trazo-mermaid/
 └── docs/             PRD, bitácora y conversación de origen
 ```
 
-**Estructura prevista para el MVP** (el repositorio se publicará en GitHub como `pen2mermaid`):
+**Estructura prevista para el MVP** (el repositorio se publicará en GitHub como `AI4Devs-finalproject-abs`):
 
 ```
-pen2mermaid/
+AI4Devs-finalproject-abs/
 ├── frontend/                 HTML y JS en módulos ES, sin build
 │   ├── index.html
 │   ├── styles.css

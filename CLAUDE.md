@@ -1,8 +1,9 @@
 # pen2mermaid
 
 Nombre del producto: **pen2mermaid** (dominio previsto `pen2mermaid.app`); lema en la interfaz:
-"Dibuja a mano, colabora y obtén Mermaid". Antes se llamaba "Trazo a Mermaid"; la carpeta del
-repositorio y la skill `run-trazo-mermaid` conservan el nombre antiguo.
+"Dibuja a mano, colabora y obtén Mermaid". Antes se llamaba "Trazo a Mermaid"; la carpeta local
+y la skill `run-trazo-mermaid` conservan el nombre antiguo. El repositorio remoto en GitHub se llama
+`AI4Devs-finalproject-abs` (requisito del curso).
 
 Webapp para dibujar diagramas con lápiz (S Pen en tablet Android) y convertirlos en tiempo real
 en un grafo de nodos y conexiones, generando código Mermaid al vuelo.
