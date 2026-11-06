@@ -1,9 +1,11 @@
 # Bitácora de trabajo con Claude Code
 
-Una entrada por sesión. Es la materia prima de `prompts.md` y el traspaso entre sesiones (ver B9 en
+Una entrada por sesión. Es la materia prima de `prompts.md` y el traspaso entre sesiones (ver P2 en
 [PRD-MVP.md](PRD-MVP.md)).
 
 Formato de cada entrada: fecha, objetivo, prompts literales, qué hizo el agente, qué se corrigió y horas.
+Se escribe al final de cada sesión con la skill `/cerrar-sesion`, que copia los prompts literales del
+registro de Claude Code y calcula las horas activas.
 
 ---
 
@@ -251,7 +253,7 @@ propón nombres para al app que estén disponibles
 
 ### Pendiente
 
-- Elegir el servicio de despliegue del backend (Render, Railway o Fly.io) en la sesión 7.
+- Elegir el servicio de despliegue del backend (Render, Railway o Fly.io) en la sesión 8.
 - La duda sobre los tickets de la sección 6 quedó resuelta con el backend: ya hay uno de backend, uno de
   frontend y uno de base de datos.
 

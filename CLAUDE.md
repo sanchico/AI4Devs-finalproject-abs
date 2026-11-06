@@ -40,3 +40,5 @@ Abrir `index.html` en un navegador, o servir la carpeta: `python3 -m http.server
 - Interfaz y textos en español.
 - Mantener la app usable sin build (HTML + JS plano) mientras sea posible.
 - Commits pequeños y descriptivos, en español.
+- Al terminar cada sesión de trabajo se escribe su entrada en `docs/bitacora.md` con la skill
+  `/cerrar-sesion`.

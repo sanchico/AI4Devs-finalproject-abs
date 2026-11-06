@@ -277,6 +277,8 @@ La edición del contenido va siempre por WebSocket. Un diagrama del que no se es
   cómo arrancar cada parte y cómo ejecutar sus tests.
 - **Skill `run-trazo-mermaid`:** se versiona y se amplía para abrir dos navegadores contra el mismo
   diagrama y comprobar que convergen.
+- **Skill `cerrar-sesion`:** escribe la entrada de la bitácora con los prompts literales del registro
+  de Claude Code y las horas activas.
 - **Hook:** ejecuta `node --test` si Claude ha modificado `.js`, y `mvn test` si ha modificado `.java`.
 
 ### P2 · Documentación de entrega (3 h, repartido)
@@ -319,7 +321,7 @@ después se completan persistencia, invitaciones y tests.
 | 11 | B6 tests del backend | 30 h |
 | 12–13 | P2 capturas, secciones, `prompts.md` y PR documentadas | 33 h |
 
-La bitácora se escribe al final de cada sesión (unos 5 minutos, contados en P2).
+La bitácora se escribe al final de cada sesión con `/cerrar-sesion` (unos 5 minutos, contados en P2).
 
 **Punto de control tras la sesión 8.** Dos dispositivos ya colaboran a través de la URL pública. Si las
 horas acumuladas superan 25, o si el límite de 30 horas resulta ser estricto, se recorta en este orden:
