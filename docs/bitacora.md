@@ -258,3 +258,71 @@ propón nombres para al app que estén disponibles
   frontend y uno de base de datos.
 
 **Horas:** fuera del presupuesto de 30 h (definición previa del proyecto).
+
+---
+
+## Sesión 1 · 6 nov 2026 · Skill para cerrar sesiones
+
+**Objetivo:** P1. Decidir cómo escribir la bitácora al final de cada sesión y automatizarlo con una skill.
+
+**Fase del ciclo de vida:** proceso de trabajo con Claude Code (introducción de `prompts.md`).
+
+### Prompts
+
+**Prompt 1: cómo escribir la bitácora**
+
+```
+Te pregunto sobre el uso efectivo de claude: En @docs/PRD-MVP.md dice que la bitácora @docs/bitacora.md  se escribe al finalizar la sesión ¿como debería hacerlo? ¿ponerlo en claude.md, crear un hook o simplemente poner prompt como "finaliza la sesión y escribe la bitácora"
+```
+
+- **Qué hizo el agente:** descartó las tres opciones por separado.
+  - Un prompt suelto no mantiene el formato. Además, si el contexto se resume, los prompts dejan de ser
+    literales.
+  - CLAUDE.md gasta contexto en todas las sesiones.
+  - Los hooks ejecutan comandos y no redactan; además, `Stop` se dispara tras cada respuesta.
+  - Propuso una skill de proyecto que saque los prompts literales del registro `.jsonl` de Claude Code
+    y calcule las horas con sus marcas de tiempo.
+  - Detectó dos incoherencias entre la bitácora y el PRD: la referencia a "B9" (ahora P2) y la sesión
+    del despliegue (7 en lugar de 8).
+  - El PO aceptó la skill y la corrección.
+  - El agente escribió `prompts.cjs`, el extractor, y lo probó con las sesiones de octubre y noviembre
+    antes de escribir `SKILL.md`.
+  - El PO aceptó el commit, que incluye la skill `run-trazo-mermaid`, sin versionar hasta entonces.
+- **Resultado:** commit `cb18932`. Skill [.claude/skills/cerrar-sesion/](../.claude/skills/cerrar-sesion/);
+  referencias en CLAUDE.md, P1 del PRD y la cabecera de la bitácora.
+- **Impacto:** la bitácora deja de depender de la memoria del agente: los prompts salen literales del
+  registro y las horas, de las marcas de tiempo.
+
+**Prompt 2: primera ejecución**
+
+```
+/cerrar-sesion
+```
+
+- **Qué hizo el agente:** ejecutó la skill sobre esta sesión. El extractor mostraba la invocación de la
+  skill como XML; el agente lo corrigió para que aparezca como `/cerrar-sesion`. Detectó el hueco en la
+  bitácora entre la sesión 0 y esta.
+  - El PO decidió registrar solo esta sesión y dejar las demás como pendientes.
+- **Resultado:** esta entrada.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| Introducción o nota sobre el proceso | Prompt 1 (elegir entre CLAUDE.md, hook, prompt o skill) |
+
+### Correcciones
+
+- El PO no corrigió al agente en esta sesión.
+- El agente corrigió dos errores propios:
+  - La plantilla de `SKILL.md` anidaba un bloque de código dentro de otro con la misma valla, y eso
+    rompía el Markdown. Lo corrigió con `~~~` antes del commit.
+  - El extractor no formateaba las invocaciones de skills. Se vio en la primera ejecución.
+
+### Pendiente
+
+- Registrar las sesiones sin entrada: plantilla del curso y nombre (oct) y OpenSpec (23 oct y 6 nov).
+- P1: el hook de `node --test` y `mvn test`, y ampliar `run-trazo-mermaid` a dos navegadores.
+- Siguiente sesión según el PRD: F1, modularizar el frontend.
+
+**Horas:** 0,5 (acumulado 0,5 h de 33; consume todo P1, que tenía 0,5 h).

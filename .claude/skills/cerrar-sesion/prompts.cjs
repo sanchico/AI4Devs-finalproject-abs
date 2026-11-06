@@ -37,6 +37,16 @@ function textOf(content) {
     .join('\n');
 }
 
+// Una skill o comando invocado con /nombre llega como etiquetas XML; se muestra como "/nombre args".
+function promptText(content) {
+  const t = textOf(content).trim();
+  const name = t.match(/<command-name>\s*([^<]*?)\s*<\/command-name>/);
+  if (!name) return t;
+  const args = t.match(/<command-args>\s*([\s\S]*?)\s*<\/command-args>/);
+  const cmd = name[1].startsWith('/') ? name[1] : '/' + name[1];
+  return args && args[1] ? `${cmd} ${args[1]}` : cmd;
+}
+
 function isHumanPrompt(e) {
   if (e.type !== 'user' || e.isMeta || e.isSidechain) return false;
   if (e.origin && e.origin.kind !== 'human') return false;
@@ -113,7 +123,7 @@ function main() {
       console.log(`### Prompt ${n} · ${fmt(new Date(e.timestamp))}`);
       console.log('');
       console.log('```');
-      console.log(textOf(e.message.content).trim());
+      console.log(promptText(e.message.content));
       console.log('```');
       console.log('');
     }
