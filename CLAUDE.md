@@ -39,6 +39,7 @@ Abrir `index.html` en un navegador, o servir la carpeta: `python3 -m http.server
 ## Convenciones
 - Interfaz y textos en español.
 - Mantener la app usable sin build (HTML + JS plano) mientras sea posible.
-- Commits pequeños y descriptivos, en español.
+- Commits pequeños y descriptivos, en español, con formato conventional commits
+  (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…), p. ej. `docs: añade la sesión 2 a la bitácora`.
 - Al terminar cada sesión de trabajo se escribe su entrada en `docs/bitacora.md` con la skill
   `/cerrar-sesion`.

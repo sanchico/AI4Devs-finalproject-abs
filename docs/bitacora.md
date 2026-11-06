@@ -326,3 +326,114 @@ Te pregunto sobre el uso efectivo de claude: En @docs/PRD-MVP.md dice que la bit
 - Siguiente sesión según el PRD: F1, modularizar el frontend.
 
 **Horas:** 0,5 (acumulado 0,5 h de 33; consume todo P1, que tenía 0,5 h).
+
+---
+
+## Sesión 1bis · 23 oct – 6 nov 2026 · OpenSpec: instalación, configuración y modelo de colaboración
+
+**Objetivo:** P1. Instalar e inicializar OpenSpec, configurar su `config.yaml` a partir del PRD y
+repasar la decisión de colaboración (*last-writer-wins* frente a un CRDT) antes de empezar F1. Se
+desarrolló en paralelo con la sesión 1.
+
+**Fase del ciclo de vida:** arquitectura y proceso de trabajo con Claude Code.
+
+### Prompts
+
+**Prompt 1: comprobar OpenSpec**
+
+```
+is openspec installed and initialized?
+```
+
+- **Qué hizo el agente (Haiku 4.5):** leyó `package.json` y `node_modules/openspec`. Concluyó que
+  OpenSpec estaba instalado pero "no inicializado", porque faltaba el `index.js` del paquete.
+- **Resultado:** diagnóstico erróneo (ver Correcciones).
+
+**Prompt 2: segunda comprobación**
+
+```
+openspec now should be properly initialized, check it
+```
+
+- **Qué hizo el agente:** comprobó que existían `openspec/config.yaml`, `openspec/changes/` y
+  `openspec/specs/`, y que estaban disponibles las skills `openspec-*` y `opsx:*`.
+- **Resultado:** commit `b089d86` (hecho por el PO).
+
+**Prompt 3: config.yaml a partir del PRD**
+
+```
+a partir del PRD @docs/PRD-MVP.md dime si hay algo que pondrías en el @openspec/config.yaml  de openspec
+```
+
+- **Contexto:** se lanzó dentro de `/openspec-explore`, tras cambiar el modelo a Opus con `/model opus`.
+- **Qué hizo el agente:** separó lo que va en `config.yaml` (restricciones que no se deducen del
+  código) de lo que va en `specs/` (tablas, API, protocolo). Propuso un borrador:
+  - `context`: idioma, invariantes de arquitectura y de seguridad, y lo que queda fuera de alcance.
+  - `rules`: cada proposal cita su bloque del PRD y su historia; cada design registra las alternativas
+    descartadas; las tareas caben en una sesión y los tests son tareas.
+  - `operations`: actualizar CLAUDE.md al aplicar, y la bitácora y el readme al archivar.
+  - Avisó de que `openspec validate` puede exigir en inglés `SHALL`/`MUST` y `Scenario`, sin
+    comprobarlo.
+  - No editó el archivo, porque explore mode no permite cambiar la configuración.
+  - El PO lo aplicó él mismo y añadió "usando conventional commits".
+- **Resultado:** commit `4bbeb63`.
+- **Impacto:** las decisiones del PRD pasan a ser restricciones que OpenSpec inyecta en cada
+  artefacto. Así, un change que las contradiga tiene que decirlo de forma explícita.
+
+**Prompt 4: explicar la línea de colaboración**
+
+```
+En @openspec/config.yaml has puesto "Servidor autoritativo, last-writer-wins por campo, una sola instancia." ¿me lo puedes explicar?
+```
+
+- **Qué hizo el agente:** explicó las tres decisiones con diagramas:
+  - El servidor ordena y valida.
+  - Los conflictos se resuelven por campo y no por nodo.
+  - Las salas en memoria impiden tener varias instancias.
+  - Justificó por qué están en `config.yaml`: el código aún no existe y es fácil romperlas sin querer.
+- **Resultado:** solo respuesta en el chat.
+
+**Prompt 5: Automerge en lugar de last-writer-wins**
+
+```
+respecto al punto 2 he visto que la libreria automerge tiene una implementación en Java ¿sería un cambio muy profundo usar automerge en vez de last-writer-wins? no toques nada, sólo respondeme por chat
+```
+
+- **Qué hizo el agente:** respondió que sí sería un cambio profundo:
+  - Afecta a F2, F4, B4, B5 y B6, al modelo de datos y al protocolo.
+  - Para campos discretos, Automerge también resuelve como LWW. Solo gana en la edición de texto letra
+    a letra y en el modo offline, y los dos están fuera de alcance.
+  - Ventajas: un solo núcleo en JS y en Java, y la reconexión casi gratis.
+  - Inconvenientes: se pierde la validación en el servidor, puede quedar una arista colgando, no trae
+    deshacer, usa WASM en un frontend sin build y la madurez del binding de Java es dudosa.
+  - Recomendó mantener LWW y añadir Automerge a la sección 8 del PRD como alternativa descartada.
+- **Resultado:** solo respuesta en el chat; no se tocó nada.
+- **Impacto:** el binding de Java invalidaba en parte el motivo con el que el PRD descartó Yjs. La
+  decisión se mantiene, ahora con los motivos reales.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2. Arquitectura | Prompt 5 (Automerge frente a LWW), con el 4 como contexto |
+| Introducción o nota sobre el proceso | Prompt 3 (traducir el PRD a restricciones de OpenSpec) |
+
+### Correcciones
+
+- **Diagnóstico erróneo de la instalación (prompt 1).** El agente (Haiku 4.5) tomó como OpenSpec un
+  paquete `openspec@0.0.0` de npm vacío, que solo tenía LICENSE, README y package.json. No comprobó el
+  CLI `openspec` ni la carpeta `openspec/`. El PO instaló e inicializó la herramienta correcta. Después
+  de esto se cambió el modelo a Opus.
+- **Bash frente a PowerShell (prompt 1).** El agente lanzó `Test-Path` en Bash y falló; lo repitió en
+  PowerShell.
+- **Ajuste del PO al borrador (prompt 3):** añadió "conventional commits" a `operations.apply`. Al
+  cerrar la sesión se alinearon CLAUDE.md y la skill `cerrar-sesion`, que pedían mensajes sin prefijo.
+
+### Pendiente
+
+- Añadir Automerge a la sección 8 del PRD como alternativa descartada, con los motivos del prompt 5.
+- Comprobar con `openspec validate` en el primer change si las palabras clave tienen que ir en inglés.
+- Decidir si cada change de OpenSpec equivale a un bloque del PRD y a una PR.
+- Siguiente sesión según el PRD: F1, modularizar el frontend.
+
+**Horas:** 0 (acumulado 0,5 h de 33).

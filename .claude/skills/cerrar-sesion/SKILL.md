@@ -81,4 +81,4 @@ Reglas:
    tests), como pide P1.
 3. Recuerda al usuario que ejecute `/export` si quiere guardar la conversación completa para adjuntarla
    a `prompts.md`; es un comando suyo, tú no puedes lanzarlo.
-4. Propón un commit (`Añade la sesión N a la bitácora`), pero no lo hagas sin su confirmación.
+4. Propón un commit (`docs: añade la sesión N a la bitácora`), pero no lo hagas sin su confirmación.
