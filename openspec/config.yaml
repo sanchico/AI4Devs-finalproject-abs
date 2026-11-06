@@ -1,5 +1,42 @@
 schema: spec-driven
 
+context: |
+  Proyecto de curso (pen2mermaid). Se evalúa también el proceso con el agente.
+  Escribe los artefactos en español; mantén en inglés las palabras clave de
+  OpenSpec (Requirement, Scenario, SHALL/MUST, WHEN/THEN).
+  Invariantes que ningún cambio debe romper sin decidirlo explícitamente:
+  - Reconocimiento de trazos local y determinista; sin IA por trazo.
+  - Frontend en módulos ES sin build; dependencias solo por CDN.
+  - apply(op) existe en JS y en Java: cualquier cambio en operaciones debe
+    actualizar shared/fixtures/ops y pasar en ambos lados.
+  - Servidor autoritativo, last-writer-wins por campo, una sola instancia.
+  - Seguridad: Mermaid con securityLevel 'strict'; 404 (no 403) a quien no es
+    miembro; RLS activado sin políticas; JWT en el primer mensaje WS, nunca en la URL;
+    permisos comprobados en cada operación.
+  Fuera de alcance del MVP: tipos nuevos de diagrama, pan/zoom, cursores remotos,
+  varias instancias, edición offline con fusión, historial, IA de visión, CI.
+
+rules:
+  proposal:
+    - Indica a qué bloque del PRD (F1..F5, B1..B6, D1) e historia (HU-01..03) corresponde
+    - Di explícitamente qué queda fuera y si choca con el "fuera de alcance" del MVP
+  design:
+    - Registra cada decisión con las alternativas descartadas y el motivo
+    - Si afecta a operaciones, describe el impacto en JS y en Java
+  tasks:
+    - Tareas que quepan en una sesión de 2-3 h, con estimación en horas
+    - Incluye los tests (node --test / mvn verify) como tareas, no como nota final
+
+operations:
+  apply:
+    guidance:
+      - Commits pequeños y en español usando conventional commits
+      - Al cerrar, actualiza CLAUDE.md si cambia la estructura o cómo arrancar/testear
+  archive:
+    guidance:
+      - Añade la entrada de la sesión en docs/bitacora.md con los prompts literales
+      - Revisa si hay que actualizar alguna sección del readme (2.x, 3, 4)
+
 # Project context (optional)
 # Add only constraints that should guide OpenSpec artifacts and workflows.
 # Include constraints an agent cannot infer by reading the code.
