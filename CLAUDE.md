@@ -17,19 +17,30 @@ en un grafo de nodos y conexiones, generando código Mermaid al vuelo.
 - La IA (API de visión) queda para funciones opcionales: limpiar trazos ambiguos, importar fotos de bocetos.
 
 ## Estado actual
-Prototipo en un único script (`app.js`) sin build ni dependencias salvo mermaid.js por CDN.
-- `KINDS`: definición de cada tipo de diagrama (formas permitidas, sintaxis Mermaid).
-- `recognize()`: clasifica un trazo cerrado por dos métricas (área relativa a la caja y distancia
-  media a las esquinas) → rect / rombo / elipse. Un trazo abierto entre dos nodos = conector.
-- `mermaidCode()`: genera el código desde `nodes` y `edges`.
-- Entrada con Pointer Events: `pen` dibuja, `touch` mueve, ratón configurable. Toque = editar etiqueta.
+Prototipo en módulos ES nativos (carpeta `frontend/`), sin build ni dependencias salvo mermaid.js por CDN.
+Los cuatro primeros módulos son puros (no tocan el DOM) y se pueden importar desde Node:
+- `geometry.js`: funciones geométricas (`dist`, `bbox`, `polyArea`, `borderPoint`…).
+- `recognizer.js`: `recognize(pts, allowedShapes)` clasifica un trazo cerrado por dos métricas (área
+  relativa a la caja y distancia media a las esquinas) → rect / rombo / elipse. Un trazo abierto entre
+  dos nodos = conector.
+- `kinds/`: `KINDS` (formas permitidas y sintaxis Mermaid de cada tipo: `flow.js`, `state.js`) y
+  `mermaidCode(graph, kind, dir)`, que genera el código recorriendo el grafo.
+- `model.js`: estado del diagrama (`state`) y sus cambios (`addNode`, `addEdge`, `undo`…). Devuelve
+  resultados en vez de mostrar avisos.
+- `render.js` (lienzo, vista previa Mermaid, leyenda), `input.js` (Pointer Events: `pen` dibuja, `touch`
+  mueve, ratón configurable; toque = editar etiqueta) y `main.js` (arranque, barra de herramientas, aviso).
+- `test/`: `baseline.test.js` fija el código Mermaid del ejemplo y la clasificación de trazos sintéticos.
 
 ## Cómo ejecutarlo
-Abrir `index.html` en un navegador, o servir la carpeta: `python3 -m http.server 8000`
+Los módulos ES no cargan desde `file://`: hay que servir la carpeta `frontend/` por HTTP:
+`npx -y http-server -p 8000 -s -c-1 frontend` y abrir `http://localhost:8000`
 (para probar en la tablet, abrir `http://<ip-del-pc>:8000` en la misma red).
 
+Tests (Node ≥ 22, sin instalar nada): `node --test "frontend/**/*.test.js"`.
+Prueba en el navegador real con la skill `run-trazo-mermaid`.
+
 ## Hoja de ruta (ideas, por orden aproximado)
-1. Separar `app.js` en módulos ES: reconocedor, modelo/grafo, generadores Mermaid por tipo, render, entrada.
+1. ~~Separar `app.js` en módulos ES~~ (hecho en el cambio `modularizar-frontend`).
 2. Tests del reconocedor con trazos grabados (fixtures JSON) y de la generación Mermaid.
 3. Mejorar el reconocedor (p. ej. $P recognizer) y añadir formas: flechas de herencia/agregación UML.
 4. Nuevos tipos: diagrama de clases UML, secuencia, ER.
@@ -38,7 +49,7 @@ Abrir `index.html` en un navegador, o servir la carpeta: `python3 -m http.server
 
 ## Convenciones
 - Interfaz y textos en español.
-- Mantener la app usable sin build (HTML + JS plano) mientras sea posible.
+- Mantener la app usable sin build (HTML + módulos ES nativos) mientras sea posible.
 - Commits pequeños y descriptivos, en español, con formato conventional commits
   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…), p. ej. `docs: añade la sesión 2 a la bitácora`.
 - Al terminar cada sesión de trabajo se escribe su entrada en `docs/bitacora.md` con la skill

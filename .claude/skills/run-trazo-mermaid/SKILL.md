@@ -3,11 +3,11 @@ name: run-trazo-mermaid
 description: Run, launch, serve, screenshot or smoke-test pen2mermaid, formerly Trazo a Mermaid (the pen-to-Mermaid web app). Use when asked to start the app, draw on the canvas programmatically, check that shape recognition / connectors / Mermaid generation still work in the real browser, or take a screenshot of the UI.
 ---
 
-Static web app (no build): serve the folder over HTTP, then drive it in headless Chromium with
+Static web app (no build, ES modules): serve the `frontend/` folder over HTTP, then drive it in headless Chromium with
 `.claude/skills/run-trazo-mermaid/driver.cjs` (Playwright). The driver draws strokes with the mouse,
 which is the same code path as the S Pen (`ratón: dibuja` is the default mode).
 
-All paths are relative to the repo root. Verified on Windows 10 with Git Bash, Node 22, playwright-core 1.63.
+All paths are relative to the repo root. Verified on Windows 10 with Git Bash, Node 22 and 24, playwright-core 1.63.
 
 ## Setup (once per session)
 
@@ -24,10 +24,10 @@ if the version matches, otherwise the driver falls back to the installed Google 
 
 ## Run (agent path)
 
-1. Serve the folder (Bash tool with `run_in_background: true`):
+1. Serve `frontend/` (Bash tool with `run_in_background: true`):
 
 ```bash
-npx -y http-server -p 8000 -s -c-1 .
+npx -y http-server -p 8000 -s -c-1 frontend
 ```
 
    Wait until it answers:
@@ -48,7 +48,8 @@ NODE_PATH="$T/node_modules" node .claude/skills/run-trazo-mermaid/driver.cjs htt
    the stats line and any console errors. Exits 0 and prints `OK` when there are 4 nodes, 3
    connections, the renamed label and no errors; otherwise `FALLO` / exit 1.
 
-   Expected output:
+   Expected output (the same text is saved in `frontend/test/baseline-skill.txt`, the baseline of the
+   modularization, so `diff` against it to check for regressions):
 
 ```
 flowchart TD
@@ -84,13 +85,18 @@ on the same network. Pen draws, finger moves, mouse follows the "Ratón" toggle.
 - **`python` / `python3` on this PC is the Microsoft Store stub** (`WindowsApps\python.exe`): the
   `python3 -m http.server` command in CLAUDE.md starts nothing and the port never opens. Use
   `npx http-server`.
-- **The page loads with an example diagram** (5 nodes: Inicio → Leer petición → …). Strokes
+- **The page loads with an example diagram** (5 nodes: Inicio → Leer petición → …; the code, the
+  stats and the preview are filled in from the start). Strokes
   drawn without clicking **Limpiar** land on top of it and connectors may snap to the example
   nodes. The driver clears first.
 - **Node ids are not reset by Limpiar**: after clearing, ids continue at `n6`, while default labels
   restart at `Proceso 1`. Don't assert on ids.
-- **Everything in `app.js` is inside an IIFE**, so `recognize()` / `mermaidCode()` cannot be called
-  from `page.evaluate`. Test through strokes, or read `#code` (switch with `#tabCode`) and `#stats`.
+- **ES modules do not load from `file://`** (the browser blocks them), so opening `index.html` by
+  double-click shows a blank app: always serve `frontend/` over HTTP.
+- **Module internals are not globals**, so `recognize()` / `mermaidCode()` cannot be called from
+  `page.evaluate`. Test through strokes, or read `#code` (switch with `#tabCode`) and `#stats`. The pure
+  modules (`geometry`, `recognizer`, `kinds/`, `model`) can instead be imported from Node: see
+  `frontend/test/baseline.test.js` and run `node --test "frontend/**/*.test.js"`.
 - **Closed-shape strokes must return close to their start point** (the driver ends 2px from the
   start); a connector must start inside one node and end inside another (18px tolerance), or you get
   the toast "Conector no reconocido".

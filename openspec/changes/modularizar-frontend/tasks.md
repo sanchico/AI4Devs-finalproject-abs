@@ -22,9 +22,9 @@ Estimación total: 2,5 h (una sesión). El 0,5 h restante del bloque F1 es el ca
 
 ## 4. Verificación y documentación (0,5 h)
 
-- [ ] 4.1 Actualizar la skill `run-trazo-mermaid`: servir `frontend/`, quitar el gotcha de la IIFE y añadir que los módulos no cargan desde `file://`; verificar que la skill imprime exactamente la salida guardada en 1.1 y `OK`
-- [ ] 4.2 Actualizar `CLAUDE.md` ("Estado actual", "Cómo ejecutarlo" y cómo lanzar `node --test`); verificar que los comandos documentados funcionan tal cual
-- [ ] 4.3 Revisar que ningún módulo de la sección 2 usa `window`, `document` ni el DOM (`grep -n "document\|window" frontend/geometry.js frontend/recognizer.js frontend/model.js frontend/kinds/*.js` sin resultados)
+- [x] 4.1 Actualizar la skill `run-trazo-mermaid`: servir `frontend/`, quitar el gotcha de la IIFE y añadir que los módulos no cargan desde `file://`; verificar que la skill imprime exactamente la salida guardada en 1.1 y `OK`
+- [x] 4.2 Actualizar `CLAUDE.md` ("Estado actual", "Cómo ejecutarlo" y cómo lanzar `node --test`); verificar que los comandos documentados funcionan tal cual
+- [x] 4.3 Revisar que ningún módulo de la sección 2 usa `window`, `document` ni el DOM (`grep -n "document\|window" frontend/geometry.js frontend/recognizer.js frontend/model.js frontend/kinds/*.js` sin resultados)
 
 ## Workflow follow-up
 
