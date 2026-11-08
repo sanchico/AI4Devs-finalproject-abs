@@ -1,0 +1,11 @@
+flowchart TD
+  n1(["Inicio"])
+  n2["Leer petición"]
+  n3{"¿Válida?"}
+  n4["Procesar"]
+  n5(["Fin"])
+  n1 --> n2
+  n2 --> n3
+  n3 -->|sí| n4
+  n3 -->|no| n2
+  n4 --> n5

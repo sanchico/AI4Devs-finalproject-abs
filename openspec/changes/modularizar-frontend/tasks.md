@@ -4,7 +4,7 @@ Estimación total: 2,5 h (una sesión). El 0,5 h restante del bloque F1 es el ca
 
 ## 1. Línea base y movimiento de archivos (0,5 h)
 
-- [ ] 1.1 Ejecutar la skill `run-trazo-mermaid` sobre el código actual y guardar su salida y el código Mermaid del ejemplo (pestaña "Código Mermaid") en `frontend/test/baseline-ejemplo.mmd`; verificar que la skill imprime `OK`
+- [x] 1.1 Ejecutar la skill `run-trazo-mermaid` sobre el código actual y guardar su salida y el código Mermaid del ejemplo (pestaña "Código Mermaid") en `frontend/test/baseline-ejemplo.mmd`; verificar que la skill imprime `OK`
 - [ ] 1.2 Mover `index.html`, `styles.css` y `app.js` a `frontend/` con `git mv` en un commit sin otros cambios; verificar con `git log --follow frontend/app.js` que conserva el historial
 - [ ] 1.3 Añadir `frontend/package.json` con `"private": true` y `"type": "module"`; verificar que `node -p "require('./frontend/package.json').type"` imprime `module`
 
