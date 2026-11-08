@@ -13,7 +13,7 @@ Estimación total: 2,5 h (una sesión). El 0,5 h restante del bloque F1 es el ca
 - [x] 2.1 Extraer `geometry.js` (funciones de la sección "Geometry helpers" que no usan `nodes`) y `recognizer.js` con `recognize(pts, allowedShapes)`; verificar que `node -e "import('./frontend/recognizer.js')"` no falla
 - [x] 2.2 Extraer `kinds/flow.js`, `kinds/state.js` y `kinds/index.js` con `KINDS`, `shapeName`, `esc` y `mermaidCode(graph, kind, dir)`; verificar importándolo desde Node
 - [x] 2.3 Extraer `model.js` con el estado, las funciones de cambio, deshacer por instantáneas, `nodeAt`, `edgeAt`, `edgeEnds` y `loadExample`, devolviendo resultados en lugar de llamar a `toast`; verificar importándolo desde Node
-- [ ] 2.4 Escribir `frontend/test/baseline.test.js` (`node --test`): el código del ejemplo es igual a `baseline-ejemplo.mmd`, y un rectángulo, un rombo y una elipse sintéticos se clasifican bien con las formas de Flujo y con las de Estados; verificar que `node --test frontend/` pasa
+- [x] 2.4 Escribir `frontend/test/baseline.test.js` (`node --test`): el código del ejemplo es igual a `baseline-ejemplo.mmd`, y un rectángulo, un rombo y una elipse sintéticos se clasifican bien con las formas de Flujo y con las de Estados; verificar que `node --test "frontend/**/*.test.js"` pasa (con Node 24, `node --test frontend/` trata el directorio como un archivo y falla)
 
 ## 3. Módulos del navegador (0,5 h)
 
