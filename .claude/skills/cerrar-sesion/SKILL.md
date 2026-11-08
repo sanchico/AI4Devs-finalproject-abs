@@ -2,6 +2,7 @@
 name: cerrar-sesion
 description: Cierra una sesión de trabajo de pen2mermaid escribiendo su entrada en docs/bitacora.md con los prompts literales del registro de Claude Code, las horas activas, las correcciones y los candidatos para prompts.md. Usar cuando el usuario diga "cierra la sesión", "escribe la bitácora", "fin de sesión" o invoque /cerrar-sesion.
 argument-hint: "[--since AAAA-MM-DD[THH:MM]]"
+model: sonnet
 ---
 
 Escribe la entrada de la sesión en [docs/bitacora.md](../../../docs/bitacora.md). La bitácora es la
