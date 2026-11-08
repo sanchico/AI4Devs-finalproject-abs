@@ -17,7 +17,7 @@ Estimación total: 2,5 h (una sesión). El 0,5 h restante del bloque F1 es el ca
 
 ## 3. Módulos del navegador (0,5 h)
 
-- [ ] 3.1 Extraer `render.js` (lienzo, vista previa, leyenda, estadísticas) e `input.js` (Pointer Events, toque, editor), y dejar en `main.js` el arranque, la barra y `toast`; borrar `app.js` y cargar `main.js` con `<script type="module">` después de mermaid.js; verificar que la app sirve desde `frontend/` sin errores en la consola
+- [ ] 3.1 Extraer `render.js` (lienzo, vista previa, leyenda, estadísticas) e `input.js` (Pointer Events, toque, editor), y dejar en `main.js` el arranque (llamando a `update()` para que el código, las estadísticas y la vista previa salgan poblados al abrir), la barra y `toast`; borrar `app.js` y cargar `main.js` con `<script type="module">` después de mermaid.js; verificar que la app sirve desde `frontend/` sin errores en la consola
 - [ ] 3.2 Comprobar a mano en la tablet (o con el ratón en modo mover) que el dedo mueve nodos y que Deshacer, Limpiar, el cambio de tipo y de dirección y la copia del código funcionan como antes
 
 ## 4. Verificación y documentación (0,5 h)

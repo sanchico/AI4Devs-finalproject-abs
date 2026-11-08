@@ -25,7 +25,12 @@ previa va en el cambio `vista-previa-segura`, que se aplica después de este.
 - **BREAKING (para el desarrollo, no para el usuario):** los módulos ES no cargan desde `file://`; la
   app hay que servirla por HTTP desde `frontend/`. Se actualizan `CLAUDE.md` y la skill
   `run-trazo-mermaid`.
-- El comportamiento visible queda idéntico al del commit base `5ea5e8a`.
+- El comportamiento visible queda idéntico al del commit base `5ea5e8a`, con dos excepciones decididas:
+  - Al arrancar se llama a `update()`: el commit base solo dibujaba el lienzo y dejaba vacíos el código,
+    las estadísticas y la vista previa hasta la primera interacción, lo que contradecía el escenario
+    "Primera carga" de `canvas-editing`.
+  - `index.html` declara un icono de lápiz en SVG inline (`<link rel="icon" href="data:…">`), porque sin
+    él el navegador pedía `/favicon.ico` y el servidor respondía 404 en la consola.
 
 Queda fuera:
 - `ops.js`, `api.js` y `collab.js`, que el PRD lista en F1, no se crean todavía: no tendrían

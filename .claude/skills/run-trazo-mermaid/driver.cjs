@@ -12,8 +12,7 @@ const out = process.argv[3] || '.';
   const page = await b.newPage({ viewport: { width: 1400, height: 850 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  // the app declares no favicon, so Chromium's automatic /favicon.ico request 404s: not an app error
-  page.on('console', m => m.type() === 'error' && !m.location().url.endsWith('/favicon.ico') && errs.push(m.text()));
+  page.on('console', m => m.type() === 'error' && errs.push(m.text()));
 
   await page.goto(url);
   await page.waitForFunction(() => window.mermaid);
