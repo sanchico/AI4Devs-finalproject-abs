@@ -242,13 +242,20 @@ app, la API y el WebSocket.
 | Reconocedor | JavaScript, geometría | Clasifica un trazo cerrado entre las formas del tipo activo (área relativa a su caja y distancia media a las esquinas) y detecta conectores entre formas |
 | Modelo de operaciones | JavaScript | Único punto de cambio del grafo (`apply(op)`); identificadores UUID; deshacer por usuario con operaciones inversas |
 | Generador Mermaid | JavaScript | Recorre el grafo y emite el código según el tipo (`flowchart`, `stateDiagram-v2`) |
-| Render y vista previa | Canvas 2D, mermaid.js 10.9.1 | Dibuja el grafo limpio y renderiza el código con `securityLevel: 'strict'` |
+| Render y vista previa | Canvas 2D, mermaid.js 10.9.8 | Dibuja el grafo limpio y renderiza el código con `securityLevel: 'strict'` |
 | Cliente colaborativo | WebSocket del navegador | Envía operaciones, aplica las remotas, reconcilia las propias pendientes y reconecta |
 | Autenticación en el cliente | supabase-js | Registro, inicio de sesión y renovación del token |
 | Servidor de colaboración | Spring WebSocket | Salas por diagrama, cola de operaciones por sala, validación, persistencia, reenvío y presencia |
 | API REST | Spring Web, Bean Validation, springdoc-openapi | Diagramas, miembros e invitaciones; documentación OpenAPI |
 | Seguridad | Spring Security (resource server OAuth2) | Valida el JWT de Supabase en la API y en el WebSocket |
 | Persistencia | Spring Data JPA, Flyway, PostgreSQL | Tablas, migraciones, registro de operaciones e instantáneas |
+
+> **Actualizar mermaid.js.** El `<script>` de `frontend/index.html` fija la versión exacta y lleva el hash
+> `integrity` (SRI) con `crossorigin="anonymous"`, así que el navegador no ejecuta un archivo alterado.
+> Al cambiar de versión hay que cambiar también el hash: se obtiene de
+> `https://api.cdnjs.com/libraries/mermaid/<versión>?fields=sri` (campo `mermaid.min.js`) y se contrasta con
+> `openssl dgst -sha512 -binary mermaid.min.js | openssl base64 -A`. Si el hash no coincide, la vista previa
+> muestra "No se pudo cargar mermaid.js" y el lienzo y el código siguen funcionando.
 
 ### **2.3. Descripción de alto nivel del proyecto y estructura de ficheros**
 
