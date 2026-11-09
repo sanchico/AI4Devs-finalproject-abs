@@ -4,9 +4,9 @@ Estimación total: 0,5 h (una sesión corta). No está en el presupuesto del PRD
 
 ## 1. Traducción de la dirección en Estados (0,3 h)
 
-- [ ] 1.1 Escribir `frontend/test/direccion.test.js` (`node --test`) con las cabeceras: Estados con `TD` genera `  direction TB` y no contiene `direction TD`, Estados con `LR` genera `  direction LR`, un valor como `BT` pasa tal cual, y Flujo sigue generando `flowchart TD` y `flowchart LR`; verificar que los de Estados fallan antes del arreglo y los de Flujo ya pasan
-- [ ] 1.2 Traducir la dirección en `header` de `frontend/kinds/state.js` (`TD` → `TB`, cualquier otro valor igual); verificar que `node --test "frontend/**/*.test.js"` pasa entero, incluido `baseline.test.js`
-- [ ] 1.3 Añadir `direccion.test.js` a la lista de `test/` de `CLAUDE.md`; verificar con `ls frontend/test` que la lista de `CLAUDE.md` nombra todos los tests que existen
+- [x] 1.1 Escribir `frontend/test/direccion.test.js` (`node --test`) con las cabeceras: Estados con `TD` genera `  direction TB` y no contiene `direction TD`, Estados con `LR` genera `  direction LR`, un valor como `BT` pasa tal cual, y Flujo sigue generando `flowchart TD` y `flowchart LR`; verificar que los de Estados fallan antes del arreglo y los de Flujo ya pasan
+- [x] 1.2 Traducir la dirección en `header` de `frontend/kinds/state.js` (`TD` → `TB`, cualquier otro valor igual); verificar que `node --test "frontend/**/*.test.js"` pasa entero, incluido `baseline.test.js`
+- [x] 1.3 Añadir `direccion.test.js` a la lista de `test/` de `CLAUDE.md`; verificar con `ls frontend/test` que la lista de `CLAUDE.md` nombra todos los tests que existen
 
 ## 2. Comprobación en el navegador (0,2 h)
 

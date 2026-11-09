@@ -30,7 +30,8 @@ Los cuatro primeros módulos son puros (no tocan el DOM) y se pueden importar de
 - `render.js` (lienzo, vista previa Mermaid, leyenda), `input.js` (Pointer Events: `pen` dibuja, `touch`
   mueve, ratón configurable; toque = editar etiqueta) y `main.js` (arranque, barra de herramientas, aviso).
 - `test/`: `baseline.test.js` fija el código Mermaid del ejemplo y la clasificación de trazos sintéticos;
-  `escape.test.js` comprueba que `<`, `>` y `&` de las etiquetas salen como entidades de Mermaid.
+  `escape.test.js` comprueba que `<`, `>` y `&` de las etiquetas salen como entidades de Mermaid;
+  `direccion.test.js` fija la dirección de la cabecera (Estados escribe `TB` donde el modelo guarda `TD`).
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 
