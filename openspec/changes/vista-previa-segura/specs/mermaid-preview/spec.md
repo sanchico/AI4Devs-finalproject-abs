@@ -31,14 +31,6 @@ sin interpretar `<`, `>` ni `&` como HTML, en la vista previa y en el lienzo.
 - **WHEN** en un diagrama de estados un estado tiene la etiqueta `<script>alert(1)</script>`
 - **THEN** la vista previa muestra ese texto literal y no se ejecuta ningún script
 
-### Requirement: Entidades de Mermaid en el código generado
-El código generado SHALL escribir `<` como `#lt;`, `>` como `#gt;` y `&` como `#amp;` dentro de las
-etiquetas, además del escape de comillas y saltos de línea que ya existe.
-
-#### Scenario: Código de una etiqueta hostil
-- **WHEN** un nodo de proceso `n1` tiene la etiqueta `a<b & c>d`
-- **THEN** el código contiene `n1["a#lt;b #amp; c#gt;d"]`
-
 ### Requirement: Errores de render mostrados como texto
 Cuando Mermaid no puede renderizar el código, la vista previa MUST mostrar el mensaje de error como texto
 plano, porque puede contener el texto de una etiqueta.

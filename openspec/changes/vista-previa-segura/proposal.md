@@ -36,15 +36,14 @@ No choca con el "fuera de alcance" del MVP: aplica la invariante de seguridad de
 
 ### Modified Capabilities
 
-Ninguna en `openspec/specs/`. La salida del generador cambia para etiquetas con `<`, `>` o `&`; ese
-requisito lo añade este cambio dentro de `mermaid-preview`, porque su motivo es la seguridad de la
-vista previa. Si `modularizar-frontend` ya se ha archivado, el requisito se puede mover a
-`mermaid-generation` como MODIFIED al aplicar.
+- `mermaid-generation`: el requisito "Escape de comillas y saltos de línea en etiquetas" se amplía con
+  `&`, `<` y `>` (`#amp;`, `#lt;`, `#gt;`) y un escenario nuevo. Es un MODIFIED sobre la spec principal
+  que dejó `modularizar-frontend` al archivarse.
 
 ## Impact
 
 - Código: `frontend/kinds/index.js` (función de escape) y `frontend/render.js` (configuración de Mermaid
-  y aviso de error). Depende de `modularizar-frontend`: se aplica después.
+  y aviso de error). Parte de `modularizar-frontend`, ya aplicado y archivado.
 - El código Mermaid copiado lleva `#lt;`/`#gt;`/`#amp;` en lugar de esos caracteres; Mermaid lo
   muestra igual en cualquier sitio que lo renderice (GitHub, mermaid.live).
 - Sin dependencias nuevas. No afecta a operaciones ni a Java.
