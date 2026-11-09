@@ -468,7 +468,8 @@ crea una rama para cada spec y haz el commit en ellas
 - **Qué hizo el agente:** creó `feat/modularizar-frontend` y `feat/vista-previa-segura` desde `develop`
   y commiteó cada propuesta en su rama.
 - **Resultado:** `42b2db8` y `8a8b342`.
-- **Impacto:** fija el modelo de trabajo: un change, una rama, una PR.
+- **Impacto:** cada change va en su propia rama. En la sesión 3 se sustituye por una rama y una PR por
+  bloque del PRD, porque los changes de un bloque comparten specs y van uno tras otro.
 
 **Prompt 3: Aplicar modularizar-frontend**
 
@@ -695,7 +696,8 @@ haz el commit y luego /opsx:apply
 - Más adelante, un change para evaluar Mermaid 11/12 con comparación de capturas.
 - Fuera de alcance anotado: el carácter `|` rompe las etiquetas de conectores de flujo.
 - Arrastrado de la sesión 1bis: añadir Automerge a la sección 8 del PRD como alternativa descartada.
-  Queda resuelto que cada change es una rama y una PR.
+  La pregunta de si cada change es una rama y una PR se resuelve en la sesión 3: una rama y una PR por
+  bloque del PRD.
 - `docs/sesiones/` sigue sin versionar.
 - Siguiente según el PRD: cerrar F1 y empezar F2 (modelo de operaciones).
 

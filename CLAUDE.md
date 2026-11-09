@@ -30,7 +30,8 @@ Los cuatro primeros módulos son puros (no tocan el DOM) y se pueden importar de
 - `render.js` (lienzo, vista previa Mermaid, leyenda), `input.js` (Pointer Events: `pen` dibuja, `touch`
   mueve, ratón configurable; toque = editar etiqueta) y `main.js` (arranque, barra de herramientas, aviso).
 - `test/`: `baseline.test.js` fija el código Mermaid del ejemplo y la clasificación de trazos sintéticos;
-  `escape.test.js` comprueba que `<`, `>` y `&` de las etiquetas salen como entidades de Mermaid.
+  `escape.test.js` comprueba que `<`, `>` y `&` de las etiquetas salen como entidades de Mermaid;
+  `direccion.test.js` fija la dirección de la cabecera (Estados escribe `TB` donde el modelo guarda `TD`).
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 
@@ -57,3 +58,7 @@ Prueba en el navegador real con la skill `run-trazo-mermaid`.
   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…), p. ej. `docs: añade la sesión 2 a la bitácora`.
 - Al terminar cada sesión de trabajo se escribe su entrada en `docs/bitacora.md` con la skill
   `/cerrar-sesion`.
+- Una rama y una PR contra `develop` por bloque del PRD (F1, F2…), p. ej. `feat/f2-modelo-de-operaciones`.
+  Los changes de OpenSpec de un bloque van en esa rama uno tras otro: cada uno se aplica y se archiva
+  antes de proponer o rebasar el siguiente, porque el archivado reescribe `openspec/specs/` y el delta
+  siguiente se escribe contra ese estado. Solo un arreglo urgente va en una rama y una PR aparte.
