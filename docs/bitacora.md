@@ -437,3 +437,266 @@ respecto al punto 2 he visto que la libreria automerge tiene una implementación
 - Siguiente sesión según el PRD: F1, modularizar el frontend.
 
 **Horas:** 0 (acumulado 0,5 h de 33).
+
+## Sesión 2 · 8–9 nov 2026 · F1: modularizar el frontend y vista previa segura
+
+**Objetivo:** bloque F1 del PRD. Aplicar `modularizar-frontend` (módulos ES, tests con `node --test`) y
+`vista-previa-segura` (`securityLevel: 'strict'` y escape de etiquetas), con una rama y una PR por change.
+
+**Fase del ciclo de vida:** tickets y PR (changes de OpenSpec aplicados, archivados y fusionados), con
+decisiones de seguridad y de tests.
+
+### Prompts
+
+**Prompt 1: Validar los changes**
+
+```
+ejecuta openspec validate de las changes que hay en openspec/changes y dime si están bien formadas
+```
+
+- **Qué hizo el agente:** `openspec validate --strict` de `modularizar-frontend` y `vista-previa-segura`;
+  las dos válidas, con 12 y 4 tareas.
+- **Resultado:** solo respuesta.
+- **Impacto:** primer uso real de `openspec validate`; confirma que el formato de la sesión 1bis funciona.
+
+**Prompt 2: Una rama por change**
+
+```
+crea una rama para cada spec y haz el commit en ellas
+```
+
+- **Qué hizo el agente:** creó `feat/modularizar-frontend` y `feat/vista-previa-segura` desde `develop`
+  y commiteó cada propuesta en su rama.
+- **Resultado:** `42b2db8` y `8a8b342`.
+- **Impacto:** fija el modelo de trabajo: un change, una rama, una PR.
+
+**Prompt 3: Aplicar modularizar-frontend**
+
+```
+/opsx:apply
+```
+
+- **Qué hizo el agente:** preguntó qué change aplicar; el PO eligió `modularizar-frontend`. En la tarea
+  1.1 (línea base) encontró dos problemas y paró:
+  - La skill daba `FALLO` por un 404 de `/favicon.ico`. Lo filtró en el driver.
+  - La spec decía que al abrir el pie muestra "5 nodos · 5 conexiones", pero el commit base no llamaba
+    a `update()` al arrancar: código, estadísticas y vista previa salían vacíos. Propuso tres opciones.
+- **Resultado:** línea base guardada (`3df9cc1`).
+- **Impacto:** la línea base sacó a la luz un desajuste entre la spec y el código antes de mover nada.
+
+**Prompt 4: Decisión sobre la primera carga y el favicon**
+
+```
+1. Además de eso no ignores el fallo del favicon.ico: generar un icono de un lápiz y guardalo en el HTML
+```
+
+- **Qué hizo el agente:**
+  - Quitó el filtro del driver y añadió un icono SVG de lápiz inline en `index.html`.
+  - Anotó en la propuesta las dos excepciones al "comportamiento idéntico".
+  - Movió los archivos con `git mv` en un commit aparte y extrajo `geometry`, `recognizer`, `kinds/` y
+    `model` sin DOM, y después `render`, `input` y `main`.
+  - Escribió `baseline.test.js` (9 tests).
+  - Comprobó en el navegador el dedo (eventos táctiles reales), el ratón en modo mover, Deshacer,
+    Limpiar, el tipo, la dirección y copiar.
+  - Actualizó CLAUDE.md y la skill.
+- **Resultado:** `aaa2290` a `233cbaa` (8 commits); 11/12 tareas.
+- **Impacto:** el refactor tiene red de seguridad (salida de la skill idéntica a la línea base) y los
+  módulos puros se pueden probar desde Node.
+
+**Prompt 5: Prueba manual en la tablet**
+
+```
+ya lo he probado con la táblet y está ok, márcala
+```
+
+- **Qué hizo el agente:** marcó la 3.2, que había dejado pendiente porque pedía prueba manual.
+- **Resultado:** `7926546`; 12/12.
+- **Impacto:** la verificación humana en el dispositivo real queda registrada aparte de la automática.
+
+**Prompt 6: Archivar modularizar-frontend**
+
+```
+/opsx:archive
+```
+
+- **Qué hizo el agente:** sincronizó las tres specs delta como specs principales nuevas
+  (`canvas-editing`, `mermaid-generation`, `shape-recognition`) y archivó el change. Avisó de que el
+  readme seguía describiendo `app.js`.
+- **Resultado:** `3e2bab1`.
+- **Impacto:** el proyecto tiene por primera vez specs principales en `openspec/specs/`.
+
+**Prompt 7: Readme**
+
+```
+Ok, actualiza el readme.md
+```
+
+- **Qué hizo el agente:** actualizó la puesta en marcha (servir `frontend/`), el comando de tests y las
+  estructuras actual y prevista. El PO pidió dos commits ("dos commits").
+- **Resultado:** `b867ab8`.
+- **Impacto:** el readme vuelve a coincidir con el código.
+
+**Prompt 8: Publicar y rebase**
+
+```
+publicar puede afectar al rebase de vista previa segura?
+```
+
+- **Qué hizo el agente:** explicó que publicar no afecta; sí lo haría reescribir la rama o fusionar con
+  squash (`rebase --onto`). Señaló que el riesgo real eran las referencias a `app.js` en los artefactos.
+- **Resultado:** solo respuesta.
+- **Impacto:** se fusiona con merge commit y se rebasa después.
+
+**Prompt 9: Push y PR**
+
+```
+Sí, ¿puedes tambien abrir la PR?
+```
+
+- **Qué hizo el agente:** hizo el push. `gh` no está instalado, así que dejó el enlace de comparación y
+  el título y la descripción listos para pegar.
+- **Resultado:** PR #2 abierta por el PO.
+- **Impacto:** primera PR del MVP.
+
+**Prompt 10: Comprobar la fusión y rebasar**
+
+```
+La PR ya debería estar fusionada. compruebalo y si está ok rebasa
+```
+
+- **Qué hizo el agente:** comprobó que PR #2 estaba en `origin/develop` con merge commit y sin
+  diferencias, y rebasó `feat/vista-previa-segura` sin conflictos.
+- **Resultado:** `7b54e62`.
+- **Impacto:** el segundo change parte del frontend modular.
+
+**Prompt 11: Revisar la coherencia de vista-previa-segura**
+
+```
+/opsx:update
+```
+
+- **Qué hizo el agente:** encontró que, archivado `modularizar-frontend`, el requisito de escape debía
+  ser un MODIFIED de `mermaid-generation` y no duplicarse en `mermaid-preview`, y que dos verificaciones
+  de las tareas no valían. El PO aceptó todas las revisiones.
+- **Resultado:** artefactos alineados.
+- **Impacto:** el change no duplica contratos entre specs.
+
+**Prompt 12: Aplicar vista-previa-segura**
+
+```
+haz el commit y luego /opsx:apply
+```
+
+- **Qué hizo el agente:**
+  - `esc` escribe `#amp;`, `#lt;` y `#gt;`, con 6 tests nuevos.
+  - Activó `securityLevel: 'strict'` y muestra el error con `textContent`.
+  - Comprobó en el navegador `<img src=x onerror=alert(1)>`, `<b>sí</b>` y `<script>`: se ven como texto.
+  - Ejecutó el mismo guion contra `develop` como control: ahí se inyecta el `<img>` y salta `alert(1)`.
+  - El ejemplo se ve igual píxel a píxel.
+  - Detectó otro fallo: en Estados aparecen dos cajas "direction" y "TD".
+- **Resultado:** `2a28f2f` a `c7937e1`; 4/4 tareas.
+- **Impacto:** cumple el criterio de terminado 8 del PRD, y el control demuestra que la prueba detecta
+  el ataque.
+
+**Prompt 13: Proponer el arreglo de la dirección**
+
+```
+/opsx:propose
+```
+
+- **Qué hizo el agente:** comprobó con Mermaid que `direction TD` no es válido en `stateDiagram-v2`.
+  Creó `direccion-estados` en una rama nueva desde `develop`: traducir `TD` → `TB` solo al generar
+  Estados, sin tocar el modelo ni `setMeta`.
+- **Resultado:** propuesta en `feat/direccion-estados`.
+- **Impacto:** arreglo acotado que no obliga a migrar datos en F2.
+
+**Prompt 14: Cuestionar la afirmación sobre Mermaid**
+
+```
+¿estas seguro de que mermaid no admite direction TD? usa context7 si es necesario
+```
+
+- **Qué hizo el agente:** la documentación de Context7 no enumeraba los valores, así que buscó las
+  reglas del lexer en el bundle. En 10.9.1 solo hay `TB`, `BT`, `LR` y `RL`; en 11.17.2 aparece `TD`,
+  pero solo en la gramática de flowchart. Al renderizar Estados con `TD`, las dos versiones dibujan los
+  estados de más.
+- **Resultado:** solo respuesta; después la evidencia pasó al `design.md`.
+- **Impacto:** la decisión se apoya en la gramática y no en una sola prueba.
+
+**Prompt 15: Versión antigua de Mermaid**
+
+```
+¿en qué documento dice que se use la 10.9.1? ¿no es un poco antigua ya? ¿hay riesgos por usar una version antigua?
+```
+
+- **Qué hizo el agente:**
+  - Comprobó que ningún documento justifica la 10.9.1: viene del prototipo inicial.
+  - `npm audit` le da 10 avisos de Mermaid; el alto está en el DOMPurify empaquetado, del que depende
+    el modo estricto.
+  - 10.9.8, 11.17.2 y 12.3.0 no tienen ningún aviso de Mermaid.
+  - Recomendó 10.9.8 con SRI ahora y dejar 11/12 para más adelante.
+  - El PO aceptó ("sí"). El agente commiteó `direccion-estados` con la evidencia de la 11.17.2 y propuso
+    `actualizar-mermaid`, tras calcular y contrastar el hash SRI y comprobar que el ejemplo se ve igual.
+  - El PO pidió el commit ("sí").
+- **Resultado:** `05f4431` y `1c32d1a`.
+- **Impacto:** el PO detectó un riesgo de seguridad que el agente había dado por bueno.
+
+**Prompt 16: Cerrar la sesión**
+
+```
+Ésta sesion se está haciendo larga ¿podemos cerrarla y dejar los apply para una sesion nueva o necesitas algo del contexto de esta sesión?
+```
+
+- **Qué hizo el agente:** comprobó qué quedaba solo en la conversación y guardó en la memoria las
+  trampas del entorno (`gh` no instalado; comillas y BOM al hacer commits en PowerShell). Recomendó
+  cerrar con esta skill.
+- **Resultado:** esta entrada.
+- **Impacto:** traspaso limpio a la sesión 3.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2.3 Estructura de ficheros | Prompt 4 (reparto en módulos y dependencias) |
+| 2.5 Seguridad | Prompts 12 (etiquetas hostiles con control) y 15 (versión de Mermaid, SRI) |
+| 2.6 Tests | Prompts 3 y 4 (línea base y `node --test`) |
+| 6. Tickets de trabajo | Prompts 11 y 13 (revisar y proponer changes) |
+| 7. Pull Requests | Prompts 8, 9 y 10 (PR #2, merge commit y rebase) |
+
+### Correcciones
+
+- **Favicon (prompts 3 y 4).** El agente silenció el 404 filtrándolo en el driver. El PO lo rechazó y
+  pidió arreglar la causa con un icono.
+- **Versión de Mermaid sin cuestionar (prompt 15).** El agente dio por buena la 10.9.1 y llegó a escribir
+  en dos `design.md` que "sigue en 10.9.1". El PO preguntó y salieron 10 avisos de seguridad.
+- **Afirmación sin contrastar del todo (prompt 14).** El agente afirmó lo de `direction TD` con una sola
+  prueba de render. Al revisarlo apareció el matiz de la 11.17.2.
+- **Commits en PowerShell (prompt 4).** Un mensaje con comillas dobles rompió el comando y `Set-Content`
+  metió un BOM en el asunto. Se rehízo con `--amend` y desde entonces los commits van por Bash con
+  heredoc.
+- **Pruebas mal planteadas por el agente:** un test exigía que no hubiese `>` en el código (las flechas
+  `-->` lo tienen), y la comprobación XSS buscaba la cadena `onerror=`, que está en el texto escapado.
+  Las dos se corrigieron para comprobar lo que importaba.
+- **Captura equivocada (prompt 12).** El control contra `develop` sobrescribió la captura buena y el
+  agente estuvo a punto de describirla como el resultado. Lo detectó y repitió la prueba.
+- **Artefactos de la sesión 1bis:** el comando `node --test frontend/` falla en Node 24 (toma el
+  directorio como archivo). Se corrigió en las tareas, en CLAUDE.md y en el readme.
+- **Edición parcial (prompt 15).** Una edición del `design.md` no aplicó y el commit salió sin ese
+  párrafo. Se corrigió con `--amend` en local.
+- **Dato erróneo en una propuesta (prompt 15).** `actualizar-mermaid` decía que la skill nombraba la
+  versión de Mermaid. El agente lo corrigió antes del commit.
+
+### Pendiente
+
+- `vista-previa-segura` (4/4): archivar, hacer push y abrir la PR a `develop`.
+- `actualizar-mermaid` (0/6): aplicar. Va bien con el anterior, porque el modo estricto confía en el
+  DOMPurify de Mermaid.
+- `direccion-estados` (0/5): aplicar.
+- Más adelante, un change para evaluar Mermaid 11/12 con comparación de capturas.
+- Fuera de alcance anotado: el carácter `|` rompe las etiquetas de conectores de flujo.
+- Arrastrado de la sesión 1bis: añadir Automerge a la sección 8 del PRD como alternativa descartada.
+  Queda resuelto que cada change es una rama y una PR.
+- `docs/sesiones/` sigue sin versionar.
+- Siguiente según el PRD: cerrar F1 y empezar F2 (modelo de operaciones).
+
+**Horas:** 3 (acumulado 3,5 h de 33).
