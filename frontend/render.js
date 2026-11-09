@@ -65,10 +65,15 @@ export function renderMermaid(){
     if(!nodes.length){ box.innerHTML='<div style="color:var(--ink-2)">Dibuja una forma con el lápiz y aparecerá aquí.</div>'; return; }
     try{
       const dark = matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme!=='light' || document.documentElement.dataset.theme==='dark';
-      mermaid.initialize({startOnLoad:false, theme: dark?'dark':'neutral', securityLevel:'loose'});
+      mermaid.initialize({startOnLoad:false, theme: dark?'dark':'neutral', securityLevel:'strict'});
       const {svg} = await mermaid.render('mmd'+(++renderN), code);
       box.innerHTML = svg;
-    }catch(err){ box.innerHTML = '<div class="err">Mermaid no puede renderizar aún:\n'+(err.message||err)+'</div>'; }
+    }catch(err){
+      // The message can contain a label's text: show it as text, never as HTML
+      const div = document.createElement('div'); div.className = 'err';
+      div.textContent = 'Mermaid no puede renderizar aún:\n'+(err.message||err);
+      box.replaceChildren(div);
+    }
   }, 250);
 }
 export function update(){ draw(); renderMermaid(); }
