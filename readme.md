@@ -127,14 +127,22 @@ etiquetas e importación de código Mermaid.
 ### **1.4. Instrucciones de instalación:**
 > Documenta de manera precisa las instrucciones para instalar y poner en marcha el proyecto en local (librerías, backend, frontend, servidor, base de datos, migraciones y semillas de datos, etc.)
 
-**Prototipo actual (solo frontend).** No tiene dependencias ni build: basta con servir la carpeta.
+**Prototipo actual (solo frontend).** No tiene dependencias ni build: basta con servir la carpeta
+`frontend/` con cualquier servidor HTTP estático (requiere Node).
 
 ```bash
-python -m http.server 8000
+npx -y http-server -p 8000 -s -c-1 frontend
 ```
 
 Abrir `http://localhost:8000`. Para probar en la tablet, abrir `http://<ip-del-pc>:8000` desde la misma
-red.
+red. La app usa módulos ES, que el navegador no carga desde `file://`: abrir `index.html` con doble
+clic no funciona, hay que servirla por HTTP.
+
+Tests del frontend (Node 22 o superior, sin instalar nada):
+
+```bash
+node --test "frontend/**/*.test.js"
+```
 
 **MVP (previsto).** *Pendiente de confirmar al implementarlo.* Requisitos: Java 21, Maven 3.9,
 Docker y una cuenta de Supabase.
@@ -145,8 +153,8 @@ Docker y una cuenta de Supabase.
 3. Arrancar PostgreSQL en local: `docker compose up -d`.
 4. Arrancar el backend: `mvn -f backend spring-boot:run`. Flyway aplica las migraciones al arrancar.
 5. Abrir `http://localhost:8080`: el backend sirve también el frontend.
-6. Ejecutar los tests: `node --test` (frontend) y `mvn -f backend verify` (backend, necesita Docker
-   para Testcontainers).
+6. Ejecutar los tests: `node --test "frontend/**/*.test.js"` (frontend) y `mvn -f backend verify`
+   (backend, necesita Docker para Testcontainers).
 
 ---
 
@@ -250,14 +258,28 @@ app, la API y el WebSocket.
 
 ```
 trazo-mermaid/
-├── index.html        Página única
-├── app.js            Toda la lógica: tipos, reconocedor, modelo, render, entrada y generación
-├── styles.css        Estilos con tema claro y oscuro
-├── CLAUDE.md         Contexto del proyecto para Claude Code
-├── prompts.md        Prompts principales (entrega del curso)
-├── readme.md         Este documento
-└── docs/             PRD, bitácora y conversación de origen
+├── frontend/                 Módulos ES nativos, sin build; mermaid.js por CDN
+│   ├── index.html            Página única
+│   ├── styles.css            Estilos con tema claro y oscuro
+│   ├── package.json          Solo declara "type": "module" para poder importar desde Node
+│   ├── geometry.js           Utilidades geométricas (puro)
+│   ├── recognizer.js         Reconocimiento de trazos (puro)
+│   ├── kinds/                Un módulo por tipo de diagrama (formas y sintaxis) y mermaidCode (puro)
+│   ├── model.js              Estado del diagrama y sus cambios (sin DOM)
+│   ├── render.js             Canvas, vista previa y leyenda
+│   ├── input.js              Pointer Events, toque y editor de etiqueta
+│   ├── main.js               Arranque, barra de herramientas y avisos
+│   └── test/                 Tests con node --test y línea base del refactor
+├── openspec/                 Specs principales y cambios (propuesta, diseño y tareas)
+├── CLAUDE.md                 Contexto del proyecto para Claude Code
+├── prompts.md                Prompts principales (entrega del curso)
+├── readme.md                 Este documento
+└── docs/                     PRD, bitácora y conversación de origen
 ```
+
+Los módulos marcados como puros no tocan el DOM, por lo que los tests los importan directamente desde
+Node. Las dependencias van en un solo sentido: `geometry` → `recognizer`/`kinds` → `model` → `render`
+→ `input` → `main`.
 
 **Estructura prevista para el MVP** (el repositorio se publicará en GitHub como `AI4Devs-finalproject-abs`):
 
@@ -266,17 +288,18 @@ AI4Devs-finalproject-abs/
 ├── frontend/                 HTML y JS en módulos ES, sin build
 │   ├── index.html
 │   ├── styles.css
-│   └── js/
-│       ├── geometry.js       Utilidades geométricas
-│       ├── recognizer.js     Reconocimiento de trazos
-│       ├── model.js          Grafo y apply(op)
-│       ├── ops.js            Tipos de operación e inversas
-│       ├── kinds/            Un módulo por tipo de diagrama (formas y generación)
-│       ├── render.js         Canvas y vista previa
-│       ├── input.js          Pointer Events
-│       ├── collab.js         Cliente WebSocket
-│       ├── api.js            Cliente REST y supabase-js
-│       └── main.js           Arranque
+│   ├── package.json
+│   ├── geometry.js           Utilidades geométricas
+│   ├── recognizer.js         Reconocimiento de trazos
+│   ├── model.js              Grafo y apply(op)
+│   ├── ops.js                Tipos de operación e inversas (aún no existe)
+│   ├── kinds/                Un módulo por tipo de diagrama (formas y generación)
+│   ├── render.js             Canvas y vista previa
+│   ├── input.js              Pointer Events
+│   ├── collab.js             Cliente WebSocket (aún no existe)
+│   ├── api.js                Cliente REST y supabase-js (aún no existe)
+│   ├── main.js               Arranque
+│   └── test/                 Tests del frontend (node --test) y trazos grabados
 ├── backend/                  Proyecto Maven, Spring Boot
 │   └── src/main/java/…
 │       ├── collab/           Salas, protocolo y aplicación de operaciones
@@ -284,7 +307,6 @@ AI4Devs-finalproject-abs/
 │       ├── invites/          Invitaciones y miembros
 │       └── security/         Configuración de Spring Security y JWT
 ├── shared/fixtures/          Casos de prueba de operaciones que ejecutan los tests de JS y de Java
-├── tests/                    Tests del frontend (node --test) y trazos grabados
 ├── docs/                     PRD, bitácora y conversación de origen
 ├── Dockerfile
 └── docker-compose.yml        PostgreSQL local
