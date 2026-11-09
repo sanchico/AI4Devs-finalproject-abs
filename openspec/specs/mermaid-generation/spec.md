@@ -30,12 +30,17 @@ elipses como `[*]` en las aristas sin declararlas como nodo.
 - **THEN** el código contiene `[*] --> n2` y ninguna línea `state` para la elipse
 
 ### Requirement: Escape de comillas y saltos de línea en etiquetas
-El sistema SHALL sustituir las comillas dobles de una etiqueta por `#quot;` y los saltos de línea por un
-espacio, y SHALL usar un espacio como texto de un nodo sin etiqueta.
+El sistema SHALL sustituir en una etiqueta `&` por `#amp;`, `<` por `#lt;` y `>` por `#gt;` (en ese orden),
+las comillas dobles por `#quot;` y los saltos de línea por un espacio, y SHALL usar un espacio como texto
+de un nodo sin etiqueta.
 
 #### Scenario: Etiqueta con comillas
 - **WHEN** un nodo de proceso tiene la etiqueta `Leer "x"`
 - **THEN** el código contiene `["Leer #quot;x#quot;"]`
+
+#### Scenario: Etiqueta con HTML y ampersand
+- **WHEN** un nodo de proceso `n1` tiene la etiqueta `a<b & c>d`
+- **THEN** el código contiene `n1["a#lt;b #amp; c#gt;d"]`
 
 ### Requirement: Dirección del diagrama
 El sistema SHALL usar la dirección elegida en el selector (`TD` o `LR`) en la cabecera del código y
