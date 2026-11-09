@@ -10,8 +10,8 @@ Estimación total: 0,5 h (una sesión corta). No está en el presupuesto del PRD
 
 ## 2. Comprobación en el navegador (0,2 h)
 
-- [ ] 2.1 Con la skill `run-trazo-mermaid`, cambiar a "Estados (UML)", dibujar dos estados y una conexión, y comprobar con "Arriba → abajo" y con "Izquierda → derecha" que la vista previa solo dibuja los dos estados (ninguna caja "direction" ni "TD") y que el código tiene `direction TB` y `direction LR`; verificar en la captura, y repetir el mismo guion contra `develop` (sin el arreglo) para confirmar que ahí sí aparecen las dos cajas
-- [ ] 2.2 Verificar que la salida normal de la skill `run-trazo-mermaid` (Flujo) sigue siendo la de la línea base (`frontend/test/baseline-skill.txt`) y que no hay errores en la consola
+- [x] 2.1 Con la skill `run-trazo-mermaid`, cambiar a "Estados (UML)", dibujar dos estados y una conexión, y comprobar con "Arriba → abajo" y con "Izquierda → derecha" que la vista previa solo dibuja los dos estados (ninguna caja "direction" ni "TD") y que el código tiene `direction TB` y `direction LR`; verificar en la captura, y repetir el mismo guion contra `develop` (sin el arreglo) para confirmar que ahí sí aparecen las dos cajas
+- [x] 2.2 Verificar que la salida normal de la skill `run-trazo-mermaid` (Flujo) sigue siendo la de la línea base (`frontend/test/baseline-skill.txt`) y que no hay errores en la consola
 
 ## Workflow follow-up
 
