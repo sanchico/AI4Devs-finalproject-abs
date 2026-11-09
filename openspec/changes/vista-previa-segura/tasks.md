@@ -4,7 +4,7 @@ Estimación total: 0,5 h. Parte de `modularizar-frontend`, ya aplicado y archiva
 
 ## 1. Escape en el generador (0,2 h)
 
-- [ ] 1.1 Ampliar `esc` en `frontend/kinds/index.js` para escribir `&` → `#amp;`, `<` → `#lt;` y `>` → `#gt;` (en ese orden) antes del escape de comillas; verificar con un test nuevo en `frontend/test/` (`node --test "frontend/**/*.test.js"`; con Node 24, `node --test frontend/` trata el directorio como un archivo y falla) que `a<b & c>d` genera `n1["a#lt;b #amp; c#gt;d"]` y que el test de línea base sigue en verde
+- [x] 1.1 Ampliar `esc` en `frontend/kinds/index.js` para escribir `&` → `#amp;`, `<` → `#lt;` y `>` → `#gt;` (en ese orden) antes del escape de comillas; verificar con un test nuevo en `frontend/test/` (`node --test "frontend/**/*.test.js"`; con Node 24, `node --test frontend/` trata el directorio como un archivo y falla) que `a<b & c>d` genera `n1["a#lt;b #amp; c#gt;d"]` y que el test de línea base sigue en verde
 
 ## 2. Render seguro (0,3 h)
 
