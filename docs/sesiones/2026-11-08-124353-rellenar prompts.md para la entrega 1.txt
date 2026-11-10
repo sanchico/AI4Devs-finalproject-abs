@@ -1,0 +1,730 @@
+
+> <ide_opened_file>The user opened the file
+  c:\dev\lidr\AI4Devs-finalproject\readme.md in the IDE. This may or may not be
+  related to the current task.</ide_opened_file>
+
+> @conversacion-previa.md contiene una conversacion con Claude desktop que ha
+  producido el PRD @"PRD — PrestoDraft v1.md" . Usando estos archivos rellena
+  @prompts.md  Sólo puedes escribir en las líneas que empiezan por > .  Tienes
+  un ejemplo en C:\dev\lidr\AI4Devs-finalproject-Example1
+  ⎿  Read PRD — PrestoDraft v1.md (176 lines)
+  ⎿  Read conversacion-previa.md (159 lines)
+  ⎿  Read prompts.md (126 lines)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Write(prompts.md)
+  ⎿  Added 61 lines
+      1  > Detalla en esta sección los prompts principales utilizados dur
+         ante la creación del proyecto, que justifiquen el uso de asisten
+         tes de código en todas las fases del ciclo de vida del desarroll
+         o. Esperamos un máximo de 3 por sección, principalmente los de c
+         reación inicial o  los de corrección o adición de funcionalidade
+         s que consideres más relevantes.
+      2  Puedes añadir adicionalmente la conversación completa como link 
+         o archivo adjunto si así lo consideras
+      3 +>                                                               
+      4 +> Conversación completa con Claude (app de escritorio, 25–28/09/
+        +2026): [conversacion-previa.md](conversacion-previa.md). Documen
+        +to resultante: [PRD — PrestoDraft v1](PRD%20—%20PrestoDraft%20v1
+        +.md).                                                           
+      5  
+      6  
+      7  ## Índice
+     ...
+      19  ## 1. Descripción general del producto
+      20  
+      21  **Prompt 1:**
+      22 +> *Investigación de mercado (Claude desktop, con búsqueda web).
+         +*                                                              
+      23 +> ```                                                          
+      24 +> ¿hay alguna app para escribir partituras a mano alzada y que 
+         +suenen?                                                        
+      25 +> ```                                                          
+      26 +> **Resultado:** comparativa de StaffPad, NotateMe, Symphony Pr
+         +o, Touch Notation y Sheet Music Scanner. Todas están atadas a u
+         +n sistema o a dispositivos concretos, lo que dio origen a la se
+         +cción "Problema" del PRD.                                      
+      27  
+      28  **Prompt 2:**
+      29 +> *Viabilidad y alcance.*                                      
+      30 +> ```                                                          
+      31 +> Google Play Store me dice que NotateMe no es compatible con n
+         +inguno de mis dispositivos. ¿Crees que sería viable crear una a
+         +pp como esa en unas 30 horas asistido por Claude Code?         
+      32 +> ```                                                          
+      33 +> **Resultado:** viable recortando alcance. Decisiones clave: l
+         +a altura de la nota se calcula por su posición vertical en vez 
+         +de reconocerse, solo se reconoce la forma del símbolo con recon
+         +ocedores ligeros ($1/$P), y se construye como PWA para evitar p
+         +roblemas de compatibilidad. Se identificó el reconocimiento com
+         +o riesgo principal y se propuso un prototipo previo de 4–5 h.  
+      34  
+      35  **Prompt 3:**
+      36 +> *Creación del PRD, con preguntas de clarificación del asisten
+         +te.*                                                           
+      37 +> ```                                                          
+      38 +> ¿Puedes ayudarme a crear un PRD? Pregúntame lo que necesites.
+      39 +> ```                                                          
+      40 +> Respuestas a las preguntas de opción múltiple del asistente: 
+      41 +> ```                                                          
+      42 +> - ¿Para quién es? → Pública.                                 
+      43 +> - ¿Para qué? → Pasar partituras a digital, apuntar ideas meló
+         +dicas, componer piezas completas y aprender o enseñar solfeo.  
+      44 +> - ¿Dispositivo? → Varios dispositivos.                       
+      45 +> - ¿Nivel musical? → Aficionado que lee música.               
+      46 +> - ¿Qué cubre el PRD? → Solo la v1 de 30 h.                   
+      47 +> - ¿Distribución? → Es para un curso; esta versión sería de có
+         +digo abierto, pero quiero poder evolucionarlo a pago.          
+      48 +> - ¿Sincronización entre dispositivos? → Sí, desde la v1.     
+      49 +> - ¿Notación mínima? → Melodía a una voz.                     
+      50 +> ```                                                          
+      51 +> **Resultado:** [PRD — PrestoDraft v1](PRD%20—%20PrestoDraft%2
+         +0v1.md): usuarios y casos de uso priorizados, objetivos y métri
+         +cas, alcance de la v1 (una voz, clave de sol), requisitos funci
+         +onales y no funcionales, plan de 30 h con puerta de decisión, y
+         + propuesta de licencia open core.                              
+      52  
+      53  ---
+      54  
+     ...
+      57  ### **2.1. Diagrama de arquitectura:**
+      58  
+      59  **Prompt 1:**
+      60 +> *Elección del backend.*                                      
+      61 +> ```                                                          
+      62 +> En cuanto al backend: me siento más cómodo en Java. ¿Supabase
+         + o Firebase son compatibles con Java? ¿Sustituyen al backend en
+         + Java?                                                         
+      63 +> ```                                                          
+      64 +> **Resultado:** tres opciones evaluadas (solo Supabase ~5 h; h
+         +íbrido Supabase + Spring Boot ~7–9 h; backend Java completo ~12
+         +–15 h). Se eligió el **híbrido**: PWA en el navegador con Index
+         +edDB local, Supabase Auth para las cuentas, API Spring Boot par
+         +a las partituras y el PostgreSQL de Supabase como base de datos
+         +.                                                              
+      65  
+      66  **Prompt 2:**
+      67  
+     ...
+      70  ### **2.2. Descripción de componentes principales:**
+      71  
+      72  **Prompt 1:**
+      73 +> *Stack del cliente, dentro del prompt de viabilidad (ver secc
+         +ión 1, prompt 2).*                                             
+      74 +> **Resultado:** Canvas + Pointer Events para capturar el trazo
+         +, reconocedor de gestos $1/$P para las formas, VexFlow para dib
+         +ujar la partitura, Tone.js para el sonido y exportación MIDI.  
+      75  
+      76  **Prompt 2:**
+      77 +> *Confirmación de la arquitectura híbrida propuesta en 2.1.*  
+      78 +> ```                                                          
+      79 +> Sí                                                           
+      80 +> ```                                                          
+      81 +> **Resultado:** PRD actualizado con los componentes de servido
+         +r: Supabase Auth (correo, Google, recuperación de contraseña), 
+         +API Spring Boot como resource server que valida el JWT, y Sprin
+         +g Data JPA sobre el PostgreSQL de Supabase.                    
+      82  
+      83  **Prompt 3:**
+      84  
+      85  ### **2.3. Descripción de alto nivel del proyecto y estructura 
+          de ficheros**
+      86  
+      87  **Prompt 1:**
+      88 +> *Generación del CLAUDE.md, como respuesta a la propuesta del 
+         +asistente de crearlo tras el análisis de viabilidad.*          
+      89 +> ```                                                          
+      90 +> Sí                                                           
+      91 +> ```                                                          
+      92 +> **Resultado:** CLAUDE.md con alcance, stack (TypeScript + Vit
+         +e, VexFlow, Tone.js), arquitectura por módulos (`input`, `staff
+         +`, `segment`, `recognize`, `model`, `render`, `playback`, `stor
+         +age`, `ui`), tipos principales y seis fases con criterio de ace
+         +ptación. La API Java vive en una carpeta aparte del mismo repos
+         +itorio.                                                        
+      93  
+      94  **Prompt 2:**
+      95  
+     ...
+      106  ### **2.5. Seguridad**
+      107  
+      108  **Prompt 1:**
+      109 +> *Mismo prompt que 2.1 (backend en Java).*                   
+      110 +> **Resultado:** la autenticación se delega en Supabase; los t
+          +okens de sesión son JWT estándar que Spring Security valida. L
+          +a API solo devuelve y modifica partituras cuyo dueño coincide 
+          +con el usuario del token. Se añadió el riesgo "validar el JWT 
+          +de Supabase en Spring", mitigado probándolo primero con un end
+          +point mínimo.                                                 
+      111  
+      112  **Prompt 2:**
+      113  
+     ...
+      126  ### 3. Modelo de Datos
+      127  
+      128  **Prompt 1:**
+      129 +> *Confirmación de la arquitectura híbrida (ver 2.2, prompt 2)
+          +.*                                                            
+      130 +> **Resultado:** cada partitura es una fila con dueño, título,
+          + fecha, número de versión y el documento JSON, que a su vez ll
+          +eva una versión de esquema para poder migrar al añadir acordes
+          + o varias voces. La cuenta guarda un campo de plan (gratuito p
+          +or defecto) pensando en la futura versión de pago.            
+      131  
+      132  **Prompt 2:**
+      133  
+     ...
+      138  ### 4. Especificación de la API
+      139  
+      140  **Prompt 1:**
+      141 +> *Confirmación de la arquitectura híbrida (ver 2.2, prompt 2)
+          +.*                                                            
+      142 +> **Resultado:** API REST con CRUD de partituras (listar, crea
+          +r, actualizar, borrar) protegida con el JWT de Supabase. Contr
+          +ol de concurrencia optimista: si la versión no coincide, la AP
+          +I responde **409** y el cliente guarda su cambio como copia ("
+          +Mi melodía (conflicto)") en vez de perderlo.                  
+      143  
+      144  **Prompt 2:**
+      145  
+     ...
+      150  ### 5. Historias de Usuario
+      151  
+      152  **Prompt 1:**
+      153 +> *Estimación de una funcionalidad nueva.*                    
+      154 +> ```                                                         
+      155 +> ¿Cuánto tiempo supondría una funcionalidad drag and drop par
+          +a modificar la altura de la nota?                             
+      156 +> ```                                                         
+      157 +> **Resultado:** estimación de 3–5 h desglosada por tareas, y 
+          +análisis del conflicto de gestos entre escribir y arrastrar. R
+          +ecomendación: pulsación larga como mecanismo general y arrastr
+          +e con el dedo cuando se detecte un lápiz.                     
+      158  
+      159  **Prompt 2:**
+      160 +> *Aceptación de la funcionalidad.*                           
+      161 +> ```                                                         
+      162 +> Sí                                                          
+      163 +> ```                                                         
+      164 +> **Resultado:** nuevos requisitos RF-09 (ajuste a líneas y es
+          +pacios, vista previa y sonido al cambiar) y RF-10 (pulsación l
+          +arga; con lápiz, el dedo arrastra). Para compensar las horas, 
+          +la clave de fa sale del alcance y el arrastre con el dedo pasa
+          + a la lista de recortes.                                      
+      165  
+      166  **Prompt 3:**
+      167  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● I've filled in prompts.md. I only added lines starting with > and didn't
+  change any existing line; I checked this with git diff. The prompts are copied
+  word for word from conversacion-previa.md, and each one has a short note on
+  its context and what came out of it.
+
+  ┌─────────────────┬───────────────────────────────────────────────────────┐
+  │     Sección     │                        Prompts                        │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ Encabezado      │ Enlace a la conversación completa y al PRD            │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ 1. Descripción  │ ¿Hay apps así? · ¿Es viable en 30 h? · Crear el PRD   │
+  │ general         │ (con las respuestas a las preguntas del asistente)    │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ 2.1             │ Pregunta sobre el backend en Java (Supabase frente a  │
+  │ Arquitectura    │ Firebase)                                             │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │                 │ Tecnologías del cliente (PWA: dibujo del trazo,       │
+  │ 2.2 Componentes │ VexFlow, Tone.js) · "Sí" a la opción que combina      │
+  │                 │ Supabase y una API en Spring Boot                     │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ 2.3 Estructura  │ "Sí" al CLAUDE.md (módulos y fases)                   │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ 2.5 Seguridad   │ Remite al prompt de 2.1 (login delegado en Supabase y │
+  │                 │  validado en Spring)                                  │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ 3. Modelo de    │ Remite a 2.2 (partitura con dueño, versión y JSON)    │
+  │ datos           │                                                       │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ 4. API          │ Remite a 2.2 (listar, crear, actualizar y borrar      │
+  │                 │ partituras; conflicto 409)                            │
+  ├─────────────────┼───────────────────────────────────────────────────────┤
+  │ 5. Historias de │ Arrastrar notas para cambiar la altura + "Sí" (RF-09  │
+  │  usuario        │ y RF-10)                                              │
+  └─────────────────┴───────────────────────────────────────────────────────┘
+
+  Dejé vacías 2.4 Infraestructura, 2.6 Tests, 6 Tickets y 7 Pull requests. En la
+  conversación no hay prompts para esos temas y no quise inventarlos. Podrás
+  rellenarlas cuando las trabajes con Claude Code.
+
+  He usado el mismo prompt en más de una sección: el del backend en Java sirve
+  para 2.1 y 2.5, y el "Sí" a esa opción para 2.2, 3 y 4. Para no repetirlo
+  entero, en esas secciones pongo una referencia al prompt de origen.
+
+> <ide_opened_file>The user opened the file
+  c:\dev\lidr\AI4Devs-finalproject\prompts.md in the IDE. This may or may not
+  be related to the current task.</ide_opened_file>
+
+> no hagas referencias al PRD, escribe la respuestas en prompts.md
+
+● Write(prompts.md)
+  ⎿  Added 122 lines, removed 26 lines
+      1  > Detalla en esta sección los prompts principales utilizados dur
+         ante la creación del proyecto, que justifiquen el uso de asisten
+         tes de código en todas las fases del ciclo de vida del desarroll
+         o. Esperamos un máximo de 3 por sección, principalmente los de c
+         reación inicial o  los de corrección o adición de funcionalidade
+         s que consideres más relevantes.
+      2  Puedes añadir adicionalmente la conversación completa como link 
+         o archivo adjunto si así lo consideras
+      3  >
+      4 -> Conversación completa con Claude (app de escritorio, 25–28/09/
+        -2026): [conversacion-previa.md](conversacion-previa.md). Documen
+        -to resultante: [PRD — PrestoDraft v1](PRD%20—%20PrestoDraft%20v1
+        -.md).                                                           
+      4 +> Conversación completa con Claude (app de escritorio, 25–28/09/
+        +2026): [conversacion-previa.md](conversacion-previa.md).        
+      5  
+      6  
+      7  ## Índice
+     ...
+      19  ## 1. Descripción general del producto
+      20  
+      21  **Prompt 1:**
+      22 -> *Investigación de mercado (Claude desktop, con búsqueda web).
+         -*                                                              
+      22  > ```
+      23  > ¿hay alguna app para escribir partituras a mano alzada y que 
+          suenen?
+      24  > ```
+      26 -> **Resultado:** comparativa de StaffPad, NotateMe, Symphony Pr
+         -o, Touch Notation y Sheet Music Scanner. Todas están atadas a u
+         -n sistema o a dispositivos concretos, lo que dio origen a la se
+         -cción "Problema" del PRD.                                      
+      25 +> **Respuesta (Claude, con búsqueda web):**                    
+      26 +>                                                              
+      27 +> Sí, hay varias, y la elección depende sobre todo del disposit
+         +ivo que tengas:                                                
+      28 +>                                                              
+      29 +> - **StaffPad** (iPad y Windows) es la referencia. Reconoce la
+         + música escrita a mano, permite editar con el dedo, tiene una r
+         +eproducción muy buena y maqueta la partitura automáticamente. E
+         +s de pago (unos 50 $ en iPad), y algún usuario comenta que al p
+         +rincipio le costó que reconociera su letra.                    
+      30 +> - **NotateMe** (Android e iOS) es la opción para Android. Se 
+         +escribe con el dedo o un stylus, con reproducción instantánea, 
+         +edición y partitura imprimible. Hay versión gratuita limitada a
+         + un pentagrama, y exporta a MusicXML y MIDI.                   
+      31 +> - **Symphony Pro** (iPad/iPhone) es un editor completo; el re
+         +conocimiento de escritura a mano es la única compra dentro de l
+         +a app.                                                         
+      32 +> - **Touch Notation** (iPad), de Kawai, es más sencilla: dibuj
+         +as sobre la partitura, aparece como notación limpia y suena con
+         + 30 voces de instrumentos.                                     
+      33 +> - Para partituras ya escritas en papel, **Sheet Music Scanner
+         +** las lee con la cámara y las convierte en una partitura digit
+         +al editable y reproducible.                                    
+      34 +>                                                              
+      35 +> En resumen: con iPad o Windows con lápiz, StaffPad; con Andro
+         +id, NotateMe (probando primero la versión gratuita).           
+      36  
+      37  **Prompt 2:**
+      29 -> *Viabilidad y alcance.*                                      
+      38  > ```
+      39  > Google Play Store me dice que NotateMe no es compatible con n
+          inguno de mis dispositivos. ¿Crees que sería viable crear una a
+          pp como esa en unas 30 horas asistido por Claude Code?
+      40  > ```
+      33 -> **Resultado:** viable recortando alcance. Decisiones clave: l
+         -a altura de la nota se calcula por su posición vertical en vez 
+         -de reconocerse, solo se reconoce la forma del símbolo con recon
+         -ocedores ligeros ($1/$P), y se construye como PWA para evitar p
+         -roblemas de compatibilidad. Se identificó el reconocimiento com
+         -o riesgo principal y se propuso un prototipo previo de 4–5 h.  
+      41 +> **Respuesta:**                                               
+      42 +>                                                              
+      43 +> Sí es viable, **si se recorta el alcance**. Clonar NotateMe e
+         +ntero en 30 horas no: su reconocimiento lleva años de desarroll
+         +o. Pero una versión que cubra lo básico sí es realista.        
+      44 +>                                                              
+      45 +> **La clave es no reconocerlo todo a mano libre:**            
+      46 +> - **La altura de la nota no se reconoce, se calcula** por la 
+         +posición vertical del trazo, ajustada a la línea o espacio más 
+         +cercano.                                                       
+      47 +> - **Solo se reconoce la forma del símbolo**, que es un conjun
+         +to pequeño (cabezas, plica, corchete, silencios, alteraciones).
+         + Para eso sirven reconocedores de gestos ligeros como $1/$P, co
+         +n pocas plantillas y sin entrenar redes neuronales.            
+      48 +>                                                              
+      49 +> **Reparto aproximado:** lienzo y captura 3–4 h; altura y agru
+         +pación de trazos 5–6 h; reconocimiento de formas 6–8 h; modelo 
+         +de partitura 4–5 h; renderizado y reproducción 4–5 h; pulido y 
+         +pruebas 4–5 h.                                                 
+      50 +>                                                              
+      51 +> **Fuera de la primera versión:** acordes complejos, varias vo
+         +ces, ligaduras, tresillos, letra, partituras de orquesta.      
+      52 +>                                                              
+      53 +> **Riesgo principal:** el reconocimiento de formas. Consejo: e
+         +mpezar por un prototipo de 4–5 h que solo reconozca negras y bl
+         +ancas y las haga sonar.                                        
+      54  
+      55  **Prompt 3:**
+      36 -> *Creación del PRD, con preguntas de clarificación del asisten
+         -te.*                                                           
+      56  > ```
+      57  > ¿Puedes ayudarme a crear un PRD? Pregúntame lo que necesites.
+      58  > ```
+      40 -> Respuestas a las preguntas de opción múltiple del asistente: 
+      59 +> El asistente respondió con dos rondas de preguntas de opción 
+         +múltiple. Respuestas dadas:                                    
+      60  > ```
+      61  > - ¿Para quién es? → Pública.
+      62  > - ¿Para qué? → Pasar partituras a digital, apuntar ideas meló
+          dicas, componer piezas completas y aprender o enseñar solfeo.
+     ...
+      67  > - ¿Sincronización entre dispositivos? → Sí, desde la v1.
+      68  > - ¿Notación mínima? → Melodía a una voz.
+      69  > ```
+      51 -> **Resultado:** [PRD — PrestoDraft v1](PRD%20—%20PrestoDraft%2
+         -0v1.md): usuarios y casos de uso priorizados, objetivos y métri
+         -cas, alcance de la v1 (una voz, clave de sol), requisitos funci
+         -onales y no funcionales, plan de 30 h con puerta de decisión, y
+         - propuesta de licencia open core.                              
+      70 +> **Respuesta:**                                               
+      71 +>                                                              
+      72 +> Una app pública, multidispositivo y con cuatro usos es más qu
+         +e 30 horas, así que hay que marcar qué entra en la primera vers
+         +ión.                                                           
+      73 +>                                                              
+      74 +> **Resumen.** PrestoDraft es una web app pública para escribir
+         + melodías a mano sobre un pentagrama, verlas convertidas en not
+         +ación limpia y oírlas al instante. Funciona en el navegador de 
+         +tabletas, móviles y ordenadores, con lápiz, dedo o ratón. Las p
+         +artituras se guardan en la nube y se abren en cualquier disposi
+         +tivo. El código de la v1 será abierto, dejando la puerta abiert
+         +a a una versión de pago posterior (modelo open core).          
+      75 +>                                                              
+      76 +> **Usuario objetivo:** músico aficionado que lee partitura y t
+         +oca algún instrumento. Casos de uso por prioridad:             
+      77 +>                                                              
+      78 +> | Prioridad | Caso de uso | Cobertura en v1 |                
+      79 +> | --- | --- | --- |                                          
+      80 +> | 1 | Apuntar ideas melódicas | Completa |                   
+      81 +> | 2 | Pasar partituras a digital | Completa si es a una voz |
+      82 +> | 3 | Componer piezas | Parcial: una voz, sin letra ni dinámi
+         +cas |                                                          
+      83 +> | 4 | Aprender o enseñar solfeo | Parcial: sin ejercicios gui
+         +ados |                                                         
+      84 +>                                                              
+      85 +> **Objetivos:** ≥ 90 % de símbolos bien reconocidos al primer 
+         +intento; escribir y oír 4 compases en ≤ 2 min; flujo completo e
+         +n Chrome Android, Safari iPad y Chrome escritorio; cambios visi
+         +bles en otro dispositivo en ≤ 10 s; 0 partituras perdidas con c
+         +ortes de red.                                                  
+      86 +>                                                              
+      87 +> **Dentro de la v1:** clave de sol; compás y tempo ajustables;
+         + redonda, blanca, negra, corchea y semicorchea, con puntillo; s
+         +ilencios; sostenido, bemol y becuadro; reproducción con piano y
+         + cursor; borrar, deshacer y rehacer; cuenta de usuario y sincro
+         +nización; exportar a MIDI; interfaz en español.                
+      88 +>                                                              
+      89 +> **Fuera de la v1:** acordes, varias voces o pentagramas; liga
+         +duras, tresillos, letra y dinámicas; MusicXML, PDF e impresión;
+         + escaneo con cámara; compartir o editar a la vez; pagos.       
+      90  
+      91  ---
+      92  
+     ...
+       95  ### **2.1. Diagrama de arquitectura:**
+       96  
+       97  **Prompt 1:**
+       60 -> *Elección del backend.*                                     
+       98  > ```
+       99  > En cuanto al backend: me siento más cómodo en Java. ¿Supabas
+           e o Firebase son compatibles con Java? ¿Sustituyen al backend 
+           en Java?
+      100  > ```
+       64 -> **Resultado:** tres opciones evaluadas (solo Supabase ~5 h; 
+          -híbrido Supabase + Spring Boot ~7–9 h; backend Java completo ~
+          -12–15 h). Se eligió el **híbrido**: PWA en el navegador con In
+          -dexedDB local, Supabase Auth para las cuentas, API Spring Boot
+          - para las partituras y el PostgreSQL de Supabase como base de 
+          -datos.                                                        
+      101 +> **Respuesta:**                                              
+      102 +>                                                             
+      103 +> Sí y no: se pueden usar desde Java, pero su propósito es que
+          + **no haga falta backend propio**. Son "backend como servicio"
+          +: la web app se conecta directamente a ellos, y la seguridad s
+          +e basa en reglas de la propia base de datos.                  
+      104 +>                                                             
+      105 +> - **Firebase** tiene SDK oficial para Java (Firebase Admin S
+          +DK), para código de servidor.                                 
+      106 +> - **Supabase** no tiene SDK oficial para Java, pero por deba
+          +jo es PostgreSQL: se usa con JDBC, JPA o Spring Data. Sus toke
+          +ns de sesión son JWT estándar, que Spring Security puede valid
+          +ar.                                                           
+      107 +>                                                             
+      108 +> Tres opciones:                                              
+      109 +> 1. **Solo Supabase, sin Java** (~5 h).                      
+      110 +> 2. **Híbrido: Supabase para cuentas y base de datos, con un 
+          +Spring Boot pequeño delante** que valida el JWT y accede a Pos
+          +tgres con JDBC (~7–9 h).                                      
+      111 +> 3. **Backend Java completo** (Spring Boot + Spring Security 
+          ++ Postgres propio), ~12–15 h.                                 
+      112 +>                                                             
+      113 +> Recomendación: **la opción 2**. Pone Java en la parte con ló
+          +gica de servidor, delega la autenticación y encaja con una fut
+          +ura versión de pago. Aun así, la mayor parte del trabajo sigue
+          + siendo TypeScript en el navegador; el backend es una API pequ
+          +eña de CRUD de documentos JSON.                               
+      114  
+      115  **Prompt 2:**
+      116  
+     ...
+      119  ### **2.2. Descripción de componentes principales:**
+      120  
+      121  **Prompt 1:**
+       73 -> *Stack del cliente, dentro del prompt de viabilidad (ver sec
+          -ción 1, prompt 2).*                                           
+       74 -> **Resultado:** Canvas + Pointer Events para capturar el traz
+          -o, reconocedor de gestos $1/$P para las formas, VexFlow para d
+          -ibujar la partitura, Tone.js para el sonido y exportación MIDI
+          -.                                                             
+      122 +> *Parte de la respuesta al prompt de viabilidad (sección 1, p
+          +rompt 2).*                                                    
+      123 +>                                                             
+      124 +> **Respuesta:**                                              
+      125 +>                                                             
+      126 +> **Stack recomendado: web app (PWA)**, que evita el problema 
+          +de compatibilidad: Canvas + Pointer Events para capturar el tr
+          +azo, VexFlow o abcjs para dibujar la partitura, Tone.js para e
+          +l sonido, y exportación MIDI/MusicXML como extra.             
+      127  
+      128  **Prompt 2:**
+       77 -> *Confirmación de la arquitectura híbrida propuesta en 2.1.* 
+      129 +> *Aceptación de la opción híbrida propuesta en 2.1.*         
+      130  > ```
+      131  > Sí
+      132  > ```
+       81 -> **Resultado:** PRD actualizado con los componentes de servid
+          -or: Supabase Auth (correo, Google, recuperación de contraseña)
+          -, API Spring Boot como resource server que valida el JWT, y Sp
+          -ring Data JPA sobre el PostgreSQL de Supabase.                
+      133 +> **Respuesta:**                                              
+      134 +>                                                             
+      135 +> - **Supabase Auth:** registro con correo, inicio de sesión c
+          +on Google y recuperación de contraseña. El navegador obtiene u
+          +n token JWT de sesión.                                        
+      136 +> - **API Spring Boot:** valida el JWT de Supabase con Spring 
+          +Security (resource server) y expone un CRUD de partituras.    
+      137 +> - **Base de datos:** el PostgreSQL de Supabase, accedido des
+          +de Java con Spring Data JPA.                                  
+      138 +> - **Modelo local primero:** la app siempre lee y escribe en 
+          +IndexedDB; un proceso en segundo plano sube y baja cambios a l
+          +a API.                                                        
+      139 +> - La fase de la API pasa a 8 h; se recortan otras fases y la
+          + exportación MIDI pasa a opcional.                            
+      140  
+      141  **Prompt 3:**
+      142  
+      143  ### **2.3. Descripción de alto nivel del proyecto y estructura
+            de ficheros**
+      144  
+      145  **Prompt 1:**
+       88 -> *Generación del CLAUDE.md, como respuesta a la propuesta del
+          - asistente de crearlo tras el análisis de viabilidad.*        
+      146 +> *Aceptación de la propuesta del asistente de crear un CLAUDE
+          +.md tras el análisis de viabilidad.*                          
+      147  > ```
+      148  > Sí
+      149  > ```
+       92 -> **Resultado:** CLAUDE.md con alcance, stack (TypeScript + Vi
+          -te, VexFlow, Tone.js), arquitectura por módulos (`input`, `sta
+          -ff`, `segment`, `recognize`, `model`, `render`, `playback`, `s
+          -torage`, `ui`), tipos principales y seis fases con criterio de
+          - aceptación. La API Java vive en una carpeta aparte del mismo 
+          -repositorio.                                                  
+      150 +> **Respuesta:**                                              
+      151 +>                                                             
+      152 +> Creado el fichero **CLAUDE.md**. Recoge alcance, stack (Type
+          +Script + Vite, VexFlow, Tone.js), arquitectura por módulos (`i
+          +nput`, `staff`, `segment`, `recognize`, `model`, `render`, `pl
+          +ayback`, `storage`, `ui`), tipos principales y seis fases con 
+          +criterio de aceptación. La Fase 1 es un prototipo que solo rec
+          +onoce negras y blancas, para validar el enfoque antes de inver
+          +tir el resto de horas.                                        
+      153 +>                                                             
+      154 +> Para arrancar en Claude Code: *"Lee CLAUDE.md y haz la Fase 
+          +0; cuando termines, propón el plan de la Fase 1"*.            
+      155  
+      156  **Prompt 2:**
+      157  
+     ...
+      168  ### **2.5. Seguridad**
+      169  
+      170  **Prompt 1:**
+      109 -> *Mismo prompt que 2.1 (backend en Java).*                   
+      110 -> **Resultado:** la autenticación se delega en Supabase; los t
+          -okens de sesión son JWT estándar que Spring Security valida. L
+          -a API solo devuelve y modifica partituras cuyo dueño coincide 
+          -con el usuario del token. Se añadió el riesgo "validar el JWT 
+          -de Supabase en Spring", mitigado probándolo primero con un end
+          -point mínimo.                                                 
+      171 +> *Mismo prompt que 2.1 (backend en Java) y su aceptación ("Sí
+          +").*                                                          
+      172 +>                                                             
+      173 +> **Respuesta (parte de seguridad):**                         
+      174 +>                                                             
+      175 +> - La autenticación, que es lo más delicado, se delega en Sup
+          +abase Auth. Sus tokens de sesión son JWT estándar, que Spring 
+          +Security valida como resource server.                         
+      176 +> - **Autorización en Java:** la API solo devuelve y modifica 
+          +partituras cuyo dueño coincide con el usuario del token.      
+      177 +> - Nuevo riesgo: validación del JWT de Supabase en Spring, mi
+          +tigado probándolo primero con un endpoint mínimo antes del CRU
+          +D.                                                            
+      178  
+      179  **Prompt 2:**
+      180  
+     ...
+      193  ### 3. Modelo de Datos
+      194  
+      195  **Prompt 1:**
+      129 -> *Confirmación de la arquitectura híbrida (ver 2.2, prompt 2)
+          -.*                                                            
+      130 -> **Resultado:** cada partitura es una fila con dueño, título,
+          - fecha, número de versión y el documento JSON, que a su vez ll
+          -eva una versión de esquema para poder migrar al añadir acordes
+          - o varias voces. La cuenta guarda un campo de plan (gratuito p
+          -or defecto) pensando en la futura versión de pago.            
+      196 +> *Aceptación de la opción híbrida (2.2, prompt 2).*          
+      197 +> ```                                                         
+      198 +> Sí                                                          
+      199 +> ```                                                         
+      200 +> **Respuesta (parte de datos):**                             
+      201 +>                                                             
+      202 +> - Cada partitura es una fila con su dueño, título, fecha y e
+          +l documento JSON.                                             
+      203 +> - **Conflictos:** cada partitura lleva un número de versión.
+      204 +> - **Formato versionado:** el JSON lleva un número de versión
+          + de esquema, para poder migrar al añadir acordes o varias voce
+          +s.                                                            
+      205  
+      206  **Prompt 2:**
+      207  
+     ...
+      212  ### 4. Especificación de la API
+      213  
+      214  **Prompt 1:**
+      141 -> *Confirmación de la arquitectura híbrida (ver 2.2, prompt 2)
+          -.*                                                            
+      142 -> **Resultado:** API REST con CRUD de partituras (listar, crea
+          -r, actualizar, borrar) protegida con el JWT de Supabase. Contr
+          -ol de concurrencia optimista: si la versión no coincide, la AP
+          -I responde **409** y el cliente guarda su cambio como copia ("
+          -Mi melodía (conflicto)") en vez de perderlo.                  
+      215 +> *Aceptación de la opción híbrida (2.2, prompt 2).*          
+      216 +> ```                                                         
+      217 +> Sí                                                          
+      218 +> ```                                                         
+      219 +> **Respuesta (parte de la API):**                            
+      220 +>                                                             
+      221 +> - API Spring Boot que valida el JWT de Supabase y expone un 
+          +CRUD de partituras: listar, crear, actualizar y borrar.       
+      222 +> - Conflictos resueltos con número de versión: si al guardar 
+          +la versión no coincide, la API responde **409** y el cliente g
+          +uarda su cambio como copia ("Mi melodía (conflicto)") en vez d
+          +e perderlo.                                                   
+      223  
+      224  **Prompt 2:**
+      225  
+     ...
+      230  ### 5. Historias de Usuario
+      231  
+      232  **Prompt 1:**
+      153 -> *Estimación de una funcionalidad nueva.*                    
+      233  > ```
+      234  > ¿Cuánto tiempo supondría una funcionalidad drag and drop par
+           a modificar la altura de la nota?
+      235  > ```
+      157 -> **Resultado:** estimación de 3–5 h desglosada por tareas, y 
+          -análisis del conflicto de gestos entre escribir y arrastrar. R
+          -ecomendación: pulsación larga como mecanismo general y arrastr
+          -e con el dedo cuando se detecte un lápiz.                     
+      236 +> **Respuesta:**                                              
+      237 +>                                                             
+      238 +> Entre **3 y 5 horas**, porque la conversión de posición vert
+          +ical a altura ya existe.                                      
+      239 +>                                                             
+      240 +> | Tarea | Horas |                                           
+      241 +> | --- | --- |                                               
+      242 +> | Detectar qué nota se toca (cajas de VexFlow) | 0,5–1 |    
+      243 +> | Arrastre con ajuste a línea o espacio y vista previa | 1–1
+          +,5 |                                                          
+      244 +> | Actualizar modelo, deshacer/rehacer y sincronizar | 0,5–1 
+          +|                                                             
+      245 +> | Distinguir "arrastrar" de "escribir" | 1–1,5 |            
+      246 +> | Extras: sonido al cambiar, líneas adicionales en la vista 
+          +previa | 0,5 |                                                
+      247 +>                                                             
+      248 +> El punto delicado es el **conflicto de gestos**. Opciones: l
+          +ápiz escribe y dedo arrastra; pulsación larga sobre la nota; o
+          + un botón de modo seleccionar/escribir. Recomendación: pulsaci
+          +ón larga como mecanismo general y arrastre con el dedo cuando 
+          +se detecte un lápiz. Queda por decidir qué pasa con las altera
+          +ciones al mover la nota.                                      
+      249  
+      250  **Prompt 2:**
+      160 -> *Aceptación de la funcionalidad.*                           
+      251  > ```
+      252  > Sí
+      253  > ```
+      164 -> **Resultado:** nuevos requisitos RF-09 (ajuste a líneas y es
+          -pacios, vista previa y sonido al cambiar) y RF-10 (pulsación l
+          -arga; con lápiz, el dedo arrastra). Para compensar las horas, 
+          -la clave de fa sale del alcance y el arrastre con el dedo pasa
+          - a la lista de recortes.                                      
+      254 +> **Respuesta:**                                              
+      255 +>                                                             
+      256 +> - Alcance: arrastrar notas entra en la v1; la clave de fa sa
+          +le.                                                           
+      257 +> - Requisitos nuevos: **RF-09** (el usuario cambia la altura 
+          +de una nota arrastrándola: se ajusta a líneas y espacios, mues
+          +tra una vista previa y suena al cambiar) y **RF-10** (para arr
+          +astrar, se mantiene pulsada la nota; con lápiz detectado, el d
+          +edo arrastra directamente y el lápiz sigue escribiendo).      
+      258 +> - Plan: Fase 4 a 5,5 h; se recorta media hora en esqueleto (
+          +1 h), reconocedor (6 h), modelo (2,5 h) y pulido (2,5 h). El p
+          +lan queda sin margen.                                         
+      259 +> - Recortes: si hay retraso, se quita el arrastre con el dedo
+          + y queda solo la pulsación larga.                             
+      260 +> - Pregunta abierta: ¿la nota arrastrada conserva su alteraci
+          +ón o pasa a natural?                                          
+      261  
+      262  **Prompt 3:**
+      263  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● I've rewritten prompts.md. Each prompt is now followed by Claude's actual
+  response, taken from the conversation, and I've removed the links to the PRD
+  document. The link to conversacion-previa.md stays in the header.
+
+  - Most responses are copied word for word from the conversation: the app
+    search, the 30-hour feasibility check, the Java backend options, the
+    CLAUDE.md and the drag-to-change-pitch estimate.
+  - The prompt that created the PRD had a document as its answer, not a chat
+    message. For that one I wrote the document's main content directly into the
+    file: summary, use cases, goals, and what's in and out of v1.
+  - The short "Sí" replies in the conversation only said "[PRD actualizado]"
+    with a list of changes. I kept those changes but stopped presenting them as
+    "PRD updated". For example, the security response now lists the JWT
+    validation and the owner-only access rule.
+
+  "PRD" now only appears in two places, both copied word for word from your side
+  of the conversation: the prompt asking to create the PRD and one of your
+  multiple-choice answers.
+
+  I again only added lines that start with >, checked with git diff. Sections
+  2.4, 2.6, 6 and 7 are still empty because the conversation has no prompts for
+  them.
