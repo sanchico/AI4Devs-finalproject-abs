@@ -903,3 +903,144 @@ PR hecha. haz 1 y 2
 - F1 se cierra con unas 5,25 h (sesiones 2 y 3) frente a las 3 h presupuestadas.
 
 **Horas:** 2,25 (acumulado 5,75 h de 33).
+
+## Sesión 4 · 10 nov 2026 · Arreglo de la barra vertical en etiquetas de conectores (`escapar-barra-vertical`)
+
+**Objetivo:** arreglo urgente fuera de los bloques del PRD: que el carácter `|` en una etiqueta de conector no rompa el Mermaid generado. Sin tocar F2. Se añadió un retoque a la skill `cerrar-sesion`.
+
+**Fase del ciclo de vida:** tickets y PR (propuesta, aplicación, archivado y PR de un change de OpenSpec).
+
+### Prompts
+
+**Prompt 1: entrar en modo exploración**
+
+```
+/opsx:explore
+```
+
+- **Qué hizo el agente:** leyó los changes y las specs (4 capacidades), `config.yaml`, el PRD y el final de la bitácora. Resumió el estado (F1 cerrada, F2 siguiente) y ofreció cuatro hilos: forma de las operaciones, fixtures compartidos, deuda suelta y presupuesto de horas.
+- **Resultado:** el PO eligió la deuda suelta (hilo 3).
+- **Impacto:** sin tema previo, la exploración parte de lo que dice la bitácora y no de lo que el agente recuerda.
+
+**Prompt 2: subir los registros de sesión**
+
+```
+3. sube docs/sesiones a develop
+```
+
+- **Qué hizo el agente:** buscó en los cinco `.txt` correos, rutas de usuario, tokens y claves (solo salió texto sobre Supabase), hizo commit directo en `develop` y lo subió. Avisó de que el remoto redirige al nombre nuevo del repositorio.
+- **Resultado:** `efdccc0 docs: versiona los registros de las sesiones 1 a 3`.
+- **Impacto:** cierra el pendiente de versionar `docs/sesiones/`. Commit directo en `develop` por petición expresa, sin rama.
+
+**Prompt 3: nombre del remoto**
+
+```
+¿hay algun problema con que el remoto se llame distinto del local?
+```
+
+- **Qué hizo el agente:** separó la carpeta local del nombre del repositorio y explicó que solo la URL de `origin` está desfasada y que la redirección de GitHub la cubre. Ofreció `git remote set-url`.
+- **Resultado:** sin cambios; el PO no contestó a la oferta.
+- **Impacto:** queda abierta una decisión menor.
+
+**Prompt 4: proponer el change**
+
+```
+/opsx:propose
+```
+```
+El caracter |
+```
+
+- **Qué hizo el agente:** al no haber argumento preguntó qué change hacer. Antes de escribir probó con el parser de Mermaid 10.9.8 en Node tres escrituras de `a|b`: cruda (error), entre comillas y con la entidad `#124;` (ambas analizan bien). Creó `escapar-barra-vertical` con proposal, delta de `mermaid-generation`, design (la entidad frente a comillas siempre o solo cuando hay `|`) y tasks (0,5 h).
+- **Resultado:** `openspec validate --strict` pasa.
+- **Impacto:** la decisión del diseño se apoya en una prueba y no en una suposición. Dejó como riesgo abierto que la entidad se dibuje bien.
+
+**Prompt 5: aplicar el change**
+
+```
+/opsx:apply
+```
+
+- **Qué hizo el agente:** escribió tres tests que fallaron antes del arreglo (3 fallos, 20 pasaban), añadió `.replace(/\|/g,'#124;')` a `esc` y pasaron los 23. Con la skill `run-trazo-mermaid` dibujó un conector `a|b` en Flujo y en Estados: se dibujan completos, se lee `a|b` y no hay errores. La salida del driver estándar es idéntica a la línea base. Dejó sin marcar la tarea 2.2.
+- **Resultado:** 3 de 4 tareas marcadas.
+- **Impacto:** confirma el riesgo del diseño: la entidad se decodifica al dibujar y no hacen falta comillas.
+
+**Prompt 6: tarea 2.2**
+
+```
+La tarea pendiente en 2.2 ¿el tasks.md se ha escrito en el opsx propose? en tal caso quita la segunda parte y marcala como completada
+```
+
+- **Qué hizo el agente:** confirmó que la había escrito él, quitó la parte sobre la bitácora y marcó la tarea.
+- **Resultado:** 4/4 tareas.
+- **Impacto:** ver Correcciones.
+
+**Prompt 7: orden del archivado**
+
+```
+¿el opsx:archive se lanza depues del PR? ¿no habria que hacerlo antes? es una pregunta, no lo lances
+```
+
+- **Qué hizo el agente:** reconoció el error, citó CLAUDE.md y el precedente de la PR #4 (el commit de archivado entró antes de fusionar) y propuso corregir `tasks.md`.
+- **Resultado:** acuerdo en archivar antes de la PR.
+- **Impacto:** ver Correcciones.
+
+**Prompt 8: ejecutar el flujo con confirmaciones**
+
+```
+ok, corrige el tasks.md y luego ejecuta el orden que me has propuesto: implementar -> commits del arreglo -> /opsx:archive (+ sync de la spec) -> commit de archivado -> PR -> fusión. pide confirmacion al terminar cada paso
+```
+
+- **Qué hizo el agente:** corrigió `tasks.md`, pidió confirmación y, con tres "ok" del PO, hizo dos commits (arreglo con tests, y change), lanzó `/opsx:archive` con la sincronización de la spec (requisito modificado y tres escenarios) y hizo el commit de archivado. Tras el "Sí" del PO subió la rama y abrió la PR #5 contra `develop`. Preguntó si fusionarla y el PO le recordó que eso lo hace GitHub; la fusionó él.
+- **Resultado:** `761b1d1`, `b0a3fd9` y `c53bb90`, PR #5 fusionada (`73a7c32`). `develop` local actualizado y 23 tests en verde.
+- **Impacto:** flujo completo de un change, de la propuesta a la fusión, con una confirmación por paso.
+
+**Prompt 9: exportar la conversación tras cerrar sesión**
+
+```
+me gustaria lanzar el comando export siempre despues de ejcutar la skill cerrar-sesion ¿se podria modificar la skill? ¿o lanzarlo en un hook? ¿o de alguna otra manera?
+```
+```
+3  Haz un retoque directo a la skill
+```
+```
+Guarda en rama aparte
+```
+
+- **Qué hizo el agente:** explicó que `/export` es un comando solo del usuario, que ni una skill ni un hook pueden lanzarlo, y ofreció tres alternativas (hook que guarda la transcripción, recordatorio más visible, o script que la skill ejecute). El PO eligió la tercera. Creó `export-sesion.cjs`, que renderiza el registro de Claude Code a texto en `docs/sesiones/`, hizo que `prompts.cjs` exporte sus funciones y cambió el paso 3 de `SKILL.md`. Lo probó en una carpeta temporal. Lo commiteó en `chore/skill-cerrar-sesion-export`, creada desde `develop`.
+- **Resultado:** `31962bb chore: la skill cerrar-sesion guarda la conversación en docs/sesiones`, sin subir ni PR.
+- **Impacto:** la conversación completa de cada sesión queda en el repositorio sin que haya que acordarse de `/export`. El formato se parece al de `/export` pero no es idéntico.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2.6 Tests | Prompt 5 (tests que fallan antes del arreglo y prueba en navegador) |
+| 6. Tickets de trabajo | Prompts 4 y 5 (proponer y aplicar con una prueba previa del parser) |
+| 7. Pull Requests | Prompts 7 y 8 (orden archivado → PR y flujo con confirmaciones) |
+| 1. Descripción general / herramientas | Prompt 9 (límites de skills y hooks, y script alternativo a `/export`) |
+
+### Correcciones
+
+- **Orden del archivado (prompt 7).** El agente escribió en `tasks.md` "Archivar el change tras la PR", contra CLAUDE.md y contra lo ya hecho en la PR #4. El PO lo preguntó y el agente rectificó.
+- **Tarea con trabajo ajeno al change (prompt 6).** El agente puso en la tarea 2.2 quitar un apunte de la bitácora, que pertenece a `/cerrar-sesion` y obligaba a reescribir entradas cerradas. Se pausó en vez de resolverlo en silencio y el PO la recortó.
+- **Quién fusiona la PR (prompt 8).** El agente planteó la fusión como un paso suyo ("¿fusiono la PR #5?"). El PO preguntó si no la hacía GitHub al aceptarla. El agente aclaró que es el botón de GitHub y que `gh pr merge` es solo el equivalente; no se fusionó desde el agente.
+- **Cuenta de commits.** El agente anunció "tres commits" y enumeró dos, y lo aclaró en el mismo mensaje.
+- **`sed` con barra vertical.** El primer intento de editar `esc` con `sed` falló por el escapado de `|`; se rehízo con Edit.
+- **Borrador obsoleto.** El primer borrador de esta entrada dejó fuera el trabajo posterior al cierre (skill, rama `chore`, PR y fusión) y el PO pidió regenerarlo.
+
+### Pendiente
+
+- Subir `chore/skill-cerrar-sesion-export`, abrir su PR contra `develop` y fusionarla. Hasta entonces `export-sesion.cjs` no está en `develop`.
+- Guardar el `.txt` de esta conversación en `docs/sesiones/` con el script nuevo.
+- Borrar las ramas `fix/escapar-barra-vertical` (local y `origin`), ya fusionada.
+- Decidir si cambiar la URL de `origin` a `AI4Devs-finalproject-abs`.
+- **F2:** empezar el modelo de operaciones en `feat/f2-modelo-de-operaciones`.
+- Las ramas remotas `feat/modularizar-frontend`, `feat/vista-previa-segura` y `feat/direccion-estados-y-actualizar-mermaid` siguen en `origin`. `chore/skill-openspec-implement` tiene un commit sin fusionar.
+- Un change para evaluar Mermaid 11/12 con comparación de capturas.
+- Arrastrado: añadir Automerge a la sección 8 del PRD como alternativa descartada.
+- Readme, sección 2.5: añadir que el generador escapa `&`, `<`, `>` y `|`, y que mermaid.js se carga con SRI.
+- Arreglar `prompts.cjs` para que no pierda los prompts con `/model` o con el aviso del IDE.
+- F1 se cerró con unas 5,25 h frente a las 3 h presupuestadas.
+
+**Horas:** 2,25 (acumulado 8,0 h de 33).
