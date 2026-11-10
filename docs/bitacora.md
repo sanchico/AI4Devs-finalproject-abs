@@ -702,3 +702,204 @@ haz el commit y luego /opsx:apply
 - Siguiente según el PRD: cerrar F1 y empezar F2 (modelo de operaciones).
 
 **Horas:** 3 (acumulado 3,5 h de 33).
+
+## Sesión 3 · 9 nov 2026 · Cierre de F1: PR #3, `actualizar-mermaid`, `direccion-estados` y una PR por bloque
+
+**Objetivo:** cerrar el bloque F1 del PRD. Archivar `vista-previa-segura` y abrir su PR, aplicar `actualizar-mermaid` y `direccion-estados`, y decidir cómo se agrupan las ramas y las PR.
+
+**Fase del ciclo de vida:** tickets y PR (changes de OpenSpec aplicados, archivados y fusionados), con decisiones de seguridad, de tests y de flujo de trabajo.
+
+### Prompts
+
+**Prompt 1: Explorar**
+
+```
+/openspec-explore
+```
+
+- **Qué hizo el agente:** `openspec list`, las specs y la bitácora de la sesión 2. Resumió el estado y ofreció cuatro caminos (cerrar F1, F2, reconocedor, evaluar Mermaid 11/12).
+- **Resultado:** solo respuesta.
+- **Impacto:** punto de partida del traspaso desde la sesión 2.
+
+**Prompt 2: Archivar y publicar vista-previa-segura**
+
+```
+vista-previa-segura: archiva, push y PR
+```
+
+- **Qué hizo el agente:** el change solo existía en `feat/vista-previa-segura`, así que cambió de rama. Con `/opsx:archive` sincronizó el delta de `mermaid-generation` y creó la spec principal `mermaid-preview` (4 specs válidas con `--strict`). `gh` no estaba instalado: dejó el enlace y el texto de la PR.
+- **Resultado:** `1fdfbc5`.
+- **Impacto:** el escape y el modo estricto quedan como contrato en las specs principales.
+
+**Prompt 3: ¿Specs alineadas con el código?**
+
+```
+¿has cambiado las specs para que coincidan con la implementación?
+```
+
+- **Qué hizo el agente:** respondió que no: copió los deltas tal cual y no había comparado con el código. Lo comprobó con `grep` y 15 tests (todos pasan). Avisó de que el requisito del lienzo no lo había mirado.
+- **Resultado:** solo respuesta.
+- **Impacto:** separa "alineada en la sesión anterior" de "verificada ahora".
+
+**Prompt 4: Skill y etiquetas hostiles**
+
+```
+/run-trazo-mermaid
+```
+
+- **Qué hizo el agente:** servidor, driver y `diff` contra `baseline-skill.txt` (idéntico). Añadió un script propio con tres etiquetas hostiles (`<img onerror>`, `<script>`, `<b>`): 0 `<img>`, 0 `<b>` en el SVG, 0 scripts con `alert`, 0 diálogos y 0 errores. Lienzo y vista previa muestran el texto literal.
+- **Resultado:** solo comprobación.
+- **Impacto:** cubre el requisito "en el lienzo" que faltaba.
+
+**Prompt 5: Probar en un navegador real**
+
+```
+¿puedes lanzarlo para que pruebe en un navegador real?
+```
+
+- **Qué hizo el agente:** arrancó `http-server`, abrió el navegador y dio la IP de la red local para la tablet. El PO lo probó y lo paró ("paralo").
+- **Resultado:** solo comprobación manual del PO.
+- **Impacto:** la verificación humana queda aparte de la automática.
+
+**Prompt 6: Instalar gh y crear la PR**
+
+```
+instala gh o dime como instalarlo si no tienes permisos y crea el PR
+```
+
+- **Qué hizo el agente:** `winget install GitHub.cli --scope user` (v2.103.3, sin administrador). `gh auth login --web` dio un código de un solo uso y el PO lo autorizó. Creó la PR contra `develop` y actualizó la memoria (antes decía "gh no instalado").
+- **Resultado:** PR #3.
+- **Impacto:** desde aquí las PR se abren desde la sesión.
+
+**Prompt 7: Aplicar actualizar-mermaid**
+
+```
+/openspec-apply-change
+```
+
+- **Qué hizo el agente:** sobre `feat/actualizar-mermaid` (6 tareas): contrastó el hash SRI de 10.9.8 en tres sitios (API de cdnjs, archivo descargado y diseño), cambió `index.html` y el readme, y repitió la skill y las capturas de Flujo y Estados: idénticas byte a byte. Con un byte cambiado en `mermaid.min.js` el navegador lo bloquea y la vista previa muestra el aviso. `npm audit`: 9 avisos propios de Mermaid en 10.9.1 y ninguno en 10.9.8.
+- **Resultado:** `53e4058` y `113bf89`; 6/6.
+- **Impacto:** quita los avisos de seguridad y protege contra un CDN alterado.
+
+**Prompt 8: PR #3 fusionada**
+
+```
+la PR 3 ya está fusionada
+```
+
+- **Qué hizo el agente:** comprobó el merge commit (`7a64b7d`), rebasó la rama sin conflictos y repitió la prueba de etiquetas hostiles sobre 10.9.8 con modo estricto (15 tests, skill idéntica, 0 `alert`).
+- **Resultado:** solo comprobación.
+- **Impacto:** cumple el seguimiento que pedía `actualizar-mermaid`.
+
+**Prompt 9: Ahorrar una PR**
+
+```
+¿Podemos ahorrarnos este PR? es decir archivar esto y rebasar direccion-estados, luego el PR con ambas
+```
+
+- **Qué hizo el agente:** archivó `actualizar-mermaid` (sync de `canvas-editing`) y rebasó `direccion-estados` encima, sin conflictos y sin solapes de specs. Avisó de que rompía la convención anterior.
+- **Resultado:** `2b9c142`.
+- **Impacto:** una sola PR para los dos changes.
+
+**Prompt 10: ¿De dónde sale "una rama, una PR"?**
+
+```
+¿donde pone "una change, una rama, una PR"? creo que sería mejor una PR por cada bloque del PRD
+```
+
+- **Qué hizo el agente:** buscó en el repositorio: no es una regla. Salía de la bitácora de la sesión 2, que el propio agente había generalizado a partir de un prompt puntual. El readme (línea 345) ya decía "cada bloque de trabajo en una rama". Descubrió que `develop` local estaba divergido por la bitácora sin subir.
+- **Resultado:** solo respuesta.
+- **Impacto:** el PO corrige una norma inventada por el agente.
+
+**Prompt 11: Las specs de un bloque son secuenciales**
+
+```
+por lo que estoy viendo (corrígeme si me equivoco) las specs dentro de un mismo bloque son secuenciales (una necesita los cambios de la anterior) así que tiene mas sentido hacer una rama y una PR por bloque del PRD
+```
+
+- **Qué hizo el agente:** matizó la premisa: no todos los changes dependen del código anterior, lo secuencial es `openspec/specs/`, que cada archivado reescribe. Con tabla de dependencias de los cuatro changes. El PO aceptó ("sí"): escribió la convención en CLAUDE.md y corrigió dos líneas de la bitácora (con `cherry-pick` de `76fae84`).
+- **Resultado:** `66b7350`.
+- **Impacto:** una rama y una PR por bloque del PRD, por escrito.
+
+**Prompt 12: Fusionar la bitácora en develop**
+
+```
+prefiero fusionar el 76fae84 en develop local y subirlo ¿esto rompería algo?
+```
+
+- **Qué hizo el agente:** simuló con `git merge-tree`: la fusión directa daba `CONFLICT` en la bitácora, porque `66b7350` retocó dos líneas del mismo bloque. Propuso rebasar `76fae84` sobre `origin/develop`, subir y rebasar la rama. El PO aceptó ("sí"): Git descartó solo el cherry-pick duplicado.
+- **Resultado:** `cfcb526` en `origin/develop`.
+- **Impacto:** evita un conflicto en la PR y deja la bitácora de la sesión 2 publicada.
+
+**Prompt 13: Aplicar direccion-estados**
+
+```
+/opsx:apply direccion-estados
+```
+
+- **Qué hizo el agente:** `direccion.test.js` (los dos casos con `TD` fallaban antes) y `header` de `kinds/state.js` (`TD` → `TB`). En el navegador, con control contra `develop` extraído con `git archive` en el puerto 8001: la rama dibuja 2 estados y `develop` dibuja además "direction" y "TD". Skill idéntica a la línea base.
+- **Resultado:** `d7694fe`, `5a64cc8` y `7799620`; 5/5, 20 tests.
+- **Impacto:** el arreglo se demuestra contra el defecto real.
+
+**Prompt 14: Explicar los cabos sueltos**
+
+```
+explícame el ultimo punto
+```
+
+- **Qué hizo el agente:** explicó la rama obsoleta `feat/actualizar-mermaid` (sin subir, contenido ya en la rama nueva) y `docs/sesiones/` (registros de sesión sin versionar), y corrigió su propio error: había escrito "la skill de la sesión 3 en `docs/sesiones/`".
+- **Resultado:** solo respuesta.
+- **Impacto:** deja la decisión de `docs/sesiones/` al PO con sus riesgos (rutas, correo).
+
+**Prompt 15: Renombrar, archivar, push y PR**
+
+```
+ya que la rama direccion-estados contiene actuializar-mermaid ¿puedes renombrar la rama a direccion-estados-y-actualizar-mermaid ?
+```
+
+- **Qué hizo el agente:** renombró la rama (no estaba en remoto) y avisó del upstream. Con los dos "sí" siguientes archivó `direccion-estados` (sync de dos requisitos, idénticos al delta) y subió la rama con `-u`. La PR junta los dos changes.
+- **Resultado:** `6003f17`; PR #4.
+- **Impacto:** cierra F1 con una sola PR.
+
+**Prompt 16: Limpieza y cierre**
+
+```
+PR hecha. haz 1 y 2
+```
+
+- **Qué hizo el agente:** PR #4 fusionada (`ef1d5a1`). Avance rápido de `develop` y borrado de 4 ramas locales. Esta entrada.
+- **Resultado:** esta entrada.
+- **Impacto:** F1 cerrada.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2.5 Seguridad | Prompts 4 (etiquetas hostiles) y 7 (SRI y `npm audit`) |
+| 2.6 Tests | Prompt 13 (test que falla antes y control en `develop`) |
+| 6. Tickets de trabajo | Prompts 7 y 13 (aplicar changes con verificación) |
+| 7. Pull Requests | Prompts 6, 10 y 11 (`gh`, PR por bloque y convención) |
+
+### Correcciones
+
+- **Norma inventada (prompt 10).** El agente generalizó en la bitácora un prompt puntual ("una rama por spec") como regla. El PO preguntó dónde ponía eso y salió que no estaba escrito.
+- **Texto equivocado (prompt 14).** El agente escribió "la skill de la sesión 3 en `docs/sesiones/`", pero esa carpeta tiene registros de sesión. Lo corrigió al explicarlo.
+- **Specs no comparadas (prompt 3).** El agente había sincronizado los deltas sin mirar el código ni el lienzo. Tras la pregunta lo verificó con `grep`, tests y navegador.
+- **Premisa del PO matizada (prompt 11).** El agente corrigió el motivo ("secuenciales") y lo situó en las specs principales.
+- **Tarea 1.1 de `direccion-estados`.** Pedía que fallaran los tests de Estados antes del arreglo; fallaron solo los dos con `TD`, porque `LR` y `BT`/`RL` pasan por identidad. Se anotó.
+- **Cifra de la propuesta.** `actualizar-mermaid` decía 10 avisos de Mermaid en 10.9.1; el `npm audit` da 9 entradas propias. No cambia la conclusión.
+- **Prompt perdido por el script.** `prompts.cjs` no devolvió el prompt 12, porque el mensaje venía con `/model sonnet` y el aviso del IDE. Se añadió a mano con el texto literal. El script debería tratar esos mensajes como prompts.
+
+### Pendiente
+
+- **F2:** empezar el modelo de operaciones en `feat/f2-modelo-de-operaciones`, con la convención nueva.
+- `docs/sesiones/` sigue sin versionar: decidir entre versionarlo (revisando rutas y correo), ignorarlo o dejarlo.
+- Las ramas remotas `feat/modularizar-frontend`, `feat/vista-previa-segura` y `feat/direccion-estados-y-actualizar-mermaid` siguen en `origin`. `chore/skill-openspec-implement` tiene un commit sin fusionar.
+- Un change para evaluar Mermaid 11/12 con comparación de capturas.
+- Fuera de alcance anotado: el carácter `|` rompe las etiquetas de conectores de flujo.
+- Arrastrado: añadir Automerge a la sección 8 del PRD como alternativa descartada.
+- Readme, sección 2.5: añadir que el generador escapa `&`, `<` y `>` y que mermaid.js se carga con SRI.
+- Arreglar `prompts.cjs` para que no pierda los prompts que llegan con un `/model` o con el aviso del IDE.
+- F1 se cierra con unas 5,25 h (sesiones 2 y 3) frente a las 3 h presupuestadas.
+
+**Horas:** 2,25 (acumulado 5,75 h de 33).
