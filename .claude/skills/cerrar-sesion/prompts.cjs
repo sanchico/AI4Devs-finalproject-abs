@@ -131,4 +131,6 @@ function main() {
   console.log(`**Total:** ${n} prompts · ${(totalMs / 3600000).toFixed(2)} h activas en ${files.length} registro(s).`);
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { projectDir, textOf, promptText, isHumanPrompt, readSession, fmt };
