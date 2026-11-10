@@ -40,3 +40,17 @@ test('con etiquetas hostiles no queda ningún < ni > fuera de las flechas', () =
   const code = mermaidCode(graph('<img src=x onerror=alert(1)>'), 'flow', 'TD');
   assert.equal(/[<>]/.test(code.replaceAll('-->', '')), false);
 });
+
+test('la barra vertical se escribe como entidad para no cerrar la etiqueta del conector', () => {
+  assert.equal(esc('a|b'), 'a#124;b');
+  assert.ok(mermaidCode(graph('A', 'rect', 'a|b'), 'flow', 'TD').includes('n1 -->|a#124;b| n2'));
+});
+
+test('en Estados la barra vertical de la etiqueta de una arista también se escribe como entidad', () => {
+  assert.ok(mermaidCode(graph('A', 'rect', 'a|b'), 'state', 'TD').includes('n1 --> n2 : a#124;b'));
+});
+
+test('la línea de un conector de flujo con barra solo tiene las dos barras delimitadoras', () => {
+  const line = mermaidCode(graph('A', 'rect', 'a|b|c'), 'flow', 'TD').split('\n').find(l => l.includes('-->'));
+  assert.equal(line.split('|').length - 1, 2);
+});
