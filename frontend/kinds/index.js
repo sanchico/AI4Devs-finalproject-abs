@@ -7,9 +7,9 @@ export const KINDS = { flow, state };
 export function shapeName(s){ return {rect:'Rectángulo',diamond:'Rombo',ellipse:'Elipse'}[s]; }
 
 // ---------- Mermaid generation: no AI, just walking the graph ----------
-// Mermaid entities (#lt; ...) so labels render as literal text, never as HTML. `&` goes first so the
+// Mermaid entities (#lt; #124; ...) so labels render as literal text, never as HTML. `&` goes first so the
 // `#` entities written afterwards are not touched.
-export const esc = t => (t||'').replace(/&/g,'#amp;').replace(/</g,'#lt;').replace(/>/g,'#gt;').replace(/"/g,'#quot;').replace(/\n/g,' ');
+export const esc = t => (t||'').replace(/&/g,'#amp;').replace(/</g,'#lt;').replace(/>/g,'#gt;').replace(/\|/g,'#124;').replace(/"/g,'#quot;').replace(/\n/g,' ');
 
 // graph = {nodes, edges}; kind = key of KINDS; dir = 'TD' | 'LR'
 export function mermaidCode(graph, kind, dir){
