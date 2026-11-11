@@ -80,6 +80,17 @@ Reglas:
 1. Enseña la entrada al usuario y aplica sus cambios antes de guardarla.
 2. Si se cerró un bloque del PRD, actualiza `CLAUDE.md` (estructura, cómo arrancar y cómo ejecutar los
    tests), como pide P1.
-3. Recuerda al usuario que ejecute `/export` si quiere guardar la conversación completa para adjuntarla
-   a `prompts.md`; es un comando suyo, tú no puedes lanzarlo.
-4. Propón un commit (`docs: añade la sesión N a la bitácora`), pero no lo hagas sin su confirmación.
+3. Guarda la conversación completa en `docs/sesiones/` para adjuntarla a `prompts.md`. Tú no puedes
+   lanzar `/export` (es un comando del usuario), así que ejecuta el script equivalente, con el número
+   y un título breve de la sesión:
+
+   ```bash
+   node .claude/skills/cerrar-sesion/export-sesion.cjs --nombre "Sesion<N> <título breve>"
+   ```
+
+   Genera `docs/sesiones/Sesion<N> <título breve> <fecha-hora>.txt` desde el registro de Claude Code,
+   con prompts (`>`), respuestas (`●`) y una línea por herramienta usada. Si la sesión abarcó varios
+   registros, pásale las rutas `.jsonl`. El formato se parece al de `/export` pero no es idéntico: si el
+   usuario quiere el de `/export`, que lo ejecute él. Dile la ruta del archivo creado.
+4. Propón un commit (`docs: añade la sesión N a la bitácora`) que incluya la entrada y el archivo de
+   `docs/sesiones/`, pero no lo hagas sin su confirmación.
