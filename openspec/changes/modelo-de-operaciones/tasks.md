@@ -20,7 +20,7 @@ Estimación total: 3 h (la del bloque F2 del PRD).
 ## 4. Verificación en el navegador (0,5 h)
 
 - [x] 4.1 Ejecutar la skill `run-trazo-mermaid` y comparar con `frontend/test/baseline-skill.txt`: la única diferencia admitida es `n6…n9` → `n1…n4`. Actualizar la línea base en un commit propio que lo explique. Verificación: `diff` sin más diferencias, `ERRORS: []` y `OK`.
-- [ ] 4.2 Comprobar en el navegador, con un guion de Playwright o a mano, cada escenario de "Deshacer y limpiar": nodo nuevo, limpiar, arrastre, borrado intermedio y tipo que no se deshace, comparando el código Mermaid antes y después. Verificación: código idéntico en cada caso y 0 errores en la consola.
+- [x] 4.2 Comprobar en el navegador, con un guion de Playwright o a mano, cada escenario de "Deshacer y limpiar": nodo nuevo, limpiar, arrastre, borrado intermedio y tipo que no se deshace, comparando el código Mermaid antes y después. Verificación: código idéntico en cada caso y 0 errores en la consola.
 - [ ] 4.3 Prueba manual del PO en la tablet desde `http://<ip-del-pc>:8000`: dibujar, conectar, arrastrar con el dedo, renombrar, borrar y deshacer cada gesto. Verificación: el PO lo confirma y la consola no muestra errores de `randomUUID`.
 
 ## 5. Cierre (0,25 h)
