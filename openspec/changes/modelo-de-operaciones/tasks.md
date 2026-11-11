@@ -25,7 +25,7 @@ Estimación total: 3 h (la del bloque F2 del PRD).
 
 ## 5. Cierre (0,25 h)
 
-- [ ] 5.1 Actualizar `CLAUDE.md` (descripción de `ops.js`, `model.js` y del test `ops.test.js`) y el comentario de cabecera de `baseline.test.js` si hace falta. Verificación: `node --test "frontend/**/*.test.js"` en verde y `openspec validate modelo-de-operaciones --strict` válido.
+- [x] 5.1 Actualizar `CLAUDE.md` (descripción de `ops.js`, `model.js` y del test `ops.test.js`) y el comentario de cabecera de `baseline.test.js` si hace falta. Verificación: `node --test "frontend/**/*.test.js"` en verde y `openspec validate modelo-de-operaciones --strict` válido.
 
 ## Workflow follow-up
 
