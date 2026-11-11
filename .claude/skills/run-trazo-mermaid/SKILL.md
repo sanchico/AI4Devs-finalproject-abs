@@ -53,13 +53,13 @@ NODE_PATH="$T/node_modules" node .claude/skills/run-trazo-mermaid/driver.cjs htt
 
 ```
 flowchart TD
-  n6(["Inicio/Fin 1"])
-  n7["Proceso 1"]
-  n8{"Decisión 1"}
-  n9["Guardar"]
-  n6 --> n7
-  n7 --> n8
-  n8 --> n9
+  n1(["Inicio/Fin 1"])
+  n2["Proceso 1"]
+  n3{"Decisión 1"}
+  n4["Guardar"]
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
 STATS: 4 nodos · 3 conexiones
 ERRORS: []
 OK
@@ -89,8 +89,9 @@ on the same network. Pen draws, finger moves, mouse follows the "Ratón" toggle.
   stats and the preview are filled in from the start). Strokes
   drawn without clicking **Limpiar** land on top of it and connectors may snap to the example
   nodes. The driver clears first.
-- **Node ids are not reset by Limpiar**: after clearing, ids continue at `n6`, while default labels
-  restart at `Proceso 1`. Don't assert on ids.
+- **Node names in the code are positional**: the generated Mermaid names nodes `n1`, `n2`... by their
+  position in the diagram (internal ids are UUIDs), so after Limpiar they start again at `n1`, and
+  deleting a node renumbers the ones after it.
 - **ES modules do not load from `file://`** (the browser blocks them), so opening `index.html` by
   double-click shows a blank app: always serve `frontend/` over HTTP.
 - **Module internals are not globals**, so `recognize()` / `mermaidCode()` cannot be called from

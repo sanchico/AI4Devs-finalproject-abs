@@ -18,20 +18,28 @@ en un grafo de nodos y conexiones, generando código Mermaid al vuelo.
 
 ## Estado actual
 Prototipo en módulos ES nativos (carpeta `frontend/`), sin build ni dependencias salvo mermaid.js por CDN.
-Los cuatro primeros módulos son puros (no tocan el DOM) y se pueden importar desde Node:
+Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar desde Node:
 - `geometry.js`: funciones geométricas (`dist`, `bbox`, `polyArea`, `borderPoint`…).
 - `recognizer.js`: `recognize(pts, allowedShapes)` clasifica un trazo cerrado por dos métricas (área
   relativa a la caja y distancia media a las esquinas) → rect / rombo / elipse. Un trazo abierto entre
   dos nodos = conector.
 - `kinds/`: `KINDS` (formas permitidas y sintaxis Mermaid de cada tipo: `flow.js`, `state.js`) y
-  `mermaidCode(graph, kind, dir)`, que genera el código recorriendo el grafo.
-- `model.js`: estado del diagrama (`state`) y sus cambios (`addNode`, `addEdge`, `undo`…). Devuelve
+  `mermaidCode(graph, kind, dir)`, que genera el código recorriendo el grafo; nombra los nodos `n1`, `n2`…
+  por posición, no por su id.
+- `ops.js`: todo cambio del diagrama es una operación JSON (`addNode`, `updateNode`, `removeNode`,
+  `addEdge`, `updateEdge`, `removeEdge`, `setMeta`). `apply(state, op)` la aplica o la rechaza con un motivo
+  sin cambiar nada; `inverse(state, op)` calcula cómo deshacerla; `newId()` da UUID v4 (con alternativa a
+  `crypto.randomUUID`, que no existe en `http://<ip>` de la tablet). Es lo que F4 enviará por la red.
+- `model.js`: estado del diagrama (`state`) y sus gestos (`addNode`, `addEdge`, `setLabel`, `moveNode`,
+  `clear`…), que construyen operaciones y las pasan por `perform`. Deshacer saca de una pila de 60 grupos
+  de inversas, solo con los cambios propios; `applyRemote(op)` aplica una ajena sin apilarla. Devuelve
   resultados en vez de mostrar avisos.
 - `render.js` (lienzo, vista previa Mermaid, leyenda), `input.js` (Pointer Events: `pen` dibuja, `touch`
   mueve, ratón configurable; toque = editar etiqueta) y `main.js` (arranque, barra de herramientas, aviso).
 - `test/`: `baseline.test.js` fija el código Mermaid del ejemplo y la clasificación de trazos sintéticos;
   `escape.test.js` comprueba que `<`, `>`, `&` y `|` de las etiquetas salen como entidades de Mermaid;
-  `direccion.test.js` fija la dirección de la cabecera (Estados escribe `TB` donde el modelo guarda `TD`).
+  `direccion.test.js` fija la dirección de la cabecera (Estados escribe `TB` donde el modelo guarda `TD`);
+  `ops.test.js` cubre las operaciones (rechazos, serialización, determinismo), deshacer y los ids del código.
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 

@@ -272,7 +272,8 @@ trazo-mermaid/
 │   ├── geometry.js           Utilidades geométricas (puro)
 │   ├── recognizer.js         Reconocimiento de trazos (puro)
 │   ├── kinds/                Un módulo por tipo de diagrama (formas y sintaxis) y mermaidCode (puro)
-│   ├── model.js              Estado del diagrama y sus cambios (sin DOM)
+│   ├── ops.js                Operaciones sobre el grafo: apply, inverse y UUID (puro)
+│   ├── model.js              Estado del diagrama, gestos y deshacer por operaciones inversas (sin DOM)
 │   ├── render.js             Canvas, vista previa y leyenda
 │   ├── input.js              Pointer Events, toque y editor de etiqueta
 │   ├── main.js               Arranque, barra de herramientas y avisos
@@ -285,8 +286,8 @@ trazo-mermaid/
 ```
 
 Los módulos marcados como puros no tocan el DOM, por lo que los tests los importan directamente desde
-Node. Las dependencias van en un solo sentido: `geometry` → `recognizer`/`kinds` → `model` → `render`
-→ `input` → `main`.
+Node. Las dependencias van en un solo sentido: `geometry` → `recognizer`/`kinds` → `ops` → `model` →
+`render` → `input` → `main`.
 
 **Estructura prevista para el MVP** (el repositorio se publicará en GitHub como `AI4Devs-finalproject-abs`):
 
@@ -298,8 +299,8 @@ AI4Devs-finalproject-abs/
 │   ├── package.json
 │   ├── geometry.js           Utilidades geométricas
 │   ├── recognizer.js         Reconocimiento de trazos
-│   ├── model.js              Grafo y apply(op)
-│   ├── ops.js                Tipos de operación e inversas (aún no existe)
+│   ├── ops.js                Tipos de operación, apply e inversas
+│   ├── model.js              Estado, gestos y deshacer por usuario
 │   ├── kinds/                Un módulo por tipo de diagrama (formas y generación)
 │   ├── render.js             Canvas y vista previa
 │   ├── input.js              Pointer Events

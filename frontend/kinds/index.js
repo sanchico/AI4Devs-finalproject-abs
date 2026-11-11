@@ -15,8 +15,10 @@ export const esc = t => (t||'').replace(/&/g,'#amp;').replace(/</g,'#lt;').repla
 export function mermaidCode(graph, kind, dir){
   const {nodes, edges} = graph;
   const K = KINDS[kind], lines=[K.header(dir)];
-  const idOf = n => (kind==='state' && n.shape==='ellipse') ? '[*]' : n.id;
-  for(const n of nodes){ const s=K.shapes[n.shape]; if(s.mm) lines.push('  '+s.mm(n.id, esc(n.label)||' ')); }
+  // Nodes are named n1, n2... by position: internal ids are UUIDs, unreadable and not valid Mermaid ids
+  const name = new Map(nodes.map((n,i)=>[n.id, 'n'+(i+1)]));
+  const idOf = n => (kind==='state' && n.shape==='ellipse') ? '[*]' : name.get(n.id);
+  for(const n of nodes){ const s=K.shapes[n.shape]; if(s.mm) lines.push('  '+s.mm(name.get(n.id), esc(n.label)||' ')); }
   for(const e of edges){ const a=nodes.find(n=>n.id===e.from), b=nodes.find(n=>n.id===e.to); lines.push('  '+K.edge(idOf(a), idOf(b), esc(e.label))); }
   return lines.join('\n');
 }

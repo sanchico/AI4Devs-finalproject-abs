@@ -22,7 +22,7 @@ function addShape(shape, bb){
   update();
 }
 function addConnector(a, b){
-  const r = model.addEdge(a, b);
+  const r = model.addEdge(a.id, b.id);
   if(!r.ok){ toast('Ya existe esa conexión'); return; }
   toast('Conector → ' + (a.label||'[*]') + ' → ' + (b.label||'[*]')); update();
 }
@@ -42,14 +42,16 @@ function finish(ev){
       else { toast('Conector no reconocido: empieza dentro de una forma y termina dentro de otra'); draw(); }
     } else { toast('Trazo demasiado pequeño'); draw(); }
   } else {
-    if(quick){ tap(p); } else if(pt.node){ update(); }
+    if(quick){ if(pt.node) model.previewMove(pt.node.id, pt.from.x, pt.from.y); tap(p); }   // a tap never moves the node
+    else if(pt.node){ model.moveNode(pt.node.id, pt.from, {x:pt.node.x, y:pt.node.y}); update(); }
   }
 }
 
 // Tap = edit the label of the node or connector under the pen
 function tap(p){
-  const n=model.nodeAt(p); if(n){ openEditor(n.label, center(n), v=>model.setLabel(n,v), ()=>{ model.removeNode(n); update(); }); return; }
-  const e=model.edgeAt(p); if(e){ const [a,b]=model.edgeEnds(e); openEditor(e.label, {x:(a.x+b.x)/2,y:(a.y+b.y)/2}, v=>model.setLabel(e,v), ()=>{ model.removeEdge(e); update(); }); }
+  // The callbacks keep the id, not the object: undo replaces the objects in the model
+  const n=model.nodeAt(p); if(n){ openEditor(n.label, center(n), v=>model.setLabel(n.id,v), ()=>{ model.removeNode(n.id); update(); }); return; }
+  const e=model.edgeAt(p); if(e){ const [a,b]=model.edgeEnds(e); openEditor(e.label, {x:(a.x+b.x)/2,y:(a.y+b.y)/2}, v=>model.setLabel(e.id,v), ()=>{ model.removeEdge(e.id); update(); }); }
 }
 
 const editor=$('editor'), editInput=$('editInput'); let editCb=null, delCb=null;
@@ -73,16 +75,19 @@ export function initInput({toast: showToast}){
     canvas.setPointerCapture(ev.pointerId);
     pointer = {mode: drawMode?'draw':'drag', start:p, t0:performance.now(), moved:false};
     if(drawMode){ live=[p]; setLive(live); }
-    else { const n=model.nodeAt(p,8); if(n){ pointer.node=n; pointer.off={x:p.x-n.x,y:p.y-n.y}; model.snapshot(); } }
+    else { const n=model.nodeAt(p,8); if(n){ pointer.node=n; pointer.off={x:p.x-n.x,y:p.y-n.y}; pointer.from={x:n.x,y:n.y}; } }
   });
   canvas.addEventListener('pointermove', ev => {
     if(!pointer) return; const p=pos(ev);
     if(dist(p,pointer.start)>6) pointer.moved=true;
     if(pointer.mode==='draw'){ live.push(p); draw(); }
-    else if(pointer.node){ model.moveNode(pointer.node, p.x-pointer.off.x, p.y-pointer.off.y); draw(); }
+    else if(pointer.node){ model.previewMove(pointer.node.id, p.x-pointer.off.x, p.y-pointer.off.y); draw(); }
   });
   canvas.addEventListener('pointerup', finish);
-  canvas.addEventListener('pointercancel', ()=>{ pointer=null; live=null; setLive(null); draw(); });
+  canvas.addEventListener('pointercancel', ()=>{
+    if(pointer?.node) model.previewMove(pointer.node.id, pointer.from.x, pointer.from.y);   // cancelled drag: node stays where it was
+    pointer=null; live=null; setLive(null); draw();
+  });
 
   $('editOk').addEventListener('click', commitEditor);
   editInput.addEventListener('keydown', e=>{ if(e.key==='Enter') commitEditor(); if(e.key==='Escape') hideEditor(); });
