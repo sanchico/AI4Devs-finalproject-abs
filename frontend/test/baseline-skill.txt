@@ -1,11 +1,11 @@
 flowchart TD
-  n6(["Inicio/Fin 1"])
-  n7["Proceso 1"]
-  n8{"Decisión 1"}
-  n9["Guardar"]
-  n6 --> n7
-  n7 --> n8
-  n8 --> n9
+  n1(["Inicio/Fin 1"])
+  n2["Proceso 1"]
+  n3{"Decisión 1"}
+  n4["Guardar"]
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
 STATS: 4 nodos · 3 conexiones
 ERRORS: []
 OK
