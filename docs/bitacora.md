@@ -1044,3 +1044,156 @@ Guarda en rama aparte
 - F1 se cerró con unas 5,25 h frente a las 3 h presupuestadas.
 
 **Horas:** 2,25 (acumulado 8,0 h de 33).
+
+## Sesión 5 · 10–12 nov 2026 · F2 modelo de operaciones, PRD alternativo en Supabase y PRD v0.6
+
+**Objetivo:** cerrar el bloque F2 del PRD (operaciones, ids UUID y deshacer por inversas) con el flujo de OpenSpec. Antes, evaluar si un backend entero en Supabase ahorra horas, porque F1 se pasó de presupuesto. Después, cubrir en el PRD la gestión de diagramas (crear, abrir, renombrar y borrar), que faltaba en el frontend.
+
+**Fase del ciclo de vida:** arquitectura (PRD alternativo, F2), producto (gestión de diagramas), tickets y PR (change de OpenSpec y rama del PRD v0.6).
+
+### Prompts
+
+**Prompt 1: ¿cabe todo el backend en Supabase?**
+
+```
+Viendo que hay un desvío de horas, ¿se ahorraría mucho haciendo todo el backend en supabase? haz un PRD alternativo
+```
+
+- **Qué hizo el agente:** escribió `docs/PRD-MVP-supabase.md`: PostgreSQL con RLS, funciones PL/pgSQL (`apply_op`) y Realtime, bloques S1–S3, plan de 11 sesiones, riesgos y decisiones. Comparó horas con la v0.5: 25,25 h frente a 35,25 h. Avisó de que se pierde un backend en Java que enseñar y recomendó confirmarlo con el tutor.
+- **Resultado:** archivo nuevo sin versionar; ahorro nominal de unas 10 h.
+- **Impacto:** convierte el desvío de F1 en una decisión con cifras. Queda abierta la elección entre las dos arquitecturas.
+
+**Prompt 2: proponer F2 con OpenSpec**
+
+```
+Empieza con F2 usando el flujo openspec
+```
+
+- **Qué hizo el agente:** creó el change `modelo-de-operaciones` con proposal, tres deltas de specs (`diagram-operations` nueva; `canvas-editing` y `mermaid-generation` modificadas), design y tasks. Decisiones del diseño: operaciones JSON con campos parciales, deshacer por grupos de inversas (60 como máximo, un gesto = un paso) y nombres de nodo en el Mermaid por posición.
+- **Resultado:** `3a6c506 docs: propone el change modelo-de-operaciones (F2)`.
+- **Impacto:** deja por escrito, antes de programar, la única excepción al "igual que antes" de F2: los nombres de nodo en el código.
+
+**Prompt 3: sincronizar con el remoto**
+
+```
+sincroniza los commit con origin
+```
+
+```
+¿podria cambiar la carpeta local para que coincida con el remoto?
+```
+
+- **Qué hizo el agente:** sincronizó con `origin`. Ante la pregunta de la carpeta local explicó que solo cambia el nombre en disco y que la skill `run-trazo-mermaid` y la memoria del proyecto conservan el nombre antiguo. El PO decidió no renombrarla, actualizó la URL del remoto (`sanchico/AI4Devs-finalproject-abs`) y pidió comprobarla; el agente confirmó que responde.
+- **Resultado:** remoto al día; carpeta local sin cambios.
+- **Impacto:** cierra la decisión que quedó abierta en la sesión 4.
+
+**Prompt 4: aplicar F2**
+
+```
+/opsx:apply
+```
+
+- **Qué hizo el agente:** primero los tests. Creó `frontend/ops.js` (`apply`, `inverse`, `newId` con alternativa a `crypto.randomUUID`) y reescribió `model.js` y `input.js`. En `kinds/index.js` los nodos pasaron a llamarse `n1…` por posición. Añadió 37 tests en `ops.test.js` (60 en total, todos en verde). Comprobó el deshacer en Chromium con 19 comprobaciones. El PO probó en la tablet y respondió "Sin errores randomUUID".
+- **Resultado:** `923b610 feat: todo cambio del diagrama pasa por operaciones con deshacer inverso`, más `e4e58aa` (línea base de la skill), `ac016be` (CLAUDE.md) y las marcas de tareas 4.2 y 4.3.
+- **Impacto:** todo cambio del diagrama es ya una operación serializable, que es lo que F4 enviará por la red. El `randomUUID` fallaba justo en el caso de uso real (`http://<ip>` en la tablet).
+
+**Prompt 5: archivar y subir, sin PR**
+
+```
+archiva y sube pero no abras PR
+```
+
+- **Qué hizo el agente:** archivó el change, sincronizó las specs principales (`diagram-operations` nueva; las otras dos con sus deltas), verificó que no quedaban cabeceras de delta, actualizó el readme y subió la rama.
+- **Resultado:** `fe98d75` y `d03d924`. El PO abrió y fusionó la PR #7 (`87c1c86`). Tras el merge, el agente actualizó `develop` y borró la rama local.
+- **Impacto:** F2 queda cerrado en una rama y una PR, como pide CLAUDE.md.
+
+**Prompt 6: por qué cambia el Mermaid**
+
+```
+Me ha parecido ver que este F2 cambia el mermaid generado respecto a F1 ¿por qué? explicamelo de manera concisa
+```
+
+- **Qué hizo el agente:** explicó que el ejemplo da el mismo código y que solo cambian los nombres de nodo. Con UUID como id, el generador numera `n1, n2…` por posición. Consecuencia: tras Limpiar empiezan en `n1` y, al borrar un nodo intermedio, los siguientes se renumeran. El dibujo no cambia.
+- **Resultado:** sin cambios de código; está en proposal, design (decisión 5) y la spec de `mermaid-generation`.
+- **Impacto:** el PO detectó por sí mismo la única regresión visible de F2.
+
+**Prompt 7: faltaba gestionar diagramas**
+
+```
+Viendo el readme y el PRD me parece que no cubre crear, abrir ni borrar diagramas, al menos en el frontend
+```
+
+- **Qué hizo el agente:** comprobó que el backend sí tiene `POST` y `DELETE /api/diagrams`, pero ningún bloque del frontend los usa. Listó cinco huecos: crear, abrir (sin ruta, no funciona recargar), borrar (qué ve quien lo tiene abierto), renombrar (`setMeta` no admitía `title`) y qué hace la app sin sesión. Propuso +1 h en F5.
+- **Resultado:** análisis y propuesta; el PO pidió compensar las horas.
+- **Impacto:** un hueco del producto que habría aparecido en la demo.
+
+**Prompt 8: recortar para compensar**
+
+```
+Habría que recortar horas por otro lado. Deja la presencia y la recuperación tras cortes como mejoras de una segunda versión.
+```
+
+- **Qué hizo el agente:** pasó el PRD a la v0.6. Presencia y reconexión van a una sección "Para una segunda versión"; tras un corte el lienzo queda en solo lectura con el aviso de recargar. F5 incluye crear, abrir por ruta `#/d/<id>`, renombrar y borrar. El modo sin sesión funciona como el prototipo (el punto 5 de su propuesta). Presupuesto: de 33 h a 32 h (30,5 h con los recortes del punto de control). Alineó el readme: funcionalidades, HU-03 pasa a "Gestionar mis diagramas", tickets B4 y F4 y protocolo sin `presence`.
+- **Resultado:** cambios en `docs/PRD-MVP.md` y `readme.md`.
+- **Impacto:** el MVP es usable de punta a punta y sigue dentro del presupuesto.
+
+**Prompt 9: llevar los cambios al PRD de Supabase**
+
+```
+Actualiza también  PRD-MVP-supabase.md
+```
+
+- **Qué hizo el agente:** rehízo la comparación con la v0.6: 27,5 h frente a 36,5 h (ahorro de 9 h), plan de 12 sesiones y punto de control tras la sesión 10. Decidió por su cuenta que en Supabase el borrado de un diagrama se detecta en la siguiente operación o al recargar, porque no hay sala que cerrar, y lo dejó anotado en tres sitios.
+- **Resultado:** `PRD-MVP-supabase.md` alineado con la v0.6.
+- **Impacto:** las dos opciones se pueden comparar con el mismo alcance.
+
+**Prompt 10: conservar la versión anterior**
+
+```
+guarda la version anterior de @docs/PRD-MVP-supabase.md  como PRD-MVP-SUPABASE-v05.md
+```
+
+- **Qué hizo el agente:** el archivo no estaba en git y lo había editado en el sitio, así que no había copia. Reconstruyó la versión anterior a partir del texto que había leído antes de editarlo y avisó de que no la podía comparar byte a byte.
+- **Resultado:** `docs/PRD-MVP-SUPABASE-v05.md`.
+- **Impacto:** se conserva lo que comparaba contra la v0.5 (ver Correcciones).
+
+**Prompt 11: rama y commit del PRD v0.6**
+
+```
+He hecho un commit directo porque se me olvidó añadir ese archivo @"docs/sesiones/Sesion4 2026-11-11-082537-exported.txt"  y no es importante. Crea una rama para la v 0.6 y haz commit de los archivos staged
+```
+
+- **Qué hizo el agente:** antes sugirió un mensaje de commit (y avisó de que la exportación de la sesión 4 no tenía que ver con el cambio). Creó `docs/prd-v0-6` desde `develop` y confirmó solo `PRD-MVP.md` y `readme.md`. El PO añadió después los dos PRD de Supabase (`d769369`); el agente lo comprobó, señaló que el mensaje decía "sustituye" cuando el documento es una propuesta sin adoptar, y lo reescribió con `--amend` a petición del PO.
+- **Resultado:** `0f69709 docs: PRD v0.6 con gestión de diagramas; presencia y reconexión a la v2` y `afdc5e6 docs: añade el PRD alternativo con todo el backend en Supabase`. Sin push ni PR.
+- **Impacto:** el cambio de alcance queda en una rama aparte, revisable por PR.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 1. Descripción general | Prompt 7 (hueco de producto detectado en la revisión) |
+| 2. Arquitectura | Prompt 1 (alternativa Supabase con comparación de horas) y 6 (ids internos frente a nombres en el código) |
+| 2.6 Tests | Prompt 4 (tests antes del código y prueba en navegador y en tablet) |
+| 5. Historias de usuario | Prompt 8 (HU-03 pasa a "Gestionar mis diagramas") |
+| 6. Tickets de trabajo | Prompt 2 (change con proposal, specs, design y tasks) |
+| 7. Pull Requests | Prompts 5 y 11 (una rama y una PR por bloque) |
+
+### Correcciones
+
+- **El PRD no cubría la gestión de diagramas (prompt 7).** El agente había planificado backend y frontend sin ningún bloque que crease, abriese o borrase diagramas desde la interfaz. Lo vio el PO al leer el readme y el PRD. Se corrigió en la v0.6.
+- **Orden destructivo encadenado (sin prompt propio).** Tras fusionar la PR, el agente lanzó en un solo comando el cambio a `develop`, `pull`, el borrado de la rama local y el de la rama remota. El borrado remoto no lo había pedido nadie y el sistema bloqueó todo el comando. Se repitió sin el borrado remoto y se dejó como paso del PO.
+- **Copia perdida del PRD de Supabase (prompt 10).** El agente editó el archivo en el sitio sin copia previa, y estaba sin versionar. Para cumplir el encargo tuvo que reconstruirlo desde la conversación. Debió guardar la copia o hacer commit antes de editar.
+- **Decisión tomada sin respuesta (prompts 7 y 8).** El agente terminó su respuesta al prompt 7 con una pregunta (¿lo meto en los dos PRD, con la decisión del punto 5 tal como la propongo?) y, con el prompt 8, siguió con el PRD principal sin esa respuesta. El PO confirmó al día siguiente que era un "sí". Salió bien, pero se actuó sobre una pregunta abierta.
+- **Horas mal calculadas en el cierre.** Al lanzar el script con `--since 2026-11-11`, el primer prompt de la sesión (10 nov) quedó fuera. Se detectó al comprobar el registro y se recalcularon las horas sin ese filtro.
+
+### Pendiente
+
+- Subir `docs/prd-v0-6` y abrir su PR contra `develop`.
+- Decidir entre el PRD v0.6 (Spring Boot) y la alternativa de Supabase, tras consultarlo con el tutor. Si se adopta, seguir la sección 10 del PRD alternativo (`config.yaml`, CLAUDE.md, readme y hook).
+- Borrar la rama remota `feat/f2-modelo-de-operaciones` (el PO, o desde la PR en GitHub).
+- F3 (tests del frontend, 2 h): incluir `title` en `setMeta` de `ops.js`, según la v0.6.
+- Arreglar `prompts.cjs`: lista como prompt el resumen de continuación de contexto (aparece como prompt 14) y su filtro `--since` recorta el primer prompt si cae antes de la fecha.
+- Versionar o descartar `mejoras.md`.
+- Arrastrado de la sesión 4: ramas remotas antiguas, el change para evaluar Mermaid 11/12, Automerge como alternativa descartada en el PRD, y el apunte del readme 2.5 sobre el escape de `&`, `<`, `>` y `|`.
+
+**Horas:** 2,75 (acumulado 10,75 h de 33; la v0.6 del PRD, aún sin fusionar, baja el presupuesto a 32 h).
