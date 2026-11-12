@@ -98,16 +98,17 @@ y analistas o product managers que capturan procesos en talleres.
 | Etiquetas | Un toque sobre un nodo o un conector permite editar su texto o borrarlo | Prototipo |
 | Código Mermaid en vivo | Panel con la vista previa renderizada, el código y un botón para copiarlo | Prototipo |
 | Cuentas de usuario | Registro e inicio de sesión con email y contraseña (Supabase Auth). Se puede dibujar sin cuenta; para guardar hace falta | MVP |
-| Mis diagramas | Lista de diagramas propios y compartidos, con su rol; crear, abrir y borrar | MVP |
+| Mis diagramas | Lista de diagramas propios y compartidos, con su título y su rol; crear, abrir, renombrar y borrar. Cada diagrama tiene su ruta, así que recargar vuelve a él | MVP |
 | Colaboración en tiempo real | Varios usuarios dibujan a la vez en el mismo diagrama y ven los cambios de los demás en menos de un segundo | MVP |
 | Invitaciones | El dueño comparte un enlace que añade a otro usuario como editor o como lector | MVP |
-| Presencia | Se ve quién está conectado al diagrama | MVP |
 | Deshacer por usuario | Cada persona deshace solo sus propios cambios | MVP |
-| Recuperación tras cortes | Al volver la conexión, el cliente recibe los cambios que se ha perdido | MVP |
+| Persistencia | Lo confirmado se guarda en el servidor: al volver otro día el diagrama está intacto. Si se corta la conexión, la app lo avisa y se recarga la página | MVP |
+| Presencia | Se ve quién está conectado al diagrama | v2 |
+| Recuperación tras cortes | Al volver la conexión, el cliente reconecta solo y recibe los cambios que se ha perdido | v2 |
 
-Queda para después del MVP (ver [docs/PRD-MVP.md](docs/PRD-MVP.md)): nuevos tipos de diagrama (clases
-UML, entidad-relación, secuencia y el resto de tipos de Mermaid), pan y zoom, escritura a mano para las
-etiquetas e importación de código Mermaid.
+Queda para después del MVP (ver [docs/PRD-MVP.md](docs/PRD-MVP.md)): presencia y recuperación tras
+cortes (segunda versión), nuevos tipos de diagrama (clases UML, entidad-relación, secuencia y el resto
+de tipos de Mermaid), pan y zoom, escritura a mano para las etiquetas e importación de código Mermaid.
 
 ### **1.3. Diseño y experiencia de usuario:**
 
@@ -243,9 +244,9 @@ app, la API y el WebSocket.
 | Modelo de operaciones | JavaScript | Único punto de cambio del grafo (`apply(op)`); identificadores UUID; deshacer por usuario con operaciones inversas |
 | Generador Mermaid | JavaScript | Recorre el grafo y emite el código según el tipo (`flowchart`, `stateDiagram-v2`) |
 | Render y vista previa | Canvas 2D, mermaid.js 10.9.8 | Dibuja el grafo limpio y renderiza el código con `securityLevel: 'strict'` |
-| Cliente colaborativo | WebSocket del navegador | Envía operaciones, aplica las remotas, reconcilia las propias pendientes y reconecta |
+| Cliente colaborativo | WebSocket del navegador | Envía operaciones, aplica las remotas, reconcilia las propias pendientes y avisa si se corta la conexión |
 | Autenticación en el cliente | supabase-js | Registro, inicio de sesión y renovación del token |
-| Servidor de colaboración | Spring WebSocket | Salas por diagrama, cola de operaciones por sala, validación, persistencia, reenvío y presencia |
+| Servidor de colaboración | Spring WebSocket | Salas por diagrama, cola de operaciones por sala, validación, persistencia y reenvío |
 | API REST | Spring Web, Bean Validation, springdoc-openapi | Diagramas, miembros e invitaciones; documentación OpenAPI |
 | Seguridad | Spring Security (resource server OAuth2) | Valida el JWT de Supabase en la API y en el WebSocket |
 | Persistencia | Spring Data JPA, Flyway, PostgreSQL | Tablas, migraciones, registro de operaciones e instantáneas |
@@ -517,8 +518,7 @@ Cada diagrama tiene exactamente un miembro `owner`, que coincide con `diagrams.o
 | `op` | `jsonb` | NOT NULL | Operación: `addNode`, `updateNode`, `removeNode`, `addEdge`, `updateEdge`, `removeEdge` o `setMeta` |
 | `created_at` | `timestamptz` | NOT NULL | Momento en que el servidor la aceptó |
 
-Permite reconstruir el estado a partir de la última instantánea y enviar a un cliente que se reconecta
-solo las operaciones que le faltan.
+Permite reconstruir el estado a partir de la última instantánea, por ejemplo tras reiniciar el servidor.
 
 Todas las tablas del esquema `public` tienen la seguridad de fila (RLS) activada y sin políticas (ver 2.5).
 
@@ -663,13 +663,12 @@ por mensajes JSON:
 
 | Sentido | Mensaje | Contenido |
 |---|---|---|
-| Cliente → servidor | `hello` | JWT, id del diagrama y último número de secuencia conocido |
+| Cliente → servidor | `hello` | JWT e id del diagrama |
 | Cliente → servidor | `op` | Operación con un id generado en el cliente |
 | Cliente → servidor | `auth` | JWT renovado |
-| Servidor → cliente | `snapshot` | Estado completo y su número de secuencia |
+| Servidor → cliente | `snapshot` | Estado completo y su número de secuencia, al entrar |
 | Servidor → cliente | `ops` | Operaciones con número de secuencia y autor, incluidas las confirmaciones de las propias |
-| Servidor → cliente | `presence` | Usuarios conectados |
-| Servidor → cliente | `error` | Operación rechazada y motivo |
+| Servidor → cliente | `error` | Operación rechazada y motivo, o diagrama borrado (el servidor cierra la sala) |
 
 ---
 
@@ -694,9 +693,8 @@ una sola persona tenga que pasarlo a limpio.
   **entonces** el nodo desaparece para los dos y no queda ningún conector suelto.
 - **Dado** que he dibujado un conector, **cuando** pulso Deshacer, **entonces** se deshace mi conector y
   no los cambios de mis compañeros.
-- **Dado** que estoy en un diagrama, **entonces** veo las iniciales de los usuarios conectados.
 
-*Prioridad:* alta (es la propuesta de valor del MVP). *Estimación:* 11,5 h (bloques F2, B4 y F4).
+*Prioridad:* alta (es la propuesta de valor del MVP). *Estimación:* 8 h (bloques F2, B4 y F4).
 
 **Historia de Usuario 2**
 
@@ -721,22 +719,26 @@ una sola persona tenga que pasarlo a limpio.
 
 **Historia de Usuario 3**
 
-**HU-03 · No perder el trabajo**
+**HU-03 · Gestionar mis diagramas**
 
-**Como** usuario que dibuja en una tablet con una conexión inestable, **quiero** que mis cambios y los
-de mis compañeros se recuperen al volver la conexión, **para** poder seguir trabajando sin rehacer nada.
+**Como** usuario con varios diagramas, **quiero** crearlos, abrirlos, renombrarlos y borrarlos desde la
+app, y encontrarlos como los dejé, **para** organizar mi trabajo y retomarlo otro día.
 
 *Criterios de aceptación:*
-- **Dado** que pierdo la conexión 30 s mientras otros siguen dibujando, **cuando** vuelve, **entonces**
-  la app reconecta sola y recibo los cambios que me he perdido.
-- **Dado** que dibujo durante un corte breve, **cuando** vuelve la conexión, **entonces** mis cambios
-  pendientes se envían y se aplican.
-- **Dado** que cierro el diagrama y vuelvo otro día, **cuando** lo abro desde "Mis diagramas",
-  **entonces** está como lo dejamos.
-- **Dado** que el servidor se reinicia, **cuando** los clientes reconectan, **entonces** no se ha
+- **Dado** que he iniciado sesión, **cuando** pulso "Nuevo", **entonces** se crea un diagrama vacío
+  titulado "Diagrama sin título", se abre y aparece en "Mis diagramas".
+- **Dado** que tengo un diagrama abierto, **cuando** recargo la página o lo abro otro día desde "Mis
+  diagramas", **entonces** está como lo dejamos.
+- **Dado** que cambio el título en la barra superior, **cuando** otro miembro mira su lista, **entonces**
+  ve el título nuevo.
+- **Dado** que soy el dueño, **cuando** borro un diagrama y lo confirmo, **entonces** desaparece de la
+  lista de todos los miembros, y quien lo tenía abierto ve "Este diagrama se ha borrado" y vuelve a la
+  lista.
+- **Dado** que el servidor se reinicia, **cuando** vuelvo a abrir el diagrama, **entonces** no se ha
   perdido ninguna operación confirmada.
 
-*Prioridad:* media. *Estimación:* 3,5 h (B5 y la reconexión de F4).
+*Prioridad:* alta (sin ella la app no se puede usar). *Estimación:* 3,5 h (B5 y la gestión de
+diagramas de F5).
 
 ---
 
@@ -748,7 +750,7 @@ de mis compañeros se recuperen al volver la conexión, **para** poder seguir tr
 
 **TM-B4 · Backend: servidor de colaboración por WebSocket**
 
-- **Historia:** HU-01. **Estimación:** 3,5 h. **Depende de:** autenticación (B2) y modelo de
+- **Historia:** HU-01. **Estimación:** 3 h. **Depende de:** autenticación (B2) y modelo de
   operaciones (F2, para las fixtures compartidas).
 - **Descripción:** implementar en Spring Boot el servidor que recibe las operaciones de los clientes de
   un diagrama, las valida, las ordena, las guarda y las reenvía, con el protocolo de la sección 4.
@@ -766,7 +768,8 @@ de mis compañeros se recuperen al volver la conexión, **para** poder seguir tr
    y descarta las actualizaciones de elementos borrados.
 7. Guardar la operación en `diagram_ops` con el siguiente número de secuencia **antes** de reenviarla a
    todos los clientes de la sala, incluido el autor como confirmación.
-8. Difundir `presence` al entrar y salir un cliente.
+8. Copiar a `diagrams.title` el título de cada `setMeta`, y al borrar un diagrama enviar `error` a los
+   conectados y cerrar la sala.
 9. Aceptar `auth` con un JWT renovado y cerrar la conexión si el token caduca.
 
 *Criterios de aceptación:*
@@ -782,29 +785,29 @@ actualizada y PR revisada y fusionada.
 
 **TM-F4 · Frontend: cliente colaborativo**
 
-- **Historia:** HU-01 y HU-03. **Estimación:** 2,5 h. **Depende de:** modelo de operaciones (F2) y
+- **Historia:** HU-01. **Estimación:** 2 h. **Depende de:** modelo de operaciones (F2) y
   servidor de colaboración (B4).
 - **Descripción:** conectar el lienzo al servidor de colaboración para que los cambios propios se
   envíen y los remotos se apliquen sin bloquear el dibujo.
 
 *Tareas:*
-1. Crear `collab.js` con la conexión WebSocket y el envío de `hello` con el token de supabase-js y el
-   último número de secuencia conocido.
+1. Crear `collab.js` con la conexión WebSocket y el envío de `hello` con el token de supabase-js y el id
+   del diagrama.
 2. Aplicar las operaciones propias al momento y guardarlas en una cola de pendientes hasta recibir su
    confirmación.
 3. Al recibir operaciones remotas, aplicarlas salvo en los campos con una operación propia pendiente; al
    confirmarse la propia, el estado converge con el del servidor.
-4. Aplicar `snapshot` cuando el servidor lo envíe (al entrar o si el cliente está muy atrasado).
-5. Reconectar automáticamente con espera creciente (1, 2, 4… hasta 30 s) y reenviar las operaciones
-   pendientes.
-6. Renovar el token con supabase-js y enviar `auth` antes de que caduque.
-7. Modo solo lectura para lectores: desactivar el dibujo y mostrar un aviso.
-8. Mostrar un indicador de estado de conexión (conectado, reconectando).
+4. Aplicar el `snapshot` que el servidor envía al entrar.
+5. Renovar el token con supabase-js y enviar `auth` antes de que caduque.
+6. Modo solo lectura para lectores: desactivar el dibujo y mostrar un aviso.
+7. Si se cierra la conexión, pasar el lienzo a solo lectura con el aviso "Sin conexión: recarga la
+   página". La reconexión automática queda para la segunda versión.
 
 *Criterios de aceptación:*
 - Dos navegadores en el mismo diagrama ven los cambios del otro en menos de 1 s.
 - Tras una ráfaga de cambios concurrentes, los dos navegadores muestran el mismo código Mermaid.
-- Al cortar la red 30 s y restaurarla, el cliente se pone al día sin recargar la página.
+- Al cortar la red, el lienzo deja de aceptar trazos y muestra el aviso; al recargar, trae el estado
+  del servidor.
 - Dibujar sigue siendo inmediato: ningún trazo espera a la red.
 
 *Definición de terminado:* `node --test` en verde, prueba con dos navegadores mediante la skill
