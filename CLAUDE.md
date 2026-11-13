@@ -8,6 +8,9 @@ y la skill `run-trazo-mermaid` conservan el nombre antiguo. El repositorio remot
 Webapp para dibujar diagramas con lápiz (S Pen en tablet Android) y convertirlos en tiempo real
 en un grafo de nodos y conexiones, generando código Mermaid al vuelo.
 
+PRD de la entrega: `docs/PRD-MVP.md` (v0.7, backend en Supabase). `docs/PRD-backend-java.md` (la v0.6,
+con Spring Boot) es una posible mejora para después de la entrega.
+
 ## Principios de diseño
 - **Reconocimiento local y determinista**, sin IA por trazo: rápido, gratis y estable.
 - **El tipo de diagrama restringe las formas**: el usuario elige "Flujo", "Estados UML"... y el
@@ -66,7 +69,7 @@ Prueba en el navegador real con la skill `run-trazo-mermaid`.
   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`…), p. ej. `docs: añade la sesión 2 a la bitácora`.
 - Al terminar cada sesión de trabajo se escribe su entrada en `docs/bitacora.md` con la skill
   `/cerrar-sesion`.
-- Una rama y una PR contra `develop` por bloque del PRD (F1, F2…), p. ej. `feat/f2-modelo-de-operaciones`.
+- Una rama y una PR contra `develop` por bloque del PRD (F3, S1, S2…), p. ej. `feat/f2-modelo-de-operaciones`.
   Los changes de OpenSpec de un bloque van en esa rama uno tras otro: cada uno se aplica y se archiva
   antes de proponer o rebasar el siguiente, porque el archivado reescribe `openspec/specs/` y el delta
   siguiente se escribe contra ese estado. Solo un arreglo urgente va en una rama y una PR aparte.
