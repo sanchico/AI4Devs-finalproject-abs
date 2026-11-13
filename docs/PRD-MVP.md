@@ -1,64 +1,73 @@
-# PRD alternativo · MVP de pen2mermaid con todo el backend en Supabase
+# PRD · MVP de pen2mermaid colaborativo, con el backend en Supabase
 
 | | |
 |---|---|
-| Estado | Propuesta. No sustituye a [PRD-MVP.md](PRD-MVP.md) (v0.5) hasta que se decida |
-| Versión | Alternativa A · 10 nov 2026 |
-| Base | `develop` con F1 cerrado (sesión 3 de la [bitácora](bitacora.md)) |
-| Presupuesto | 25,25 h en total: 5,75 h ya gastadas más 19,5 h por hacer |
-| Motivo | F1 costó 5,25 h frente a 3 h previstas; al plan v0.5 ya no le caben sus 33 h |
+| Estado | Vigente: es el PRD de la entrega. Sustituye a la v0.6, que se conserva como mejora futura en [PRD-backend-java.md](PRD-backend-java.md) |
+| Versión | 0.7 · 13 nov 2026 (adopta la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov) |
+| Base | `develop` con F1 y F2 cerrados (sesión 4 de la [bitácora](bitacora.md), más F2) |
+| Presupuesto | 27,5 h en total: 8 h gastadas hasta la sesión 4, 3 h previstas de F2 (ya hecho) y 16,5 h por hacer |
+| Motivo | F1 costó 5,25 h frente a 3 h previstas y la sesión 4 fue un arreglo no planificado de 2,25 h; al plan v0.6 ya no le caben sus 32 h |
 
 ## 1. Resumen
 
-El producto y los criterios de terminado son los de la v0.5: una pizarra colaborativa en la que varios
+El producto y los criterios de terminado son los de la v0.6: una pizarra colaborativa en la que varios
 usuarios dibujan con lápiz en el mismo diagrama y todos ven el mismo grafo y el mismo Mermaid. Cambia
 dónde vive el backend:
 
 - **Desaparece Spring Boot.** No hay servidor propio, ni contenedor, ni WebSocket propio.
 - **La autoridad es PostgreSQL.** Una función `apply_op` comprueba el permiso, pone la operación en orden
   y la guarda. La seguridad de fila (RLS) decide quién lee qué.
-- **Supabase Realtime reparte las operaciones** a los clientes conectados y lleva la presencia.
+- **Supabase Realtime reparte las operaciones** a los clientes conectados.
 - **El frontend es estático** y se publica en un hosting de archivos (GitHub Pages o similar).
 - **Solo hay una implementación de `apply`**, la de JavaScript. El servidor ordena y autoriza; no
   interpreta el grafo.
 
-Los bloques F2, F3, F4, F5 y P2 se mantienen casi iguales. Los seis bloques de backend (B1–B6, 15 h) se
+Los bloques F2, F3, F4, F5 y P2 se mantienen casi iguales. Los seis bloques de backend (B1–B6, 14 h) se
 sustituyen por tres (S1–S3, 6,5 h) y el despliegue baja de 1,5 h a 0,5 h.
 
-## 2. Comparación con la v0.5
+Como en la v0.6, el frontend cubre crear, abrir, renombrar y borrar diagramas, y la presencia y la
+recuperación tras cortes quedan para una segunda versión.
+
+## 2. Comparación con la v0.6
+
+La v0.6, con Spring Boot, está en [PRD-backend-java.md](PRD-backend-java.md).
 
 ### Horas
 
-| | v0.5 (Spring Boot) | Alternativa (Supabase) |
+| | v0.6 (Spring Boot) | Alternativa (Supabase) |
 |---|---:|---:|
-| Gastado hasta la sesión 3 | 5,75 | 5,75 |
-| Frontend por hacer (F2–F5) | 10 | 9,5 |
-| Backend por hacer | 15 | 6,5 |
+| Gastado hasta la sesión 4 (P1, F1 y el arreglo de `\|`) | 8 | 8 |
+| F2, ya hecho (horas previstas) | 3 | 3 |
+| Frontend por hacer (F3–F5) | 7 | 6,5 |
+| Backend por hacer | 14 | 6,5 |
 | Despliegue | 1,5 | 0,5 |
 | Documentación (P2) | 3 | 3 |
-| **Total previsto** | **35,25** | **25,25** |
-| Margen hasta 33 h | −2,25 | +7,75 |
-| Total si lo que queda se desvía como F1 (+75 %) | ≈ 57 | ≈ 40 |
+| **Total previsto** | **36,5** | **27,5** |
+| Margen hasta 32 h | −4,5 | +4,5 |
+| Total si lo que queda se desvía como F1 (+75 %) | ≈ 56 | ≈ 40 |
 
-El ahorro nominal es de **10 h**, un tercio de lo que queda. La alternativa absorbe una desviación del
-40 % sobre el trabajo pendiente sin pasar de 33 h; la v0.5 ya está 2,25 h por encima sin desviarse más.
+El ahorro nominal es de **9 h**, algo más de un tercio de las 25,5 h que le quedan a la v0.6. La
+alternativa absorbe una desviación del 27 % sobre el trabajo pendiente sin pasar de 32 h; la v0.6 ya
+está 4,5 h por encima sin desviarse más.
 
 La última fila es un caso pesimista: parte del exceso de F1 vino de trabajo no planificado (actualizar
 Mermaid, la dirección de Estados, decidir el flujo de ramas y PR), que no tiene por qué repetirse.
-Las horas de la sesión actual (arreglo de `|`) no están contadas en ninguna de las dos columnas.
+F2 cuenta con sus 3 h previstas en las dos columnas: sus horas reales aún no están en la bitácora.
 
 ### Qué se gana además de horas
 
-- Desaparece el riesgo principal de la v0.5: dos implementaciones de `apply` (JS y Java) que divergen.
+- Desaparece el riesgo principal de la v0.6: dos implementaciones de `apply` (JS y Java) que divergen.
 - Desaparecen el contenedor, la elección de hosting con WebSocket y el plan gratuito que duerme el
   servicio.
-- supabase-js renueva el JWT y reconecta el canal por su cuenta; no hay mensaje `auth` que implementar.
+- supabase-js renueva el JWT por su cuenta; no hay mensaje `auth` que implementar.
+- La recuperación tras cortes de la v2 sale más barata: supabase-js ya reconecta el canal y al cliente
+  le basta con pedir las operaciones posteriores a la última que tiene.
 - Cualquier número de clientes pasa por la misma base de datos: no hay salas en memoria de una instancia.
 
 ### Qué se pierde
 
 - **Un backend que enseñar en Java.** El backend pasa a ser SQL: cuatro tablas, políticas RLS, cuatro
-  funciones y sus tests. La v0.5 descartó Supabase Realtime precisamente porque "dejaría el backend casi
+  funciones y sus tests. La v0.6 descartó Supabase Realtime precisamente porque "dejaría el backend casi
   vacío". Si la evaluación del curso valora un servidor de aplicación propio, esta alternativa puntúa
   peor en las secciones 2, 4 y 6 de la plantilla. **Es la decisión que hay que tomar antes de adoptarla.**
 - **Validación del grafo en el servidor.** El servidor no comprueba que un nodo referenciado exista; cada
@@ -67,25 +76,29 @@ Las horas de la sesión actual (arreglo de `|`) no están contadas en ninguna de
   registro a 5 000 operaciones por diagrama; compactarlo queda fuera de alcance.
 - **Swagger UI.** La API es la de PostgREST, que publica su propio OpenAPI.
 - **Independencia del proveedor.** La lógica queda atada a Supabase (RLS con `auth.uid()`, Realtime).
+- **Aviso inmediato al borrar un diagrama.** No hay sala que cerrar: quien lo tenga abierto se entera al
+  enviar su siguiente operación o al recargar (ver sección 5).
 
 ## 3. Criterios de terminado
 
-Son los de la v0.5 con tres cambios:
+Son los de la v0.6 con dos cambios y un matiz:
 
 - **7.** Nadie accede a un diagrama sin ser miembro: ni por la API REST de Supabase, ni llamando a las
   funciones, ni por Realtime. Lo comprueban tests automáticos con un usuario ajeno y con la clave pública
   sin sesión.
 - **9.** `node --test` pasa, incluidos los tests de integración contra un Supabase local. Se elimina
   `mvn verify`. La precisión del reconocedor se mantiene en ≥ 90 % por forma.
-- **6.** Al reconectar, el cliente pide las operaciones posteriores a la última que tiene. No hay
-  instantánea.
+- **6.** Se cumple igual, pero sin instantánea: al abrir o recargar, el cliente reproduce el registro
+  completo de operaciones.
 
 El resto (1–5, 8, 10 y 11) no cambia.
 
 ## 4. Fuera de alcance
 
-Todo lo de la v0.5, más:
+Todo lo de la v0.6, incluidas la presencia y la recuperación tras cortes, que quedan para una segunda
+versión (aquí serían Realtime Presence y pedir las operaciones que faltan al reconectar). Además:
 
+- Avisar al momento a quien tiene abierto un diagrama que se borra.
 - Compactar el registro de operaciones o guardar instantáneas.
 - Validar en el servidor la coherencia del grafo (existencia de nodos, máximo de nodos).
 - Edge Functions.
@@ -94,16 +107,16 @@ Todo lo de la v0.5, más:
 
 | Capa | Tecnología | Responsabilidad |
 |---|---|---|
-| Frontend | HTML y JS en módulos ES, sin build; mermaid.js y supabase-js por CDN con SRI | Dibujo, reconocimiento, operaciones, `apply`, Mermaid, login, lista, presencia |
+| Frontend | HTML y JS en módulos ES, sin build; mermaid.js y supabase-js por CDN con SRI | Dibujo, reconocimiento, operaciones, `apply`, Mermaid, login, gestión de diagramas |
 | Autenticación | Supabase Auth (email y contraseña) | Registro, sesión y JWT |
 | Datos y permisos | PostgreSQL de Supabase con RLS | Diagramas, miembros, invitaciones y registro de operaciones; quién lee qué |
 | Lógica de servidor | Funciones PL/pgSQL llamadas por RPC | Orden de las operaciones, permisos de escritura, invitaciones |
-| Tiempo real | Supabase Realtime: Postgres Changes y Presence | Reparto de operaciones y usuarios conectados |
+| Tiempo real | Supabase Realtime: Postgres Changes | Reparto de operaciones |
 | Despliegue | Hosting estático para `frontend/`; migraciones con la CLI de Supabase | Una URL para la app; el backend es el proyecto de Supabase |
 
 ### Modelo de colaboración
 
-- **Operaciones:** las mismas de la v0.5 (`addNode`, `updateNode`, `removeNode`, `addEdge`, `updateEdge`,
+- **Operaciones:** las mismas de la v0.6 (`addNode`, `updateNode`, `removeNode`, `addEdge`, `updateEdge`,
   `removeEdge`, `setMeta`), con identificadores UUID. F2 no cambia.
 - **Orden:** el cliente llama a `apply_op(diagrama, id_de_operación, operación)`. La función incrementa
   `diagrams.last_seq` con un `UPDATE`, que bloquea la fila hasta el final de la transacción. Dos
@@ -113,14 +126,18 @@ Todo lo de la v0.5, más:
 - **Convergencia:** todos los clientes aplican el mismo registro, en el mismo orden, con el mismo código
   `apply`. Una operación sobre un elemento que ya no existe se descarta en todos por igual. Sobre el
   mismo campo gana la última en el orden del servidor.
-- **Respuesta inmediata y deshacer:** como en la v0.5. La respuesta del RPC confirma la operación propia
+- **Respuesta inmediata y deshacer:** como en la v0.6. La respuesta del RPC confirma la operación propia
   con su número de secuencia; un error la revierte con su inversa y muestra el aviso.
-- **Reintentos:** `(diagram_id, op_id)` es único. Si se corta la red y el cliente reenvía una operación,
-  la función devuelve la secuencia que ya tenía en vez de duplicarla.
-- **Huecos:** si llega una secuencia mayor que la esperada, o al reconectar, el cliente pide por REST las
-  operaciones con `seq` mayor que la última aplicada.
-- **Presencia:** Realtime Presence en el canal del diagrama, con nombre y color. El canal es privado: una
-  política sobre `realtime.messages` solo deja entrar a los miembros.
+- **Reintentos:** `(diagram_id, op_id)` es único. Si un cliente reenvía una operación, la función
+  devuelve la secuencia que ya tenía en vez de duplicarla. El MVP no reenvía solo; es la base de la
+  recuperación de la v2 y cuesta una restricción.
+- **Cortes y huecos:** si el canal se cierra o llega una secuencia mayor que la esperada, el lienzo pasa
+  a solo lectura con el aviso "Sin conexión: recarga la página". Al recargar se reproduce el registro.
+  Las operaciones propias sin confirmar se pierden.
+- **Título:** `apply_op` con `setMeta` lo copia a `diagrams.title`, y la lista lo lee de ahí.
+- **Diagrama borrado:** el borrado elimina en cascada el registro. Quien lo tenga abierto recibe un error
+  en su siguiente `apply_op`, o cero filas al recargar; el cliente muestra "Este diagrama se ha borrado"
+  y vuelve a la lista.
 
 ### Modelo de datos
 
@@ -133,7 +150,7 @@ Cuatro tablas en `public`, relacionadas con `auth.users`:
 | `diagram_invites` | `token` text, `diagram_id` uuid, `role` text, `created_by` uuid, `expires_at` | PK `token`; `role` en (`editor`, `viewer`) |
 | `diagram_ops` | `diagram_id` uuid, `seq` bigint, `user_id` uuid, `op_id` uuid, `op` jsonb, `created_at` | PK (`diagram_id`, `seq`); único (`diagram_id`, `op_id`); `op` de 2 kB como máximo |
 
-Respecto a la v0.5 desaparecen `content` y `snapshot_seq`, y se añaden `last_seq`, `op_id` y
+Respecto a la v0.6 desaparecen `content` y `snapshot_seq`, y se añaden `last_seq`, `op_id` y
 `display_name`. Borrar un diagrama borra en cascada sus miembros, invitaciones y operaciones.
 
 ### Seguridad de fila
@@ -158,11 +175,11 @@ política de `diagram_members` no se consulte a sí misma.
 | `GET /rest/v1/diagram_members?diagram_id=eq.{id}` | Miembros y roles |
 | `GET /rest/v1/diagram_ops?diagram_id=eq.{id}&seq=gt.{n}&order=seq` | Operaciones desde una secuencia, de 1 000 en 1 000 |
 | `DELETE /rest/v1/diagrams?id=eq.{id}` | Borra un diagrama (solo el dueño) |
-| `rpc/create_diagram(title, kind)` | Crea el diagrama y a su dueño como miembro |
+| `rpc/create_diagram(title, kind)` | Crea el diagrama vacío ("Diagrama sin título", tipo flujo) y a su dueño como miembro |
 | `rpc/create_invite(diagram_id, role)` | Crea una invitación con token de 32 bytes y caducidad de 7 días |
 | `rpc/accept_invite(token)` | Añade al usuario como miembro si la invitación no ha caducado |
 | `rpc/apply_op(diagram_id, op_id, op)` | Autoriza, numera y guarda una operación; devuelve su secuencia |
-| Canal Realtime `diagram:{id}` | `INSERT` de `diagram_ops` filtrado por diagrama, y presencia |
+| Canal Realtime `diagram:{id}` | `INSERT` de `diagram_ops` filtrado por diagrama |
 
 El frontend las usa a través de supabase-js. Un diagrama del que no se es miembro devuelve cero filas.
 
@@ -170,26 +187,21 @@ El frontend las usa a través de supabase-js. Un diagrama del que no se es miemb
 
 | Bloque | Horas | Sustituye a | Depende de |
 |---|---:|---|---|
-| F2 Modelo de operaciones | 3 | F2 (3) | F1 |
 | F3 Tests del frontend | 1,5 | F3 (2) | F2 |
 | S1 Proyecto Supabase, esquema y RLS | 2,5 | B1 y B2 (4,5) | — |
-| S2 Funciones de servidor | 2 | B3, B4 y B5 (8) | S1 |
+| S2 Funciones de servidor | 2 | B3, B4 y B5 (7) | S1 |
 | S3 Tests del backend | 2 | B6 (2,5) | S2, F2 |
-| F4 Cliente colaborativo | 2,5 | F4 (2,5) | F2, S2 |
-| F5 Login, lista, invitaciones y presencia | 2,5 | F5 (2,5) | S2, F4 |
+| F4 Cliente colaborativo | 2 | F4 (2) | F2, S2 |
+| F5 Login, diagramas e invitaciones | 3 | F5 (3) | S2, F4 |
 | D1 Despliegue | 0,5 | D1 (1,5) | F4 |
 | P2 Documentación de entrega | 3 | P2 (3) | repartido |
-| **Por hacer** | **19,5** | 29,5 | |
+| **Por hacer** | **16,5** | 25,5 | |
 
-F1 y P1 están hechos (5,75 h).
-
-### F2 · Modelo de operaciones (3 h)
-
-Igual que en la v0.5.
+P1, F1 y F2 están hechos. F2 no cambia con esta alternativa.
 
 ### F3 · Tests del frontend (1,5 h)
 
-Igual que en la v0.5, salvo que las fixtures de operaciones solo las ejecuta JavaScript y viven en
+Igual que en la v0.6 (incluido `title` en `setMeta`), salvo que las fixtures de operaciones solo las ejecuta JavaScript y viven en
 `frontend/test/`. Se añade un **test de convergencia sin red**: varios clientes simulados con
 operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo grafo.
 
@@ -198,8 +210,7 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
 - Carpeta `supabase/` con la CLI: `supabase start` levanta el entorno local en Docker y
   `supabase db push` aplica las migraciones al proyecto remoto.
 - Migraciones SQL de las cuatro tablas, índices, `member_role` y las políticas de la sección 5.
-- `diagram_ops` en la publicación `supabase_realtime`; política de `realtime.messages` para el canal
-  privado.
+- `diagram_ops` en la publicación `supabase_realtime`.
 - Claves y contraseñas fuera del repositorio. La clave pública (`anon`) sí va en el frontend: la
   protección es la RLS.
 - **Aceptación:** con la clave pública y sin sesión, `/rest/v1/diagrams` no devuelve filas; un `INSERT`
@@ -224,21 +235,26 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   Realtime; un lector no escribe; una invitación caducada no se acepta.
 - **Convergencia con red:** varios clientes envían operaciones concurrentes sobre los mismos elementos;
   al final todos tienen el mismo grafo que resulta de reproducir `diagram_ops`.
+- **Diagramas:** un `setMeta` con título cambia `diagrams.title`; solo el dueño borra, y el borrado se
+  lleva miembros, invitaciones y operaciones.
 - **Aceptación:** `node --test` en verde con el entorno local arrancado.
 
-### F4 · Cliente colaborativo (2,5 h)
+### F4 · Cliente colaborativo (2 h)
 
 - `collab.js`: suscripción al canal, carga del registro, cola de operaciones pendientes (se envían de
   una en una), aplicación de las remotas y reconciliación por `op_id`.
 - Al abrir: primero se suscribe y guarda en espera lo que llegue; después carga el registro y aplica lo
   que esté en espera con secuencia posterior.
-- Al reconectar o detectar un hueco: pide las operaciones que faltan.
+- Si el canal se cierra o se detecta un hueco: solo lectura con el aviso "Sin conexión: recarga la
+  página".
 - Modo solo lectura para lectores.
-- **Aceptación:** criterios de terminado 1, 2, 3 y 6.
+- **Aceptación:** criterios de terminado 1, 2 y 3.
 
-### F5 · Login, lista, invitaciones y presencia (2,5 h)
+### F5 · Login, diagramas e invitaciones (3 h)
 
-Igual que en la v0.5, con las llamadas de la sección 5 y Realtime Presence para los avatares.
+Igual que en la v0.6 (lista, nuevo, abrir por ruta `#/d/<id>`, renombrar, borrar e invitar), con las
+llamadas de la sección 5. Única diferencia: quien tiene abierto un diagrama que se borra ve el aviso al
+enviar su siguiente operación o al recargar, no al momento.
 
 ### D1 · Despliegue (0,5 h)
 
@@ -249,7 +265,7 @@ Igual que en la v0.5, con las llamadas de la sección 5 y Realtime Presence para
 
 ### P2 · Documentación de entrega (3 h)
 
-Como en la v0.5, con estos cambios en las secciones de la plantilla:
+Como en la v0.6, con estos cambios en las secciones de la plantilla:
 
 - **2. Arquitectura:** la sección 5 de este documento. En 2.5, RLS y funciones `security definer` en
   lugar de la validación del JWT en Spring.
@@ -260,19 +276,19 @@ Como en la v0.5, con estos cambios en las secciones de la plantilla:
 
 | Sesión | Trabajo | Acumulado |
 |---|---|---:|
-| 1–3 | Hecho: P1 y F1 | 5,75 h |
-| 4 | F2 modelo de operaciones | 8,75 h |
-| 5 | F3 tests del frontend y convergencia sin red | 10,25 h |
-| 6 | S1 proyecto Supabase, esquema y RLS | 12,75 h |
-| 7 | S2 funciones de servidor | 14,75 h |
-| 8 | F4 cliente colaborativo, con el login mínimo de F5 | 17,75 h |
-| 9 | D1 despliegue, prueba con dos dispositivos y lista de F5 | 19,25 h |
-| 10 | Resto de F5 (invitaciones y presencia) y S3 tests del backend | 22,25 h |
-| 11 | P2 capturas, secciones, `prompts.md` y PR documentadas | 25,25 h |
+| 1–4 | Hecho: P1, F1 y el arreglo de `\|` | 8 h |
+| 5 | Hecho: F2 modelo de operaciones (horas previstas) | 11 h |
+| 6 | F3 tests del frontend y convergencia sin red | 12,5 h |
+| 7 | S1 proyecto Supabase, esquema y RLS | 15 h |
+| 8 | S2 funciones de servidor | 17 h |
+| 9 | F4 cliente colaborativo, con el login mínimo de F5 | 19,5 h |
+| 10 | D1 despliegue, prueba con dos dispositivos, y lista, nuevo y abrir de F5 | 21 h |
+| 11 | Resto de F5 (renombrar, borrar e invitaciones) y S3 tests del backend | 24,5 h |
+| 12 | P2 capturas, secciones, `prompts.md` y PR documentadas | 27,5 h |
 
-**Punto de control tras la sesión 9.** Dos dispositivos ya colaboran a través de la URL pública. Si el
-acumulado supera 23 h, se recorta en este orden: presencia (−0,5 h), invitaciones solo como editor
-(−0,5 h) y fixtures del reconocedor sin grabar nuevos (−1 h).
+**Punto de control tras la sesión 10.** Dos dispositivos ya colaboran a través de la URL pública. Si el
+acumulado supera 22 h, se recorta en este orden: invitaciones solo como editor (−0,5 h) y fixtures del
+reconocedor sin grabar nuevos (−1 h). La presencia ya está fuera del MVP.
 
 ## 8. Riesgos
 
@@ -282,7 +298,7 @@ acumulado supera 23 h, se recorta en este orden: presencia (−0,5 h), invitacio
 | Un error en una política RLS expone diagramas ajenos; la RLS es la única barrera | Tests de permisos en S3 con usuario ajeno y sin sesión; ninguna escritura directa en las tablas |
 | Recursión entre políticas de `diagrams` y `diagram_members` | Función auxiliar `member_role` con `security definer` |
 | Lógica en PL/pgSQL, más incómoda de depurar que Java | Funciones cortas, sin interpretar el grafo; tests de integración contra el entorno local |
-| La latencia de Postgres Changes se acerca a 1 s | Medirla en la sesión 8; si no basta, `apply_op` emite la operación con `realtime.send` (Broadcast) |
+| La latencia de Postgres Changes se acerca a 1 s | Medirla en la sesión 9; si no basta, `apply_op` emite la operación con `realtime.send` (Broadcast) |
 | Límites del plan gratuito de Realtime (conexiones y mensajes) | Comprobarlos en S1; el uso de una demo queda muy por debajo |
 | El plan gratuito pausa el proyecto tras una semana sin actividad, y ahora se lleva toda la app | Reactivarlo y comprobar la URL justo antes de entregar |
 | El correo de confirmación de Supabase tiene un cupo bajo por hora | Desactivar la confirmación por correo en el proyecto de la demo |
@@ -292,18 +308,22 @@ acumulado supera 23 h, se recorta en este orden: presencia (−0,5 h), invitacio
 
 | Decisión | Alternativas descartadas | Motivo |
 |---|---|---|
-| Todo el backend en Supabase | Spring Boot con WebSocket (v0.5) | 10 h menos y sin contenedor que desplegar; la v0.5 ya no cabe en 33 h |
-| El servidor ordena y autoriza, pero no interpreta el grafo | `apply` en PL/pgSQL sobre un `jsonb`; Edge Function que reutilice `ops.js` | Una sola implementación de `apply`. PL/pgSQL repetiría el riesgo de divergencia de la v0.5; la Edge Function añade arranque en frío, conexión propia a la base de datos y empaquetado |
+| Todo el backend en Supabase | Spring Boot con WebSocket (v0.6) | 9 h menos y sin contenedor que desplegar; la v0.6 ya no cabe en 32 h |
+| El servidor ordena y autoriza, pero no interpreta el grafo | `apply` en PL/pgSQL sobre un `jsonb`; Edge Function que reutilice `ops.js` | Una sola implementación de `apply`. PL/pgSQL repetiría el riesgo de divergencia de la v0.6; la Edge Function añade arranque en frío, conexión propia a la base de datos y empaquetado |
 | Registro de operaciones sin instantáneas | Tablas `nodes` y `edges` con Postgres Changes sobre ellas | Solo hay `INSERT`, que Realtime filtra por diagrama y somete a RLS; los `DELETE` no se pueden filtrar ni pasan por RLS. Mantiene F2 y la recuperación por secuencia |
 | Postgres Changes para repartir | Broadcast desde la base de datos | Menos piezas; queda como plan B si la latencia no basta |
 | Frontend en hosting estático | Servirlo desde Supabase Storage | Storage no está pensado para servir páginas HTML |
+| El borrado de un diagrama se detecta en la siguiente operación o al recargar | Suscribirse a los `DELETE` de `diagrams`; un RPC de borrado que avise por Broadcast | Los `DELETE` no se filtran ni pasan por RLS, y Broadcast exige un canal privado con su política. No compensa para un caso raro |
 | Solución intermedia descartada | Spring Boot solo para la colaboración y PostgREST para el resto | Ahorra unas 4 h, pero conserva el contenedor, el despliegue con WebSocket y las dos implementaciones de `apply` |
 
-## 10. Si se adopta
+## 10. Adopción
 
-- Este documento pasa a ser `PRD-MVP.md` v0.6 y la v0.5 se conserva en el historial de git.
-- `openspec/config.yaml` nombra hoy el servidor autoritativo en Spring Boot y la instancia única: hay que
-  reescribir esas restricciones.
-- `CLAUDE.md` y el readme describen `backend/` y `shared/`; pasan a `supabase/`.
+Adoptado el 13 nov 2026:
+
+- Este documento pasa a ser `PRD-MVP.md` v0.7. La v0.6 se renombra a `PRD-backend-java.md` y queda como
+  posible mejora tras la entrega.
+- `openspec/config.yaml` deja de nombrar el servidor en Spring Boot, la instancia única y `mvn verify`.
+- El readme sigue describiendo el diseño con Spring Boot en las secciones 2, 3, 4 y 6; se reescriben en P2.
 - El hook previsto en P1 deja de ejecutar `mvn test`.
-- F2 puede empezar ya: no depende de esta decisión.
+- F2 ya está hecho y sirve tal cual. F3 es el último bloque que no depende de esta decisión, salvo dónde
+  viven las fixtures de operaciones (`shared/` o `frontend/test/`).

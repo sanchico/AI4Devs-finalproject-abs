@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Estado | Borrador para revisión |
+| Estado | Mejora futura, no forma parte de la entrega. El PRD vigente es [PRD-MVP.md](PRD-MVP.md) (v0.7, backend en Supabase) |
 | Versión | 0.6 · 11 nov 2026 (gestión de diagramas; presencia y recuperación tras cortes pasan a la v2) |
 | Base | commit `5ea5e8a` (prototipo de flujo y estados) |
 | Presupuesto | 32 horas, una persona con Claude Code (30,5 h si se aplican los recortes de la sección 6) |
