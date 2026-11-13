@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | Estado | Borrador para revisión |
-| Versión | 0.5 · 30 sep 2026 (colaboración en tiempo real) |
+| Versión | 0.6 · 11 nov 2026 (gestión de diagramas; presencia y recuperación tras cortes pasan a la v2) |
 | Base | commit `5ea5e8a` (prototipo de flujo y estados) |
-| Presupuesto | 33 horas, una persona con Claude Code (30 h si se aplican los recortes de la sección 6) |
+| Presupuesto | 32 horas, una persona con Claude Code (30,5 h si se aplican los recortes de la sección 6) |
 | Calendario | Más de un mes, en sesiones de 2–3 h |
 | Propósito | Entrega de curso; se evalúa el uso del agente de IA en el proceso |
 
@@ -42,9 +42,10 @@ Code es un entregable más** (P1 y P2). El formato sigue la plantilla del
    muestran el mismo grafo y el mismo código Mermaid. Lo comprueba un test automático.
 3. Deshacer solo deshace las operaciones propias.
 4. El dueño invita por enlace como editor o como lector. El servidor rechaza las operaciones de un lector.
-5. Se ve quién está conectado al diagrama.
-6. Si se corta la red, al reconectar el cliente recupera los cambios que se ha perdido. Al volver otro
-   día, el diagrama está intacto.
+5. Cada usuario crea, abre, renombra y borra sus diagramas desde la app, y recargar la página vuelve al
+   mismo diagrama.
+6. Al volver otro día, o tras reiniciar el servidor, el diagrama está intacto. Si se corta la conexión,
+   el cliente lo avisa y deja de editar; al recargar la página trae el estado actual.
 7. Nadie accede a un diagrama sin ser miembro: ni por la API, ni por el WebSocket, ni por la API pública
    de Supabase.
 8. Las etiquetas no pueden inyectar HTML en la vista previa de ningún usuario.
@@ -61,16 +62,26 @@ Code es un entregable más** (P1 y P2). El formato sigue la plantilla del
 - Ver el cursor o el trazo en curso de otros usuarios; solo se ve el resultado reconocido.
 - Edición simultánea de una misma etiqueta letra a letra: gana el último que la confirma.
 - Varias instancias del servidor: las salas viven en memoria de una sola instancia.
-- Edición sin conexión con fusión posterior. Sin red se puede dibujar un diagrama nuevo sin guardar.
+- Edición sin conexión con fusión posterior. Sin sesión, la app funciona como el prototipo (abre con el
+  ejemplo y no guarda nada), y lo dibujado así no se importa al iniciar sesión.
 - Historial de versiones navegable.
 - Importar Mermaid, escritura a mano, autolayout e IA de visión.
 - CI con GitHub Actions y vídeo tutorial.
+
+### Para una segunda versión
+
+Se dejan fuera para compensar la gestión de diagramas, que faltaba en el frontend:
+
+- **Presencia:** el mensaje `presence` y los avatares con iniciales y color de los usuarios conectados.
+- **Recuperación tras cortes:** reconexión automática con espera creciente, `hello` con el último número
+  de secuencia conocido y envío solo de las operaciones perdidas. En el MVP, tras un corte se recarga la
+  página y las operaciones propias sin confirmar se pierden.
 
 ## 4. Arquitectura
 
 | Capa | Tecnología | Responsabilidad |
 |---|---|---|
-| Frontend | HTML y JS en módulos ES, sin build; mermaid.js y supabase-js por CDN | Dibujo, reconocimiento, operaciones, generación de Mermaid, login, lista, presencia |
+| Frontend | HTML y JS en módulos ES, sin build; mermaid.js y supabase-js por CDN | Dibujo, reconocimiento, operaciones, generación de Mermaid, login, gestión de diagramas |
 | Autenticación | Supabase Auth (email y contraseña) | Registro, sesión, contraseñas; emite el JWT |
 | Backend | Java 21, Spring Boot 3, Spring WebSocket, Spring Security (resource server), Spring Data JPA, Flyway, springdoc-openapi | Salas de colaboración, orden y validación de operaciones, permisos, API REST |
 | Base de datos | PostgreSQL de Supabase; PostgreSQL en Docker para desarrollo y tests | Diagramas, miembros, invitaciones y registro de operaciones |
@@ -93,8 +104,8 @@ Code es un entregable más** (P1 y P2). El formato sigue la plantilla del
   multijugador.
 - **Deshacer:** cada cliente guarda las operaciones inversas de las suyas. Deshacer envía la inversa; si
   otro usuario ya borró el elemento, se salta.
-- **Presencia:** al entrar y salir de una sala, el servidor difunde la lista de usuarios conectados, cada
-  uno con un color.
+- **Título:** se cambia con `setMeta` como el tipo y la dirección; el servidor lo copia además a
+  `diagrams.title`, para que la lista lo muestre sin abrir el diagrama.
 
 ### Protocolo WebSocket
 
@@ -102,13 +113,12 @@ Mensajes JSON sobre `/ws/diagrams`:
 
 | Sentido | Mensaje | Contenido |
 |---|---|---|
-| Cliente → servidor | `hello` | JWT, id del diagrama y último número de secuencia conocido |
+| Cliente → servidor | `hello` | JWT e id del diagrama |
 | Cliente → servidor | `op` | Operación con un id generado en el cliente |
 | Cliente → servidor | `auth` | JWT renovado, antes de que caduque el anterior |
-| Servidor → cliente | `snapshot` | Estado completo y su número de secuencia (al entrar, o si el cliente está muy atrasado) |
+| Servidor → cliente | `snapshot` | Estado completo y su número de secuencia, al entrar |
 | Servidor → cliente | `ops` | Operaciones con número de secuencia y autor; incluye la confirmación de las propias |
-| Servidor → cliente | `presence` | Usuarios conectados |
-| Servidor → cliente | `error` | Operación rechazada y motivo |
+| Servidor → cliente | `error` | Operación rechazada y motivo, o diagrama borrado (el servidor cierra la sala) |
 
 El JWT va en el primer mensaje y no en la URL, porque el navegador no permite cabeceras en WebSocket y
 las URL acaban en los logs.
@@ -125,16 +135,15 @@ Cuatro tablas en el esquema `public`, relacionadas con `auth.users` de Supabase:
 | `diagram_ops` | `diagram_id` uuid, `seq` bigint, `user_id` uuid, `op` jsonb, `created_at` | PK (`diagram_id`, `seq`); FK a `diagrams` y `auth.users` |
 
 `content` guarda una instantánea del grafo cada 50 operaciones y al vaciarse la sala. `diagram_ops`
-permite reconstruir el estado desde la última instantánea y enviar a un cliente reconectado solo lo que
-se ha perdido.
+permite reconstruir el estado desde la última instantánea, por ejemplo tras reiniciar el servidor.
 
 ### API REST
 
 | Método y ruta | Uso |
 |---|---|
 | `GET /api/diagrams` | Diagramas propios y compartidos, con el rol del usuario |
-| `POST /api/diagrams` | Crea un diagrama |
-| `DELETE /api/diagrams/{id}` | Borra un diagrama (solo el dueño) |
+| `POST /api/diagrams` | Crea un diagrama vacío ("Diagrama sin título", tipo flujo) |
+| `DELETE /api/diagrams/{id}` | Borra un diagrama (solo el dueño) y cierra su sala si está abierta |
 | `GET /api/diagrams/{id}/members` | Miembros y roles |
 | `POST /api/diagrams/{id}/invites` | Crea un enlace de invitación con rol y caducidad |
 | `POST /api/invites/{token}/accept` | Acepta una invitación y añade al usuario como miembro |
@@ -151,15 +160,15 @@ La edición del contenido va siempre por WebSocket. Un diagrama del que no se es
 | B1 Backend: proyecto, base de datos y migraciones | 3 | — |
 | B2 Autenticación con Supabase | 1,5 | B1 |
 | B3 API REST: diagramas, miembros e invitaciones | 2,5 | B2 |
-| B4 Servidor de colaboración | 3,5 | B2, F2 |
-| B5 Persistencia de operaciones y reconexión | 2 | B4 |
+| B4 Servidor de colaboración | 3 | B2, F2 |
+| B5 Persistencia de operaciones | 1,5 | B4 |
 | B6 Tests del backend | 2,5 | B3, B5 |
-| F4 Cliente colaborativo | 2,5 | F2, B4 |
-| F5 Login, lista, invitaciones y presencia | 2,5 | B3, F4 |
+| F4 Cliente colaborativo | 2 | F2, B4 |
+| F5 Login, diagramas e invitaciones | 3 | B3, F4 |
 | D1 Despliegue | 1,5 | F4 |
 | P1 Configuración de Claude Code | 0,5 | repartido |
 | P2 Documentación de entrega | 3 | repartido |
-| **Total** | **33** | |
+| **Total** | **32** | |
 
 ### F1 · Modularizar el frontend (3 h)
 
@@ -184,6 +193,7 @@ La edición del contenido va siempre por WebSocket. Un diagrama del que no se es
 - Modo de grabación de trazos (`?grabar`) y fixtures de rectángulo, rombo y elipse (10 por forma,
   dibujados con el S Pen).
 - Tests de generación de Mermaid por tipo.
+- `setMeta` acepta también `title` (F2 solo admitía `kind` y `dir`), con su test.
 - **Fixtures de operaciones compartidas** en `shared/fixtures/ops/*.json`: una secuencia de operaciones y
   el grafo esperado. Las ejecutan tanto los tests de JS como los de Java (B6), para que las dos
   implementaciones de `apply` no diverjan.
@@ -216,7 +226,7 @@ La edición del contenido va siempre por WebSocket. Un diagrama del que no se es
 - OpenAPI con springdoc y Swagger UI en `/docs`.
 - **Aceptación:** los endpoints funcionan desde Swagger UI con un token de prueba.
 
-### B4 · Servidor de colaboración (3,5 h)
+### B4 · Servidor de colaboración (3 h)
 
 - `WebSocketHandler` de Spring con el protocolo de la sección 4.
 - Una sala por diagrama abierto, en memoria. Las operaciones de cada sala se procesan de una en una
@@ -224,19 +234,18 @@ La edición del contenido va siempre por WebSocket. Un diagrama del que no se es
 - Validación de cada operación: esquema, tamaño (etiquetas de 200 caracteres como máximo, 500 nodos por
   diagrama), rol de editor y existencia de los elementos referenciados.
 - La operación se guarda antes de confirmarla y reenviarla.
-- Presencia al entrar y salir.
+- Un `setMeta` con `title` actualiza también `diagrams.title`.
+- Al borrar un diagrama, envía `error` a los conectados y cierra la sala.
 - Cierra la conexión si el JWT caduca sin renovarse.
 - **Aceptación:** dos clientes de prueba conectados al mismo diagrama reciben las operaciones del otro
   en orden, y un lector recibe `error` al enviar una.
 
-### B5 · Persistencia de operaciones y reconexión (2 h)
+### B5 · Persistencia de operaciones (1,5 h)
 
 - Registro en `diagram_ops`; instantánea en `diagrams.content` cada 50 operaciones y al vaciarse la sala.
 - Al abrir una sala, el estado se reconstruye desde la última instantánea y las operaciones posteriores.
-- En `hello`, si el cliente trae un número de secuencia, recibe solo las operaciones que le faltan; si
-  está demasiado atrasado, una instantánea.
-- **Aceptación:** reiniciar el servidor no pierde nada confirmado; un cliente que pierde la red 30 s
-  recupera los cambios al reconectar.
+- **Aceptación:** reiniciar el servidor no pierde nada confirmado, y un diagrama cerrado se abre otro
+  día intacto.
 
 ### B6 · Tests del backend (2,5 h)
 
@@ -247,22 +256,29 @@ La edición del contenido va siempre por WebSocket. Un diagrama del que no se es
   elementos; al final todos tienen el mismo estado que el servidor.
 - **Aceptación:** `mvn verify` en verde.
 
-### F4 · Cliente colaborativo (2,5 h)
+### F4 · Cliente colaborativo (2 h)
 
 - `collab.js`: conexión, `hello`, cola de operaciones pendientes, aplicación de operaciones remotas y
   reconciliación con las confirmaciones.
-- Reconexión automática con espera creciente; renovación del JWT con supabase-js.
+- Renovación del JWT con supabase-js.
+- Si se corta la conexión, el lienzo pasa a solo lectura con el aviso "Sin conexión: recarga la página".
 - Modo solo lectura para lectores.
 - **Aceptación:** criterios de terminado 1, 2 y 3 de la sección 2.
 
-### F5 · Login, lista, invitaciones y presencia (2,5 h)
+### F5 · Login, diagramas e invitaciones (3 h)
 
 - Registro, inicio y cierre de sesión con supabase-js.
-- Panel "Mis diagramas" con los propios y los compartidos, y el rol de cada uno.
+- Panel "Mis diagramas" con los propios y los compartidos, el título y el rol de cada uno.
+- **Nuevo:** crea el diagrama con `POST /api/diagrams` y lo abre vacío.
+- **Abrir:** cada diagrama tiene su ruta (`#/d/<id>`); abrirlo desde la lista, recargar la página o
+  volver otro día lleva al mismo diagrama. Sin ser miembro, la ruta muestra "Diagrama no encontrado".
+- **Renombrar:** el título se edita en la barra superior y se envía como `setMeta`.
+- **Borrar:** solo el dueño, con confirmación. Quien lo tenga abierto recibe el aviso "Este diagrama se
+  ha borrado" y vuelve a la lista.
 - Botón "Invitar" que crea y copia un enlace de editor o de lector; abrir un enlace de invitación la
-  acepta tras iniciar sesión.
-- Avatares con iniciales y color de los usuarios conectados.
-- **Aceptación:** criterios de terminado 4 y 5 de la sección 2.
+  acepta tras iniciar sesión y abre el diagrama.
+- **Aceptación:** criterios de terminado 4 y 5 de la sección 2: crear un diagrama, recargar y verlo
+  intacto, renombrarlo y que el título cambie en la lista de otro miembro, borrarlo y que desaparezca.
 
 ### D1 · Despliegue (1,5 h)
 
@@ -289,14 +305,14 @@ La edición del contenido va siempre por WebSocket. Un diagrama del que no se es
 - **Secciones de la plantilla:**
   - **0. Ficha:** 0.4, la URL del despliegue; 0.5, la del repositorio.
   - **1. Producto:** 1.3 con capturas de dos dispositivos editando el mismo diagrama, la invitación y
-    la lista.
+    la lista de diagramas.
   - **2. Arquitectura:** la sección 4 de este documento, más despliegue (2.4), seguridad (2.5: JWT,
     RLS, permisos por operación, XSS, secretos) y tests (2.6, con el de convergencia).
   - **3. Modelo de datos:** las cuatro tablas en Mermaid `erDiagram` con PK y FK.
   - **4. API:** OpenAPI de `GET /api/diagrams`, `POST /api/diagrams/{id}/invites` y
     `POST /api/invites/{token}/accept`, más el protocolo WebSocket.
-  - **5. Historias de usuario:** dibujar juntos en tiempo real, invitar a un diagrama y recuperar el
-    trabajo tras un corte.
+  - **5. Historias de usuario:** dibujar juntos en tiempo real, invitar a un diagrama y gestionar mis
+    diagramas (crear, abrir, renombrar y borrar).
   - **6. Tickets:** backend (B4, servidor de colaboración), frontend (F4, cliente colaborativo) y base
     de datos (B1 y B5, esquema y registro de operaciones).
   - **7. Pull requests:** 3 documentadas; cada bloque entra por PR.
@@ -313,25 +329,24 @@ después se completan persistencia, invitaciones y tests.
 | 3 | F3 tests del frontend y fixtures compartidas | 8,5 h |
 | 4 | B1 backend, PostgreSQL local, Supabase y migraciones | 11,5 h |
 | 5 | B2 autenticación y B3 API REST | 15,5 h |
-| 6 | B4 servidor de colaboración | 19 h |
-| 7 | F4 cliente colaborativo y el login de F5 | 22,5 h |
-| 8 | D1 despliegue y prueba con dos dispositivos | 24 h |
-| 9 | B5 persistencia de operaciones y reconexión | 26 h |
-| 10 | Resto de F5: lista, invitaciones y presencia | 27,5 h |
-| 11 | B6 tests del backend | 30 h |
-| 12–13 | P2 capturas, secciones, `prompts.md` y PR documentadas | 33 h |
+| 6 | B4 servidor de colaboración | 18,5 h |
+| 7 | F4 cliente colaborativo y el login de F5 | 21,5 h |
+| 8 | D1 despliegue y prueba con dos dispositivos | 23 h |
+| 9 | B5 persistencia de operaciones | 24,5 h |
+| 10 | Resto de F5: lista, crear, abrir, renombrar, borrar e invitaciones | 26,5 h |
+| 11 | B6 tests del backend | 29 h |
+| 12–13 | P2 capturas, secciones, `prompts.md` y PR documentadas | 32 h |
 
 La bitácora se escribe al final de cada sesión con `/cerrar-sesion` (unos 5 minutos, contados en P2).
 
 **Punto de control tras la sesión 8.** Dos dispositivos ya colaboran a través de la URL pública. Si las
-horas acumuladas superan 25, o si el límite de 30 horas resulta ser estricto, se recorta en este orden:
+horas acumuladas superan 24, o si el límite de 30 horas resulta ser estricto, se recorta en este orden
+(la presencia y la recuperación tras cortes ya se recortaron en la versión 0.6):
 
-1. Presencia (−1 h).
-2. Reconexión: al volver, siempre se recarga la instantánea completa (−0,5 h).
-3. Invitaciones: solo como editor, sin rol de lector (−0,5 h).
-4. Tests de reconocedor limitados a los fixtures existentes, sin grabar nuevos (−1 h).
+1. Invitaciones: solo como editor, sin rol de lector (−0,5 h).
+2. Tests de reconocedor limitados a los fixtures existentes, sin grabar nuevos (−1 h).
 
-Con los cuatro recortes, el total queda en 30 h.
+Con los dos recortes, el total queda en 30,5 h.
 
 ## 7. Riesgos
 
@@ -339,7 +354,7 @@ Con los cuatro recortes, el total queda en 30 h.
 |---|---|
 | Las dos implementaciones de `apply` (JS y Java) divergen y los clientes dejan de converger | Fixtures de operaciones compartidas que ejecutan ambos lados; test de convergencia en B6 |
 | Errores de concurrencia en el servidor | Una cola por sala: las operaciones de un diagrama nunca se procesan en paralelo |
-| El plan gratuito del hosting duerme el servicio y corta los WebSocket | Reconexión automática con recuperación de operaciones (B5, F4); abrir la app antes de una demo |
+| El plan gratuito del hosting duerme el servicio y corta los WebSocket | Aviso de conexión perdida y recarga (F4); abrir la app antes de una demo. La reconexión automática queda para la v2 |
 | El plan gratuito de Supabase pausa el proyecto tras una semana sin actividad | Reactivarlo y comprobar la URL justo antes de entregar |
 | El JWT caduca durante una sesión larga de dibujo | Renovación con supabase-js y mensaje `auth`; el servidor cierra la conexión si caduca |
 | La API REST de Supabase expone las tablas | RLS activado sin políticas y test de aceptación en B2 |
@@ -356,6 +371,7 @@ Con los cuatro recortes, el total queda en 30 h.
 | Supabase Auth y PostgreSQL de Supabase | Login propio en Spring | Registro, sesiones y contraseñas resueltos; la API solo valida el JWT |
 | El reconocimiento sigue en el navegador | — | Principio central del producto, y ahora reduce la colaboración a mensajes pequeños y sin ambigüedad |
 | Un solo despliegue para frontend, API y WebSocket | Frontend en GitHub Pages | Una URL para la ficha (0.4), sin CORS |
+| Gestión de diagramas en el MVP; presencia y recuperación tras cortes a la v2 | Mantener la presencia y la reconexión y recortar en otro sitio | Sin crear, abrir ni borrar diagramas la app no se puede usar; la presencia y la reconexión mejoran la experiencia pero no son imprescindibles para la demo |
 
 **Pendiente de decidir en la sesión 8:** el servicio de despliegue (Render, Railway o Fly.io), según sus
 planes gratuitos y su soporte de WebSocket en ese momento.
