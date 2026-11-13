@@ -30,10 +30,13 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `mermaidCode(graph, kind, dir)`, que genera el código recorriendo el grafo; nombra los nodos `n1`, `n2`…
   por posición, no por su id.
 - `ops.js`: todo cambio del diagrama es una operación JSON (`addNode`, `updateNode`, `removeNode`,
-  `addEdge`, `updateEdge`, `removeEdge`, `setMeta`). `apply(state, op)` la aplica o la rechaza con un motivo
+  `addEdge`, `updateEdge`, `removeEdge`, `setMeta` con tipo, dirección o `title`; el título se valida
+  —texto de 1 a 200 caracteres, no solo espacios— pero se guarda sin transformar y no sale en el
+  Mermaid). `apply(state, op)` la aplica o la rechaza con un motivo
   sin cambiar nada; `inverse(state, op)` calcula cómo deshacerla; `newId()` da UUID v4 (con alternativa a
   `crypto.randomUUID`, que no existe en `http://<ip>` de la tablet). Es lo que F4 enviará por la red.
-- `model.js`: estado del diagrama (`state`) y sus gestos (`addNode`, `addEdge`, `setLabel`, `moveNode`,
+- `model.js`: estado del diagrama (`state`: `kind`, `dir`, `title` —"Diagrama sin título" al empezar—,
+  `nodes`, `edges`) y sus gestos (`addNode`, `addEdge`, `setLabel`, `moveNode`,
   `clear`…), que construyen operaciones y las pasan por `perform`. Deshacer saca de una pila de 60 grupos
   de inversas, solo con los cambios propios; `applyRemote(op)` aplica una ajena sin apilarla. Devuelve
   resultados en vez de mostrar avisos.
