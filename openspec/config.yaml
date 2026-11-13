@@ -7,25 +7,30 @@ context: |
   Invariantes que ningún cambio debe romper sin decidirlo explícitamente:
   - Reconocimiento de trazos local y determinista; sin IA por trazo.
   - Frontend en módulos ES sin build; dependencias solo por CDN.
-  - apply(op) existe en JS y en Java: cualquier cambio en operaciones debe
-    actualizar shared/fixtures/ops y pasar en ambos lados.
-  - Servidor autoritativo, last-writer-wins por campo, una sola instancia.
-  - Seguridad: Mermaid con securityLevel 'strict'; 404 (no 403) a quien no es
-    miembro; RLS activado sin políticas; JWT en el primer mensaje WS, nunca en la URL;
-    permisos comprobados en cada operación.
+  - Backend en Supabase (docs/PRD-MVP.md v0.7): sin servidor propio. PostgreSQL
+    ordena y autoriza con la función apply_op; Realtime reparte las operaciones.
+  - apply(op) existe solo en JavaScript (frontend/ops.js). El servidor no
+    interpreta el grafo: todos los clientes aplican el mismo registro ordenado.
+  - Last-writer-wins por campo en el orden del servidor; una operación sobre un
+    elemento borrado se descarta igual en todos los clientes.
+  - Seguridad: Mermaid con securityLevel 'strict'; RLS en todas las tablas y
+    ninguna escritura directa (solo funciones security definer con search_path
+    fijo); quien no es miembro recibe cero filas; claves de servicio fuera del repo.
   Fuera de alcance del MVP: tipos nuevos de diagrama, pan/zoom, cursores remotos,
-  varias instancias, edición offline con fusión, historial, IA de visión, CI.
+  presencia, reconexión automática, instantáneas, Edge Functions, edición offline
+  con fusión, historial, IA de visión, CI. El backend en Java
+  (docs/PRD-backend-java.md) es una mejora para después de la entrega.
 
 rules:
   proposal:
-    - Indica a qué bloque del PRD (F1..F5, B1..B6, D1) e historia (HU-01..03) corresponde
+    - Indica a qué bloque del PRD (F3..F5, S1..S3, D1, P2) e historia (HU-01..03) corresponde
     - Di explícitamente qué queda fuera y si choca con el "fuera de alcance" del MVP
   design:
     - Registra cada decisión con las alternativas descartadas y el motivo
-    - Si afecta a operaciones, describe el impacto en JS y en Java
+    - Si afecta a operaciones, describe el impacto en ops.js y en apply_op
   tasks:
     - Tareas que quepan en una sesión de 2-3 h, con estimación en horas
-    - Incluye los tests (node --test / mvn verify) como tareas, no como nota final
+    - Incluye los tests (node --test, también los de supabase/tests) como tareas, no como nota final
 
 operations:
   apply:

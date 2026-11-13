@@ -14,6 +14,11 @@
 [docs/PRD-MVP.md](docs/PRD-MVP.md), pero todavía no está implementado. Las secciones marcadas como
 *pendiente* se completarán durante el desarrollo.
 
+> **Cambio de plan (13 nov 2026):** el PRD v0.7 sustituye el backend en Spring Boot por Supabase
+> (PostgreSQL con RLS, funciones y Realtime). Las secciones 2, 3, 4 y 6 todavía describen el diseño con
+> Spring Boot, que queda como mejora futura en [docs/PRD-backend-java.md](docs/PRD-backend-java.md); se
+> reescribirán en el bloque P2.
+
 ---
 
 ## 0. Ficha del proyecto
