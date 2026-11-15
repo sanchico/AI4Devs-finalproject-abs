@@ -50,7 +50,7 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `fixtures.test.js` ejecuta las secuencias de operaciones de `test/fixtures/ops/*.json` (cada operación con su resultado y el diagrama final);
   `convergencia.test.js` prueba con `helpers/red-simulada.js` (servidor que numera y clientes con operaciones pendientes, semilla fija) que todos acaban con el mismo grafo y Mermaid;
   `mermaid-tipos.test.js` fija el código completo de un diagrama de Flujo y uno de Estados;
-  `grabacion.test.js` prueba el estado de la grabación y `reconocedor.test.js` mide la precisión del reconocedor con los trazos del S Pen (hoy marcado `todo`: rectángulo 4/10, elipse 8/10, hasta el change `ajustar-reconocedor`).
+  `grabacion.test.js` prueba el estado de la grabación y `reconocedor.test.js` exige ≥ 90 % por forma y tipo de diagrama con los trazos del S Pen, en cada archivo de `fixtures/trazos/` y en el conjunto; `abiertos.test.js` fija que una línea, una "L", una "U" y un arco siguen siendo trazos abiertos (conectores).
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 
