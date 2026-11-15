@@ -2,7 +2,8 @@
 import { KINDS, mermaidCode } from './kinds/index.js';
 import * as model from './model.js';
 import { $, canvas, resize, update, renderLegend } from './render.js';
-import { initInput, toggleMouseDraws } from './input.js';
+import { initInput, toggleMouseDraws, setRecorder } from './input.js';
+import * as grab from './grabacion.js';
 
 const { state } = model;
 
@@ -27,6 +28,25 @@ $('copy').addEventListener('click', async () => {
 });
 window.addEventListener('resize', resize);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', update);
+
+// ---------- Recording mode (?grabar): strokes are saved as samples instead of recognized ----------
+if(new URLSearchParams(location.search).has('grabar')){
+  const g = grab.crear(), NOMBRES = {rect:'Rectángulo', diamond:'Rombo', ellipse:'Elipse'};
+  let forma = 'rect';
+  const panel = $('grabPanel'), cont = $('grabFormas'), txt = $('grabText');
+  const botones = grab.FORMAS.map(f => { const b=document.createElement('button'); b.className='btn'; b.addEventListener('click', ()=>{ forma=f; pintar(); }); cont.append(b); return [f,b]; });
+  const pintar = () => { const n=grab.contar(g); for(const [f,b] of botones){ b.textContent = NOMBRES[f]+' ('+n[f]+')'; b.classList.toggle('on', f===forma); } };
+  setRecorder((pts, tipo) => { if(grab.añadir(g, forma, tipo, pts)){ pintar(); toast(NOMBRES[forma]+' grabado ('+grab.contar(g)[forma]+')'); } });
+  $('grabUndo').addEventListener('click', () => { grab.descartarUltimo(g); pintar(); });
+  $('grabDown').addEventListener('click', () => {
+    if(!grab.total(g)){ toast('No hay trazos grabados'); return; }
+    const json = JSON.stringify(grab.aJSON(g, navigator.userAgent));
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([json], {type:'application/json'})); a.download = 'trazos.json'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+    txt.value = json; txt.hidden = false;   // alternative if the browser does not download
+  });
+  panel.hidden = false; pintar(); resize();
+}
 
 // ---------- Start with the example so the page opens working ----------
 model.loadExample(); renderLegend(); resize(); update();

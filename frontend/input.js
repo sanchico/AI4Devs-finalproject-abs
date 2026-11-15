@@ -8,11 +8,14 @@ import { $, canvas, stage, draw, update, setLive } from './render.js';
 const { state } = model;
 let toast = () => {};
 let mouseDraws = true;
+let recorder = null; // `?grabar` mode: gets (pts, pointerType) instead of the recognizer
 let live = null; // stroke in progress
 let pointer = null; // {mode:'draw'|'drag', node, off, start, t0, moved}
 
 // The mouse draws or moves nodes depending on this toggle; returns the new value
 export function toggleMouseDraws(){ mouseDraws = !mouseDraws; return mouseDraws; }
+// Recording mode: strokes go to `fn(pts, pointerType)` and nothing is recognized or changed in the diagram
+export function setRecorder(fn){ recorder = fn; }
 
 const pos = ev => { const r=canvas.getBoundingClientRect(); return {x:ev.clientX-r.left, y:ev.clientY-r.top}; };
 
@@ -32,7 +35,8 @@ function finish(ev){
   const quick = !pt.moved && performance.now()-pt.t0 < 500;
   if(pt.mode==='draw'){
     const pts=live; live=null; setLive(null);
-    if(quick){ draw(); tap(p); return; }
+    if(quick){ draw(); if(!recorder) tap(p); return; }
+    if(recorder){ recorder(pts, pt.type); draw(); return; }
     const r=recognize(pts, Object.keys(KINDS[state.kind].shapes));
     if(r.type==='shape') addShape(r.shape, r.bb);
     else if(r.type==='open'){
@@ -73,7 +77,7 @@ export function initInput({toast: showToast}){
     hideEditor();
     const p=pos(ev), drawMode = ev.pointerType==='pen' || (ev.pointerType==='mouse' && mouseDraws);
     canvas.setPointerCapture(ev.pointerId);
-    pointer = {mode: drawMode?'draw':'drag', start:p, t0:performance.now(), moved:false};
+    pointer = {mode: drawMode?'draw':'drag', type:ev.pointerType, start:p, t0:performance.now(), moved:false};
     if(drawMode){ live=[p]; setLive(live); }
     else { const n=model.nodeAt(p,8); if(n){ pointer.node=n; pointer.off={x:p.x-n.x,y:p.y-n.y}; pointer.from={x:n.x,y:n.y}; } }
   });

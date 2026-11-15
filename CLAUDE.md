@@ -22,6 +22,7 @@ con Spring Boot) es una posible mejora para después de la entrega.
 ## Estado actual
 Prototipo en módulos ES nativos (carpeta `frontend/`), sin build ni dependencias salvo mermaid.js por CDN.
 Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar desde Node:
+- `grabacion.js`: estado del modo de grabación `?grabar` (muestras de trazos por forma y formato del JSON que se descarga). Con `?grabar` la app guarda cada trazo como muestra de la forma elegida en vez de reconocerlo; las muestras del S Pen están en `frontend/test/fixtures/trazos/`.
 - `geometry.js`: funciones geométricas (`dist`, `bbox`, `polyArea`, `borderPoint`…).
 - `recognizer.js`: `recognize(pts, allowedShapes)` clasifica un trazo cerrado por dos métricas (área
   relativa a la caja y distancia media a las esquinas) → rect / rombo / elipse. Un trazo abierto entre
@@ -48,7 +49,8 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `ops.test.js` cubre las operaciones (rechazos, serialización, determinismo), deshacer y los ids del código.
   `fixtures.test.js` ejecuta las secuencias de operaciones de `test/fixtures/ops/*.json` (cada operación con su resultado y el diagrama final);
   `convergencia.test.js` prueba con `helpers/red-simulada.js` (servidor que numera y clientes con operaciones pendientes, semilla fija) que todos acaban con el mismo grafo y Mermaid;
-  `mermaid-tipos.test.js` fija el código completo de un diagrama de Flujo y uno de Estados.
+  `mermaid-tipos.test.js` fija el código completo de un diagrama de Flujo y uno de Estados;
+  `grabacion.test.js` prueba el estado de la grabación y `reconocedor.test.js` mide la precisión del reconocedor con los trazos del S Pen (hoy marcado `todo`: rectángulo 4/10, elipse 8/10, hasta el change `ajustar-reconocedor`).
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 
