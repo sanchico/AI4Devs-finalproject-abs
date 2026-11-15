@@ -46,6 +46,9 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `escape.test.js` comprueba que `<`, `>`, `&` y `|` de las etiquetas salen como entidades de Mermaid;
   `direccion.test.js` fija la dirección de la cabecera (Estados escribe `TB` donde el modelo guarda `TD`);
   `ops.test.js` cubre las operaciones (rechazos, serialización, determinismo), deshacer y los ids del código.
+  `fixtures.test.js` ejecuta las secuencias de operaciones de `test/fixtures/ops/*.json` (cada operación con su resultado y el diagrama final);
+  `convergencia.test.js` prueba con `helpers/red-simulada.js` (servidor que numera y clientes con operaciones pendientes, semilla fija) que todos acaban con el mismo grafo y Mermaid;
+  `mermaid-tipos.test.js` fija el código completo de un diagrama de Flujo y uno de Estados.
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 

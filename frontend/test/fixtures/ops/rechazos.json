@@ -1,0 +1,36 @@
+{
+  "nombre": "rechazos",
+  "descripcion": "Operaciones que el servidor guardaría igualmente y que todos los clientes descartan: el diagrama no cambia",
+  "inicial": {
+    "kind": "flow", "dir": "TD", "title": "Base",
+    "nodes": [
+      { "id": "a", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "A" },
+      { "id": "b", "shape": "rect", "x": 0, "y": 100, "w": 80, "h": 40, "label": "B" }
+    ],
+    "edges": [ { "id": "e1", "from": "a", "to": "b", "label": "" } ]
+  },
+  "ops": [
+    { "op": { "type": "addNode", "node": { "id": "a", "shape": "rect", "x": 5, "y": 5, "w": 80, "h": 40, "label": "otro" } }, "resultado": "duplicate" },
+    { "op": { "type": "updateNode", "id": "zz", "set": { "label": "x" } }, "resultado": "missing" },
+    { "op": { "type": "removeNode", "id": "zz" }, "resultado": "missing" },
+    { "op": { "type": "addEdge", "edge": { "id": "e2", "from": "a", "to": "zz", "label": "" } }, "resultado": "missing" },
+    { "op": { "type": "addEdge", "edge": { "id": "e9", "from": "a", "to": "b", "label": "" } }, "resultado": "duplicate" },
+    { "op": { "type": "addEdge", "edge": { "id": "e1", "from": "b", "to": "a", "label": "" } }, "resultado": "duplicate" },
+    { "op": { "type": "updateEdge", "id": "nope", "set": { "label": "x" } }, "resultado": "missing" },
+    { "op": { "type": "removeEdge", "id": "nope" }, "resultado": "missing" },
+    { "op": { "type": "setMeta", "set": { "kind": "clases" } }, "resultado": "invalid" },
+    { "op": { "type": "setMeta", "set": { "dir": "RL" } }, "resultado": "invalid" },
+    { "op": { "type": "setMeta", "set": { "title": "   " } }, "resultado": "invalid" },
+    { "op": { "type": "setMeta", "set": { "title": "Nuevo", "kind": "clases" } }, "resultado": "invalid" },
+    { "op": { "type": "moverNodo", "id": "a" }, "resultado": "unknown" }
+  ],
+  "final": {
+    "kind": "flow", "dir": "TD", "title": "Base",
+    "nodes": [
+      { "id": "a", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "A" },
+      { "id": "b", "shape": "rect", "x": 0, "y": 100, "w": 80, "h": 40, "label": "B" }
+    ],
+    "edges": [ { "id": "e1", "from": "a", "to": "b", "label": "" } ]
+  },
+  "mermaid": "flowchart TD\n  n1[\"A\"]\n  n2[\"B\"]\n  n1 --> n2"
+}

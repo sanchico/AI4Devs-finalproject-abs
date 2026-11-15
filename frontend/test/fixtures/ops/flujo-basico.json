@@ -1,0 +1,27 @@
+{
+  "nombre": "flujo-basico",
+  "descripcion": "Un flujo pequeño: título, tres nodos, dos aristas, una etiqueta y un movimiento",
+  "ops": [
+    { "op": { "type": "setMeta", "set": { "title": "Login" } }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "a", "shape": "ellipse", "x": 0, "y": 0, "w": 120, "h": 48, "label": "Inicio" } }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "b", "shape": "rect", "x": 0, "y": 100, "w": 140, "h": 52, "label": "Leer" } }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "c", "shape": "diamond", "x": 0, "y": 200, "w": 160, "h": 90, "label": "¿Ok?" } }, "resultado": "ok" },
+    { "op": { "type": "addEdge", "edge": { "id": "e1", "from": "a", "to": "b", "label": "" } }, "resultado": "ok" },
+    { "op": { "type": "addEdge", "edge": { "id": "e2", "from": "b", "to": "c", "label": "" } }, "resultado": "ok" },
+    { "op": { "type": "updateEdge", "id": "e2", "set": { "label": "sí" } }, "resultado": "ok" },
+    { "op": { "type": "updateNode", "id": "b", "set": { "label": "Leer datos", "x": 10 } }, "resultado": "ok" }
+  ],
+  "final": {
+    "kind": "flow", "dir": "TD", "title": "Login",
+    "nodes": [
+      { "id": "a", "shape": "ellipse", "x": 0, "y": 0, "w": 120, "h": 48, "label": "Inicio" },
+      { "id": "b", "shape": "rect", "x": 10, "y": 100, "w": 140, "h": 52, "label": "Leer datos" },
+      { "id": "c", "shape": "diamond", "x": 0, "y": 200, "w": 160, "h": 90, "label": "¿Ok?" }
+    ],
+    "edges": [
+      { "id": "e1", "from": "a", "to": "b", "label": "" },
+      { "id": "e2", "from": "b", "to": "c", "label": "sí" }
+    ]
+  },
+  "mermaid": "flowchart TD\n  n1([\"Inicio\"])\n  n2[\"Leer datos\"]\n  n3{\"¿Ok?\"}\n  n1 --> n2\n  n2 -->|sí| n3"
+}

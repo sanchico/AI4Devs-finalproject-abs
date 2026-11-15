@@ -1,0 +1,29 @@
+{
+  "nombre": "estados-con-pseudoestados",
+  "descripcion": "Diagrama de estados de izquierda a derecha: elipses inicial y final ([*]), un estado y una elección",
+  "ops": [
+    { "op": { "type": "setMeta", "set": { "kind": "state", "dir": "LR" } }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "i", "shape": "ellipse", "x": 0, "y": 0, "w": 64, "h": 40, "label": "" } }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "s", "shape": "rect", "x": 100, "y": 0, "w": 100, "h": 40, "label": "Activo" } }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "c", "shape": "diamond", "x": 240, "y": 0, "w": 64, "h": 40, "label": "ignorada" } }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "f", "shape": "ellipse", "x": 340, "y": 0, "w": 64, "h": 40, "label": "" } }, "resultado": "ok" },
+    { "op": { "type": "addEdge", "edge": { "id": "e1", "from": "i", "to": "s", "label": "" } }, "resultado": "ok" },
+    { "op": { "type": "addEdge", "edge": { "id": "e2", "from": "s", "to": "c", "label": "evento" } }, "resultado": "ok" },
+    { "op": { "type": "addEdge", "edge": { "id": "e3", "from": "c", "to": "f", "label": "" } }, "resultado": "ok" }
+  ],
+  "final": {
+    "kind": "state", "dir": "LR", "title": "Diagrama sin título",
+    "nodes": [
+      { "id": "i", "shape": "ellipse", "x": 0, "y": 0, "w": 64, "h": 40, "label": "" },
+      { "id": "s", "shape": "rect", "x": 100, "y": 0, "w": 100, "h": 40, "label": "Activo" },
+      { "id": "c", "shape": "diamond", "x": 240, "y": 0, "w": 64, "h": 40, "label": "ignorada" },
+      { "id": "f", "shape": "ellipse", "x": 340, "y": 0, "w": 64, "h": 40, "label": "" }
+    ],
+    "edges": [
+      { "id": "e1", "from": "i", "to": "s", "label": "" },
+      { "id": "e2", "from": "s", "to": "c", "label": "evento" },
+      { "id": "e3", "from": "c", "to": "f", "label": "" }
+    ]
+  },
+  "mermaid": "stateDiagram-v2\n  direction LR\n  state \"Activo\" as n2\n  state n3 <<choice>>\n  [*] --> n2\n  n2 --> n3 : evento\n  n3 --> [*]"
+}
