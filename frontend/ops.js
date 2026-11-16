@@ -2,15 +2,18 @@
 // Every change to the diagram is one of these plain-JSON operations:
 //   addNode {node, at?}   updateNode {id, set}   removeNode {id}
 //   addEdge {edge, at?}   updateEdge {id, set}   removeEdge {id}
-//   setMeta {set:{kind?, dir?}}
-// `state` is {kind, dir, nodes, edges}. apply() mutates it in place and returns {ok:true} or
+//   setMeta {set:{kind?, dir?, title?}}
+// `state` is {kind, dir, title, nodes, edges}. apply() mutates it in place and returns {ok:true} or
 // {ok:false, reason}; a rejected operation never changes anything.
 import { KINDS } from './kinds/index.js';
 
 const NODE_FIELDS = ['x', 'y', 'w', 'h', 'label'];
 const EDGE_FIELDS = ['label'];
-const META_FIELDS = ['kind', 'dir'];
+const META_FIELDS = ['kind', 'dir', 'title'];
 const DIRS = ['TD', 'LR'];
+const MAX_TITLE = 200;
+// The title is stored exactly as received (no trimming), so the server can copy it without transforming it
+const validTitle = t => typeof t === 'string' && t.trim() !== '' && t.length <= MAX_TITLE;
 
 const ok = () => ({ ok: true });
 const fail = reason => ({ ok: false, reason });
@@ -73,6 +76,7 @@ export function apply(state, op) {
       const set = pick(op.set, META_FIELDS);
       if ('kind' in set && !(set.kind in KINDS)) return fail('invalid');
       if ('dir' in set && !DIRS.includes(set.dir)) return fail('invalid');
+      if ('title' in set && !validTitle(set.title)) return fail('invalid');
       Object.assign(state, set);
       return ok();
     }

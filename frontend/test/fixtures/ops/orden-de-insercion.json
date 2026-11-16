@@ -1,0 +1,34 @@
+{
+  "nombre": "orden-de-insercion",
+  "descripcion": "addNode y addEdge con at: la posición decide el orden y por tanto los nombres n1, n2… del código",
+  "ops": [
+    { "op": { "type": "addNode", "node": { "id": "a", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "a" } }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "c", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "c" } }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "b", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "b" }, "at": 1 }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "z", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "z" }, "at": 0 }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "w", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "w" }, "at": 99 }, "resultado": "ok" },
+    { "op": { "type": "addNode", "node": { "id": "v", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "v" }, "at": -5 }, "resultado": "ok" },
+    { "op": { "type": "addEdge", "edge": { "id": "e1", "from": "a", "to": "b", "label": "" } }, "resultado": "ok" },
+    { "op": { "type": "addEdge", "edge": { "id": "e2", "from": "b", "to": "c", "label": "" } }, "resultado": "ok" },
+    { "op": { "type": "addEdge", "edge": { "id": "e3", "from": "c", "to": "w", "label": "" }, "at": 0 }, "resultado": "ok" },
+    { "op": { "type": "addEdge", "edge": { "id": "e4", "from": "a", "to": "c", "label": "" }, "at": 1 }, "resultado": "ok" }
+  ],
+  "final": {
+    "kind": "flow", "dir": "TD", "title": "Diagrama sin título",
+    "nodes": [
+      { "id": "v", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "v" },
+      { "id": "z", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "z" },
+      { "id": "a", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "a" },
+      { "id": "b", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "b" },
+      { "id": "c", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "c" },
+      { "id": "w", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "w" }
+    ],
+    "edges": [
+      { "id": "e3", "from": "c", "to": "w", "label": "" },
+      { "id": "e4", "from": "a", "to": "c", "label": "" },
+      { "id": "e1", "from": "a", "to": "b", "label": "" },
+      { "id": "e2", "from": "b", "to": "c", "label": "" }
+    ]
+  },
+  "mermaid": "flowchart TD\n  n1[\"v\"]\n  n2[\"z\"]\n  n3[\"a\"]\n  n4[\"b\"]\n  n5[\"c\"]\n  n6[\"w\"]\n  n5 --> n6\n  n3 --> n5\n  n3 --> n4\n  n4 --> n5"
+}

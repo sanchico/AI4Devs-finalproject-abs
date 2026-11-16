@@ -1,0 +1,32 @@
+{
+  "nombre": "borrar-nodo-con-aristas",
+  "descripcion": "Borrar un nodo se lleva sus aristas; lo que apunta a ellos después se rechaza",
+  "inicial": {
+    "kind": "flow", "dir": "TD", "title": "Triángulo",
+    "nodes": [
+      { "id": "a", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "A" },
+      { "id": "b", "shape": "rect", "x": 0, "y": 100, "w": 80, "h": 40, "label": "B" },
+      { "id": "c", "shape": "rect", "x": 0, "y": 200, "w": 80, "h": 40, "label": "C" }
+    ],
+    "edges": [
+      { "id": "e1", "from": "a", "to": "b", "label": "" },
+      { "id": "e2", "from": "b", "to": "c", "label": "" },
+      { "id": "e3", "from": "c", "to": "a", "label": "" }
+    ]
+  },
+  "ops": [
+    { "op": { "type": "removeNode", "id": "b" }, "resultado": "ok" },
+    { "op": { "type": "updateNode", "id": "b", "set": { "label": "B2" } }, "resultado": "missing" },
+    { "op": { "type": "updateEdge", "id": "e1", "set": { "label": "x" } }, "resultado": "missing" },
+    { "op": { "type": "updateEdge", "id": "e3", "set": { "label": "vuelve" } }, "resultado": "ok" }
+  ],
+  "final": {
+    "kind": "flow", "dir": "TD", "title": "Triángulo",
+    "nodes": [
+      { "id": "a", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "A" },
+      { "id": "c", "shape": "rect", "x": 0, "y": 200, "w": 80, "h": 40, "label": "C" }
+    ],
+    "edges": [ { "id": "e3", "from": "c", "to": "a", "label": "vuelve" } ]
+  },
+  "mermaid": "flowchart TD\n  n1[\"A\"]\n  n2[\"C\"]\n  n2 -->|vuelve| n1"
+}

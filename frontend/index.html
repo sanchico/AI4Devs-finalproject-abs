@@ -26,6 +26,14 @@
   <button class="btn" id="clear">Limpiar</button>
 </div>
 
+<div class="grab" id="grabPanel" hidden>
+  <b>Grabación de trazos</b>
+  <span id="grabFormas"></span>
+  <button class="btn" id="grabUndo">Descartar último</button>
+  <button class="btn" id="grabDown">Descargar</button>
+  <textarea id="grabText" readonly rows="2" aria-label="JSON de los trazos" hidden></textarea>
+</div>
+
 <div class="main">
   <div class="stage" id="stage">
     <canvas id="c"></canvas>

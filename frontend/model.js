@@ -5,15 +5,17 @@ import { KINDS } from './kinds/index.js';
 import { borderPoint, center, inNode, segDist } from './geometry.js';
 import { apply, inverse, newId } from './ops.js';
 
-export const state = { kind: 'flow', dir: 'TD', nodes: [], edges: [] };
+// The title always exists, so the inverse of a setMeta with a title can restore the previous one
+export const UNTITLED = 'Diagrama sin título';
+export const state = { kind: 'flow', dir: 'TD', title: UNTITLED, nodes: [], edges: [] };
 
 // Undo stack: one group per user gesture. A group is a list with, for each operation applied, the
 // operations that undo it. Only the user's own gestures go in; remote operations never do.
 const MAX_UNDO = 60;
 let history = [];
 
-// Back to an empty flow diagram with no undo history
-export function reset(){ state.kind='flow'; state.dir='TD'; state.nodes=[]; state.edges=[]; history=[]; }
+// Back to an empty, untitled flow diagram with no undo history
+export function reset(){ state.kind='flow'; state.dir='TD'; state.title=UNTITLED; state.nodes=[]; state.edges=[]; history=[]; }
 
 // ---------- Queries ----------
 export function nodeAt(p, m=0){ for(let i=state.nodes.length-1;i>=0;i--) if(inNode(state.nodes[i],p,m)) return state.nodes[i]; return null; }

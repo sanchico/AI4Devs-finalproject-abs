@@ -22,6 +22,7 @@ con Spring Boot) es una posible mejora para después de la entrega.
 ## Estado actual
 Prototipo en módulos ES nativos (carpeta `frontend/`), sin build ni dependencias salvo mermaid.js por CDN.
 Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar desde Node:
+- `grabacion.js`: estado del modo de grabación `?grabar` (muestras de trazos por forma y formato del JSON que se descarga). Con `?grabar` la app guarda cada trazo como muestra de la forma elegida en vez de reconocerlo; las muestras del S Pen están en `frontend/test/fixtures/trazos/`.
 - `geometry.js`: funciones geométricas (`dist`, `bbox`, `polyArea`, `borderPoint`…).
 - `recognizer.js`: `recognize(pts, allowedShapes)` clasifica un trazo cerrado por dos métricas (área
   relativa a la caja y distancia media a las esquinas) → rect / rombo / elipse. Un trazo abierto entre
@@ -30,10 +31,13 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `mermaidCode(graph, kind, dir)`, que genera el código recorriendo el grafo; nombra los nodos `n1`, `n2`…
   por posición, no por su id.
 - `ops.js`: todo cambio del diagrama es una operación JSON (`addNode`, `updateNode`, `removeNode`,
-  `addEdge`, `updateEdge`, `removeEdge`, `setMeta`). `apply(state, op)` la aplica o la rechaza con un motivo
+  `addEdge`, `updateEdge`, `removeEdge`, `setMeta` con tipo, dirección o `title`; el título se valida
+  —texto de 1 a 200 caracteres, no solo espacios— pero se guarda sin transformar y no sale en el
+  Mermaid). `apply(state, op)` la aplica o la rechaza con un motivo
   sin cambiar nada; `inverse(state, op)` calcula cómo deshacerla; `newId()` da UUID v4 (con alternativa a
   `crypto.randomUUID`, que no existe en `http://<ip>` de la tablet). Es lo que F4 enviará por la red.
-- `model.js`: estado del diagrama (`state`) y sus gestos (`addNode`, `addEdge`, `setLabel`, `moveNode`,
+- `model.js`: estado del diagrama (`state`: `kind`, `dir`, `title` —"Diagrama sin título" al empezar—,
+  `nodes`, `edges`) y sus gestos (`addNode`, `addEdge`, `setLabel`, `moveNode`,
   `clear`…), que construyen operaciones y las pasan por `perform`. Deshacer saca de una pila de 60 grupos
   de inversas, solo con los cambios propios; `applyRemote(op)` aplica una ajena sin apilarla. Devuelve
   resultados en vez de mostrar avisos.
@@ -43,6 +47,10 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `escape.test.js` comprueba que `<`, `>`, `&` y `|` de las etiquetas salen como entidades de Mermaid;
   `direccion.test.js` fija la dirección de la cabecera (Estados escribe `TB` donde el modelo guarda `TD`);
   `ops.test.js` cubre las operaciones (rechazos, serialización, determinismo), deshacer y los ids del código.
+  `fixtures.test.js` ejecuta las secuencias de operaciones de `test/fixtures/ops/*.json` (cada operación con su resultado y el diagrama final);
+  `convergencia.test.js` prueba con `helpers/red-simulada.js` (servidor que numera y clientes con operaciones pendientes, semilla fija) que todos acaban con el mismo grafo y Mermaid;
+  `mermaid-tipos.test.js` fija el código completo de un diagrama de Flujo y uno de Estados;
+  `grabacion.test.js` prueba el estado de la grabación y `reconocedor.test.js` exige ≥ 90 % por forma y tipo de diagrama con los trazos del S Pen, en cada archivo de `fixtures/trazos/` y en el conjunto; `abiertos.test.js` fija que una línea, una "L", una "U" y un arco siguen siendo trazos abiertos (conectores).
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 

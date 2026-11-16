@@ -2,12 +2,13 @@
 // Lanzar con: node --test "frontend/**/*.test.js"
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { apply, newId } from '../ops.js';
+import { apply, inverse, newId } from '../ops.js';
 import * as model from '../model.js';
 import { mermaidCode } from '../kinds/index.js';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const empty = () => ({ kind: 'flow', dir: 'TD', nodes: [], edges: [] });
+const SIN_TITULO = 'Diagrama sin título';
+const empty = () => ({ kind: 'flow', dir: 'TD', title: SIN_TITULO, nodes: [], edges: [] });
 const node = (id, extra = {}) => ({ id, shape: 'rect', x: 0, y: 0, w: 80, h: 40, label: id, ...extra });
 const edge = (id, from, to, label = '') => ({ id, from, to, label });
 const copy = s => structuredClone(s);
@@ -15,7 +16,7 @@ const bb = (x = 0, y = 0) => ({ x, y, w: 100, h: 50 });
 
 // Estado con tres nodos y tres aristas: a→b, b→c, c→a
 const triangle = () => ({
-  kind: 'flow', dir: 'TD',
+  kind: 'flow', dir: 'TD', title: SIN_TITULO,
   nodes: [node('a'), node('b'), node('c')],
   edges: [edge('e1', 'a', 'b'), edge('e2', 'b', 'c'), edge('e3', 'c', 'a')],
 });
@@ -92,6 +93,11 @@ const rechazos = [
   ['setMeta con un tipo desconocido', { type: 'setMeta', set: { kind: 'clases' } }, 'invalid'],
   ['setMeta con una dirección inválida', { type: 'setMeta', set: { dir: 'XX' } }, 'invalid'],
   ['setMeta válido a medias (no aplica nada)', { type: 'setMeta', set: { dir: 'LR', kind: 'clases' } }, 'invalid'],
+  ['setMeta con un título de solo espacios', { type: 'setMeta', set: { title: '   ' } }, 'invalid'],
+  ['setMeta con un título vacío', { type: 'setMeta', set: { title: '' } }, 'invalid'],
+  ['setMeta con un título de 201 caracteres', { type: 'setMeta', set: { title: 'x'.repeat(201) } }, 'invalid'],
+  ['setMeta con un título que no es texto', { type: 'setMeta', set: { title: 42 } }, 'invalid'],
+  ['setMeta con título válido y tipo desconocido', { type: 'setMeta', set: { title: 'Login', kind: 'clases' } }, 'invalid'],
   ['operación de tipo desconocido', { type: 'teletransportar', id: 'a' }, 'unknown'],
 ];
 for (const [nombre, op, reason] of rechazos) {
@@ -134,6 +140,60 @@ test('dos réplicas con la misma secuencia (con rechazos) terminan iguales', () 
 
 // ---------- model.js: gestos, deshacer ----------
 const ejemplo = () => { model.reset(); model.loadExample(); return mermaidCode(model.state, model.state.kind, model.state.dir); };
+
+// ---------- Título del diagrama (F3, meta-titulo) ----------
+test('setMeta con título cambia solo el título', () => {
+  const s = triangle(), antes = copy(s);
+  assert.deepEqual(apply(s, { type: 'setMeta', set: { title: 'Login' } }), { ok: true });
+  assert.equal(s.title, 'Login');
+  assert.deepEqual({ ...s, title: antes.title }, antes);
+});
+
+test('un título de 200 caracteres se acepta y se guarda sin transformar', () => {
+  const s = empty(), largo = ' ' + 'x'.repeat(198) + ' ';
+  assert.equal(largo.length, 200);
+  assert.deepEqual(apply(s, { type: 'setMeta', set: { title: largo } }), { ok: true });
+  assert.equal(s.title, largo);
+});
+
+test('un setMeta con título y su copia serializada dan el mismo diagrama', () => {
+  const op = { type: 'setMeta', set: { title: 'Alta de "usuario" <b>' } };
+  const s1 = triangle(), s2 = triangle();
+  apply(s1, op);
+  apply(s2, JSON.parse(JSON.stringify(op)));
+  assert.deepEqual(s1, s2);
+});
+
+test('la inversa de un setMeta con título devuelve el título anterior', () => {
+  const s = { ...triangle(), title: 'Login' };
+  const op = { type: 'setMeta', set: { title: 'Alta de usuario' } };
+  const inv = inverse(s, op);
+  apply(s, op);
+  assert.equal(s.title, 'Alta de usuario');
+  for (const o of JSON.parse(JSON.stringify(inv))) assert.equal(apply(s, o).ok, true);
+  assert.equal(s.title, 'Login');
+});
+
+test('un diagrama nuevo se titula "Diagrama sin título"', () => {
+  model.reset();
+  assert.equal(model.state.title, SIN_TITULO);
+});
+
+test('Limpiar conserva el título', () => {
+  model.reset();
+  model.addNode('rect', bb(0, 0));
+  model.applyRemote({ type: 'setMeta', set: { title: 'Login' } });
+  assert.equal(model.clear().ok, true);
+  assert.equal(model.state.nodes.length, 0);
+  assert.equal(model.state.title, 'Login');
+});
+
+test('renombrar no cambia el código Mermaid', () => {
+  const antes = ejemplo();
+  assert.equal(model.applyRemote({ type: 'setMeta', set: { title: 'Login' } }).ok, true);
+  assert.equal(mermaidCode(model.state, model.state.kind, model.state.dir), antes);
+  assert.ok(!antes.includes('Login') && !antes.includes('title'));
+});
 
 test('los nodos y las aristas nuevos tienen UUID v4 distintos', () => {
   model.reset();

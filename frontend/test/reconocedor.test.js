@@ -1,0 +1,45 @@
+// Precisión del reconocedor con trazos reales del S Pen (frontend/test/fixtures/trazos/*.json),
+// grabados con el modo `?grabar`. Un acierto es exactamente {type:'shape', shape:<la forma>}: reconocer otra
+// forma, un trazo abierto o uno descartado cuenta como fallo. Se exige el 90 % por forma y por tipo de diagrama
+// en cada archivo por separado (así uno de validación no se diluye en otro más grande) y en el conjunto.
+// Lanzar con: node --test "frontend/**/*.test.js"
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import { KINDS } from '../kinds/index.js';
+import { recognize } from '../recognizer.js';
+import { FORMAS } from '../grabacion.js';
+
+const MIN_MUESTRAS = 10, MIN_PRECISION = 0.9;
+const dir = new URL('./fixtures/trazos/', import.meta.url);
+const archivos = readdirSync(dir).filter(f => f.endsWith('.json')).sort();
+const porArchivo = Object.fromEntries(archivos.map(a => [a, JSON.parse(readFileSync(new URL(a, dir), 'utf8')).formas]));
+const conjunto = Object.fromEntries(FORMAS.map(f => [f, archivos.flatMap(a => porArchivo[a][f] ?? [])]));
+const grupos = { ...Object.fromEntries(archivos.map(a => [a, porArchivo[a]])), 'todos los archivos': conjunto };
+
+test(`hay al menos ${MIN_MUESTRAS} trazos de cada forma y todos son del lápiz`, () => {
+  for (const f of FORMAS) {
+    assert.ok(conjunto[f].length >= MIN_MUESTRAS, `${f}: ${conjunto[f].length} trazos, hacen falta ${MIN_MUESTRAS}`);
+    assert.ok(conjunto[f].every(t => t.tipo === 'pen'), `${f}: hay trazos que no son de pen`);
+  }
+});
+
+for (const kind of Object.keys(KINDS)) {
+  const permitidas = Object.keys(KINDS[kind].shapes);
+  for (const [grupo, formas] of Object.entries(grupos)) {
+    test(`${KINDS[kind].name}, ${grupo}: al menos el ${MIN_PRECISION * 100} % de los trazos de cada forma se reconoce bien`, () => {
+      const informe = [], fallos = [];
+      for (const f of FORMAS) {
+        const trazos = formas[f] ?? [];
+        const obtenidos = trazos.map(t => { const r = recognize(t.pts, permitidas); return r.type === 'shape' ? r.shape : r.type; });
+        const aciertos = obtenidos.filter(o => o === f).length;
+        const confusion = {};
+        for (const o of obtenidos) if (o !== f) confusion[o] = (confusion[o] ?? 0) + 1;
+        informe.push(`${f}: ${aciertos}/${obtenidos.length}` + (aciertos < obtenidos.length ? `  fallos → ${JSON.stringify(confusion)}` : ''));
+        if (!obtenidos.length || aciertos / obtenidos.length < MIN_PRECISION) fallos.push(`${f} ${aciertos}/${obtenidos.length}`);
+      }
+      console.log(`# Precisión ${KINDS[kind].name}, ${grupo}\n# ${informe.join('\n# ')}`);
+      assert.deepEqual(fallos, [], `${grupo}: por debajo del ${MIN_PRECISION * 100} %: ${fallos.join(', ')}\n${informe.join('\n')}`);
+    });
+  }
+}
