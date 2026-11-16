@@ -1197,3 +1197,99 @@ He hecho un commit directo porque se me olvidó añadir ese archivo @"docs/sesio
 - Arrastrado de la sesión 4: ramas remotas antiguas, el change para evaluar Mermaid 11/12, Automerge como alternativa descartada en el PRD, y el apunte del readme 2.5 sobre el escape de `&`, `<`, `>` y `|`.
 
 **Horas:** 2,75 (acumulado 10,75 h de 33; la v0.6 del PRD, aún sin fusionar, baja el presupuesto a 32 h).
+## Sesión 6 · 12–15 nov 2026 · Adopción del PRD v0.7 y F3: tests del frontend con trazos reales
+
+**Objetivo:** adoptar el PRD con backend en Supabase como PRD de la entrega y cerrar el bloque F3 (tests del frontend): `meta-titulo`, `convergencia-sin-red`, `grabar-trazos` y `ajustar-reconocedor`.
+
+**Fase del ciclo de vida:** arquitectura (estrategia de ramas y PRD), tests y pull requests.
+
+### Prompts
+
+**Prompt 1: estrategia de PRD y ramas**
+
+```
+vale, quiero adoptar @docs/PRD-MVP-supabase.md como PRD para la entrega, y @docs/PRD-MVP.md para una posible mejora con backend java ¿que estrategia de nombres y ramas me recomiendas?
+```
+
+- **Qué hizo el agente:** propuso renombrar los dos PRD (el de Supabase pasa a `PRD-MVP.md`, v0.7; el de Spring Boot a `PRD-backend-java.md`, mejora futura) y reescribió los invariantes de `openspec/config.yaml`. El PO preguntó antes por qué renombrar la rama y pidió "cerrar la v0.6 y abrir otra con la 0.7"; tras su "Ok, hazlo tú", el agente cerró la rama v0.6 y abrió la v0.7.
+- **Resultado:** PR #9 integrada en `develop` con la v0.7 como PRD vigente.
+- **Impacto:** deja una sola fuente de verdad para la entrega y conserva la alternativa Java como mejora.
+
+**Prompt 2: origen de `meta-titulo`**
+
+```
+este meta-titulo ¿de donde lo has sacado?
+```
+
+- **Qué hizo el agente:** admitió que el nombre y la idea de un change aparte eran suyos. El requisito (`setMeta` acepta `title`) sí está en F3 de los dos PRD; el valor inicial "Diagrama sin título" para el estado y el reparto en tres changes no.
+- **Resultado:** el PO decidió después qué hacer con el título (prompt 3).
+- **Impacto:** separa lo que dice el PRD de lo que propone el agente.
+
+**Prompt 3: el título no sale en el Mermaid**
+
+```
+El titulo no debe aparecer en el codigo mermaid /opsx:propose meta-titulo
+```
+
+- **Qué hizo el agente:** propuso el change con el título válido de 1 a 200 caracteres, valor inicial "Diagrama sin título" y requisito de que no entre en el código Mermaid. Después `/opsx:apply` y `/opsx:archive` con sincronización de specs.
+- **Resultado:** `setMeta` acepta `title` en `frontend/ops.js`, con tests en `ops.test.js`.
+- **Impacto:** cierra un hueco de F2 y deja el formato listo para F4 y F5.
+
+**Prompt 4: convergencia sin red**
+
+```
+/opsx:propose convergencia-sin-red
+```
+
+- **Qué hizo el agente:** propuso y aplicó fixtures de operaciones, una red simulada (`helpers/red-simulada.js`) con servidor que numera y clientes con operaciones pendientes, y tests de Mermaid por tipo. Un cliente de control (`ClienteAlMomento`) confirmó que la regla por campo del PRD diverge con inserciones en la misma posición; la estrategia que converge es reproducir el registro confirmado y las pendientes encima.
+- **Resultado:** `convergencia.test.js`, `fixtures.test.js`, `mermaid-tipos.test.js`; commit `9aa0db8`.
+- **Impacto:** valida antes de F4 que la sincronización converge y detecta un error del PRD.
+
+**Prompt 5: tamaño de la muestra de trazos**
+
+```
+estas pruebas ¿debo hacerlas solo con el rectángulo?
+```
+
+- **Qué hizo el agente:** respondió que las tres formas, 10 trazos de cada una, con el modo `?grabar` que había implementado en el change `grabar-trazos` (botones por forma, contadores, descartar el último, descarga del JSON).
+- **Resultado:** el PO entregó `s-pen.json` (30 trazos del S Pen). Medición: rectángulo 4/10, rombo 9/10, elipse 8/10. El agente se detuvo sin tocar el umbral; el PO eligió un change aparte (`ajustar-reconocedor`).
+- **Impacto:** primera medición real del reconocedor, que el prototipo daba por bueno.
+
+**Prompt 6: ajustar con unos trazos y validar con otros**
+
+```
+ya tienes el archivo @frontend/test/fixtures/trazos/s-pen-validacion.json
+```
+
+- **Qué hizo el agente:** ajustó el reconocedor con los 30 primeros trazos (rect `r .75, cd .10` y cierre `0,4·diagonal + 12`: 9/10, 10/10, 9/10) y midió los 30 nuevos sin reajustar: rectángulo 10/10, rombo 10/10, elipse 8/10. Se detuvo según el diseño y el PO eligió reajustar con los 60 y grabar otros 30. El tercer archivo dio 10/10, 10/10 y 9/10. El test de precisión pasó a exigir el 90 % por archivo y en el conjunto; control negativo con etiquetas intercambiadas.
+- **Resultado:** commit `6326f18`; PR #10 contra `develop` que cierra F3.
+- **Impacto:** cumple el criterio 9 del PRD con medición honesta: ajuste y validación separados, sin bajar el umbral ni descartar muestras.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2. Arquitectura | Prompt 1 (qué PRD se adopta y cómo se ramifica) |
+| 2.6 Tests | Prompts 4, 5 y 6 (red simulada, trazos reales, validación separada del ajuste) |
+| 6. Tickets de trabajo | Prompts 3 y 4 (changes con proposal, specs, design y tasks) |
+| 7. Pull Requests | Prompts 1 y 6 (PR #9 y PR #10) |
+
+### Correcciones
+
+- **Nombre y alcance inventados (prompt 2).** El agente presentó `meta-titulo` y sus detalles como si salieran del plan. El PO preguntó el origen y el agente reconoció cuáles eran suyos.
+- **Regla del PRD que diverge (prompt 4).** La estrategia de operaciones pendientes del PRD ("por campo") no converge con inserciones en la misma posición. Se probó con el cliente de control y se cambió el diseño; falta corregir el texto del PRD.
+- **Reajuste sobre pocas muestras (prompt 6).** El primer ajuste, hecho con 30 trazos, no generalizó: la elipse bajó a 8/10 con trazos nuevos. Se paró, se reajustó con los 60 y se validó con otros 30 sin tocar nada.
+- **Comprobación que no comprobaba.** La tarea pedía que `grep -n "todo"` en CLAUDE.md no devolviera nada, pero coincidía con "todo cambio". Se buscó el `todo` marcado en código.
+- **Archivo mal nombrado.** La tercera grabación llegó como `s-pen validacion2.json` (con espacio) y el agente lo renombró.
+- **El script de prompts contaba resúmenes como prompts.** Al cerrar la sesión salían como prompts 19 y 31 los resúmenes de continuación de contexto, que no escribió el PO. El agente lo había puesto en Pendiente por arrastre de la sesión 5 sin comprobarlo; el PO eligió arreglarlo y se filtra por `isCompactSummary` en `prompts.cjs` (que usa también `export-sesion.cjs`).
+
+### Pendiente
+
+- Integrar la PR #10 (F3) y borrar las ramas locales ya integradas (`docs/prd-v0-6`, `docs/prd-v0-7-supabase`, `chore/skill-cerrar-sesion-export`): el PO no contestó.
+- Corregir la regla "Respuesta inmediata" del PRD y escribir la spec de convergencia con operaciones pendientes al empezar F4.
+- Confirmar con el tutor que un backend en Supabase (SQL) cumple el requisito del curso.
+- Comprobar el recorte del primer prompt con `--since` en `prompts.cjs`, apuntado en la sesión 5 y no verificado.
+- Siguiente bloque: S1 (Supabase) según la sección 6 del PRD.
+- Los trazos son de un solo usuario y dispositivo: el 90 % no cubre a otras personas.
+
+**Horas:** 3,25 (acumulado 14 h de 33). F3 superó con holgura sus 1,5 h previstas (cuatro changes y dos grabaciones extra); no se midió aparte de la adopción del PRD.

@@ -48,7 +48,8 @@ function promptText(content) {
 }
 
 function isHumanPrompt(e) {
-  if (e.type !== 'user' || e.isMeta || e.isSidechain) return false;
+  // isCompactSummary: el resumen que Claude Code inserta al compactar el contexto no lo escribió el usuario
+  if (e.type !== 'user' || e.isMeta || e.isSidechain || e.isCompactSummary) return false;
   if (e.origin && e.origin.kind !== 'human') return false;
   const c = e.message && e.message.content;
   if (Array.isArray(c) && c.some((b) => b.type === 'tool_result')) return false;
