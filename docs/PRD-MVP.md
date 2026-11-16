@@ -3,10 +3,26 @@
 | | |
 |---|---|
 | Estado | Vigente: es el PRD de la entrega. Sustituye a la v0.6, que se conserva como mejora futura en [PRD-backend-java.md](PRD-backend-java.md) |
-| Versión | 0.7 · 13 nov 2026 (adopta la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov) |
+| Versión | 0.7.1 · 16 nov 2026 (corrige la regla de las operaciones pendientes). La 0.7, del 13 nov, adoptó la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov |
 | Base | `develop` con F1 y F2 cerrados (sesión 4 de la [bitácora](bitacora.md), más F2) |
 | Presupuesto | 27,5 h en total: 8 h gastadas hasta la sesión 4, 3 h previstas de F2 (ya hecho) y 16,5 h por hacer |
 | Motivo | F1 costó 5,25 h frente a 3 h previstas y la sesión 4 fue un arreglo no planificado de 2,25 h; al plan v0.6 ya no le caben sus 32 h |
+
+## Historial de cambios
+
+Cada versión, qué cambió y por qué. El detalle de cada decisión está en la sesión de la [bitácora](bitacora.md)
+indicada. Hasta la v0.6 el documento es el que hoy se conserva como [PRD-backend-java.md](PRD-backend-java.md).
+
+| Versión | Fecha | Tipo | Cambio | Motivo y evidencia |
+|---|---|---|---|---|
+| 0.1 | 28 sep 2026 | Alcance | Primer PRD del MVP de 30 h: cinco tipos de diagrama, bloques B1–B8 con horas y plan de sesiones | Sesión 0 de la bitácora (no está en git) |
+| 0.2 | 29 sep 2026 | Alcance | Añade la documentación de entrega (B9) y la publicación (B10); recorta otros bloques para seguir en 30 h | Requisitos del curso; sesión 0 (no está en git) |
+| 0.3 | 29 sep 2026 | Alcance | Ajusta el documento a la plantilla de entrega del curso | Plantilla del proyecto de ejemplo; sesión 0, commit `e8a323f` |
+| 0.4 | 30 sep 2026 | Arquitectura | App con backend: API en Spring Boot que valida el JWT de Supabase Auth y guarda en PostgreSQL; quita ER y mapa mental; 30 h | Decisión del PO: guardar en servidor y no en el navegador; sesión 0, commit `c9d8f48` |
+| 0.5 | 30 sep 2026 | Alcance | Pizarra colaborativa en tiempo real: servidor WebSocket que ordena las operaciones, deshacer por usuario, invitaciones y presencia; quita clases UML; 33 h | Decisión del PO: un backend solo para guardar una tabla se desaprovecha; sesión 0, commit `669dcc0` |
+| 0.6 | 11 nov 2026 | Alcance | Añade la gestión de diagramas (HU-03: crear, abrir, renombrar y borrar); presencia y recuperación tras cortes pasan a la v2; 32 h | Hueco detectado por el PO: ningún bloque creaba ni abría diagramas; sesión 5, commit `0f69709` |
+| 0.7 | 13 nov 2026 | Arquitectura y plan | Todo el backend en Supabase (PostgreSQL con RLS, `apply_op` en PL/pgSQL y Realtime); mismo producto y criterios que la v0.6; 27,5 h | F1 costó 5,25 h frente a 3 y la sesión 4 añadió 2,25 h sin planificar: a la v0.6 no le caben sus 32 h; sesiones 5 y 6, commit `f2bc764` |
+| 0.7.1 | 16 nov 2026 | Corrección | Reescribe la regla de respuesta inmediata: registro confirmado más operaciones pendientes aplicadas encima; un rechazo solo quita la pendiente. Alcance y horas sin cambios | La regla anterior diverge con dos inserciones en la misma posición; probado con un cliente de control en el change `convergencia-sin-red` (F3, sesión 6) |
 
 ## 1. Resumen
 
@@ -126,8 +142,16 @@ versión (aquí serían Realtime Presence y pedir las operaciones que faltan al 
 - **Convergencia:** todos los clientes aplican el mismo registro, en el mismo orden, con el mismo código
   `apply`. Una operación sobre un elemento que ya no existe se descarta en todos por igual. Sobre el
   mismo campo gana la última en el orden del servidor.
-- **Respuesta inmediata y deshacer:** como en la v0.6. La respuesta del RPC confirma la operación propia
-  con su número de secuencia; un error la revierte con su inversa y muestra el aviso.
+- **Respuesta inmediata:** el cliente dibuja sus operaciones al momento, sin esperar al servidor, y aun
+  así acaba con el mismo grafo y el mismo Mermaid que los demás. Para eso guarda el registro confirmado
+  (las operaciones numeradas, reproducidas en orden) y sus operaciones pendientes; el lienzo muestra el
+  confirmado con las pendientes aplicadas encima y se recalcula cada vez que llega una entrada. Una
+  entrada propia (mismo `op_id`) sale de las pendientes. Si el RPC rechaza una operación, se quita de
+  las pendientes y se muestra el aviso, sin aplicar inversas. La regla de la v0.6 (las remotas sobre el
+  mismo campo no pisan lo pendiente) diverge con dos inserciones en la misma posición: lo demuestra el
+  change [convergencia-sin-red](../openspec/changes/archive/2026-11-14-convergencia-sin-red/design.md).
+- **Deshacer:** como en la v0.6. Cada cliente guarda las inversas de sus operaciones y deshacer envía la
+  inversa como una operación nueva; si otro usuario ya borró el elemento, se salta.
 - **Reintentos:** `(diagram_id, op_id)` es único. Si un cliente reenvía una operación, la función
   devuelve la secuencia que ya tenía en vez de duplicarla. El MVP no reenvía solo; es la base de la
   recuperación de la v2 y cuesta una restricción.
