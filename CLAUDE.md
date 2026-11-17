@@ -51,6 +51,10 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `convergencia.test.js` prueba con `helpers/red-simulada.js` (servidor que numera y clientes con operaciones pendientes, semilla fija) que todos acaban con el mismo grafo y Mermaid;
   `mermaid-tipos.test.js` fija el código completo de un diagrama de Flujo y uno de Estados;
   `grabacion.test.js` prueba el estado de la grabación y `reconocedor.test.js` exige ≥ 90 % por forma y tipo de diagrama con los trazos del S Pen, en cada archivo de `fixtures/trazos/` y en el conjunto; `abiertos.test.js` fija que una línea, una "L", una "U" y un arco siguen siendo trazos abiertos (conectores).
+- `supabase/` (backend, bloque S1): `config.toml`, `migrations/` (esquema y permisos) y `tests/*.test.js`
+  con `node --test` y supabase-js contra el Supabase local; `tests/helpers/entorno.js` lee las claves de
+  `supabase status` y da `admin()`, `anonimo()`, `usuario()` y `sql`. Ninguna escritura directa en las
+  tablas: solo funciones (S2). Borrar un diagrama lo marca con `deleted_at` y solo lo ve su dueño.
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 
@@ -61,6 +65,11 @@ Los módulos ES no cargan desde `file://`: hay que servir la carpeta `frontend/`
 
 Tests (Node ≥ 22, sin instalar nada): `node --test "frontend/**/*.test.js"`.
 Prueba en el navegador real con la skill `run-trazo-mermaid`.
+
+Tests del backend (hace falta Docker en marcha; el frontend no instala nada, esto sí): `npm install`,
+`npx supabase start` (la primera vez descarga imágenes) y `npm run test:backend`. `npx supabase db reset`
+vuelve a aplicar las migraciones desde cero y `npx supabase stop` apaga el entorno. Solo local: el proyecto
+remoto llega en D1.
 
 ## Hoja de ruta (ideas, por orden aproximado)
 1. ~~Separar `app.js` en módulos ES~~ (hecho en el cambio `modularizar-frontend`).

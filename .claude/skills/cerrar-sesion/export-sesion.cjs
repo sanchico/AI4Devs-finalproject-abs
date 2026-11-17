@@ -7,6 +7,8 @@
 //   node export-sesion.cjs --nombre "Sesion4 fix barra vertical"   # la sesión más reciente
 //   node export-sesion.cjs --nombre "Sesion3" ruta/a/sesion.jsonl  # un registro concreto
 //   --out <carpeta>   carpeta de salida (por defecto docs/sesiones)
+//   --since <fecha>   solo lo ocurrido desde esa fecha u hora local (2026-11-16 o 2026-11-16T10:40),
+//                     p. ej. para exportar lo que pasó en un registro después de cerrar su sesión
 //
 // El archivo se llama "<nombre> <AAAA-MM-DD-HHMMSS>.txt" (hora local del primer evento). Si ya existe
 // se sobrescribe, así que se puede ejecutar de nuevo para añadir lo ocurrido después.
@@ -52,12 +54,15 @@ function main() {
   const args = process.argv.slice(2);
   let nombre = 'sesion';
   let outDir = path.join(process.cwd(), 'docs', 'sesiones');
+  let since = null;
   const files = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--nombre') nombre = args[++i];
     else if (args[i] === '--out') outDir = path.resolve(args[++i]);
+    else if (args[i] === '--since') since = new Date(args[++i].length <= 10 ? args[i] + 'T00:00' : args[i]);
     else files.push(args[i]);
   }
+  if (since && isNaN(since)) { console.error('Fecha de --since no válida.'); process.exit(1); }
   nombre = nombre.replace(/[\\/:*?"<>|]/g, '-').trim() || 'sesion';
 
   if (!files.length) {
@@ -69,7 +74,8 @@ function main() {
     files.push(todas[todas.length - 1].f);
   }
 
-  const events = files.flatMap(readSession);
+  const events = files.flatMap(readSession)
+    .filter((e) => !since || (e.timestamp && new Date(e.timestamp) >= since));
   const primero = events.map((e) => e.timestamp && new Date(e.timestamp)).find((d) => d && !isNaN(d)) || new Date();
   fs.mkdirSync(outDir, { recursive: true });
   const destino = path.join(outDir, `${nombre} ${sello(primero)}.txt`);

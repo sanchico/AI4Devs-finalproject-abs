@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Estado | Vigente: es el PRD de la entrega. Sustituye a la v0.6, que se conserva como mejora futura en [PRD-backend-java.md](PRD-backend-java.md) |
-| Versión | 0.7.1 · 16 nov 2026 (corrige la regla de las operaciones pendientes). La 0.7, del 13 nov, adoptó la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov |
+| Versión | 0.7.2 · 17 nov 2026 (borrado lógico y proyecto remoto en D1). La 0.7.1, del 16 nov, corrigió la regla de las operaciones pendientes. La 0.7, del 13 nov, adoptó la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov |
 | Base | `develop` con F1 y F2 cerrados (sesión 4 de la [bitácora](bitacora.md), más F2) |
 | Presupuesto | 27,5 h en total: 8 h gastadas hasta la sesión 4, 3 h previstas de F2 (ya hecho) y 16,5 h por hacer |
 | Motivo | F1 costó 5,25 h frente a 3 h previstas y la sesión 4 fue un arreglo no planificado de 2,25 h; al plan v0.6 ya no le caben sus 32 h |
@@ -23,6 +23,7 @@ indicada. Hasta la v0.6 el documento es el que hoy se conserva como [PRD-backend
 | 0.6 | 11 nov 2026 | Alcance | Añade la gestión de diagramas (HU-03: crear, abrir, renombrar y borrar); presencia y recuperación tras cortes pasan a la v2; 32 h | Hueco detectado por el PO: ningún bloque creaba ni abría diagramas; sesión 5, commit `0f69709` |
 | 0.7 | 13 nov 2026 | Arquitectura y plan | Todo el backend en Supabase (PostgreSQL con RLS, `apply_op` en PL/pgSQL y Realtime); mismo producto y criterios que la v0.6; 27,5 h | F1 costó 5,25 h frente a 3 y la sesión 4 añadió 2,25 h sin planificar: a la v0.6 no le caben sus 32 h; sesiones 5 y 6, commit `f2bc764` |
 | 0.7.1 | 16 nov 2026 | Corrección | Reescribe la regla de respuesta inmediata: registro confirmado más operaciones pendientes aplicadas encima; un rechazo solo quita la pendiente. Alcance y horas sin cambios | La regla anterior diverge con dos inserciones en la misma posición; probado con un cliente de control en el change `convergencia-sin-red` (F3, sesión 6) |
+| 0.7.2 | 17 nov 2026 | Arquitectura | Borrar un diagrama lo marca (`deleted_at`) en vez de eliminarlo y solo lo ve su dueño; borrar y restaurar son funciones (`delete_diagram`, `restore_diagram`) y no hay escrituras directas en ninguna tabla; el proyecto remoto de Supabase pasa de S1 a D1. Sin vista de papelera ni purgado en el MVP; horas sin cambios | Decisión del PO en la sesión 7: un borrado tiene que poder deshacerse; con borrado lógico, borrar es un `UPDATE` y una política por fila dejaría cambiar también `last_seq` o `title`; change `esquema-y-rls` (S1) |
 
 ## 1. Resumen
 
@@ -159,9 +160,11 @@ versión (aquí serían Realtime Presence y pedir las operaciones que faltan al 
   a solo lectura con el aviso "Sin conexión: recarga la página". Al recargar se reproduce el registro.
   Las operaciones propias sin confirmar se pierden.
 - **Título:** `apply_op` con `setMeta` lo copia a `diagrams.title`, y la lista lo lee de ahí.
-- **Diagrama borrado:** el borrado elimina en cascada el registro. Quien lo tenga abierto recibe un error
-  en su siguiente `apply_op`, o cero filas al recargar; el cliente muestra "Este diagrama se ha borrado"
-  y vuelve a la lista.
+- **Diagrama borrado:** `delete_diagram` lo marca con `deleted_at` y conserva miembros, invitaciones y
+  operaciones; `restore_diagram` quita la marca. Quien lo tenga abierto recibe un error en su siguiente
+  `apply_op`, o cero filas al recargar (salvo el dueño); el cliente muestra "Este diagrama se ha borrado"
+  y vuelve a la lista. El MVP no tiene vista de papelera ni purgado: solo el dueño ve el diagrama borrado
+  y se restaura con la función o desde el panel de Supabase.
 
 ### Modelo de datos
 
@@ -169,27 +172,31 @@ Cuatro tablas en `public`, relacionadas con `auth.users`:
 
 | Tabla | Columnas principales | Restricciones |
 |---|---|---|
-| `diagrams` | `id` uuid, `owner_id` uuid, `title` text, `kind` text, `direction` text, `last_seq` bigint, `created_at`, `updated_at` | PK `id`; FK `owner_id` → `auth.users`; `kind` en (`flow`, `state`) |
+| `diagrams` | `id` uuid, `owner_id` uuid, `title` text, `kind` text, `direction` text, `last_seq` bigint, `deleted_at` timestamptz, `created_at`, `updated_at` | PK `id`; FK `owner_id` → `auth.users`; `kind` en (`flow`, `state`); `deleted_at` nulo mientras el diagrama está vivo |
 | `diagram_members` | `diagram_id` uuid, `user_id` uuid, `role` text, `display_name` text, `added_at` | PK (`diagram_id`, `user_id`); `role` en (`owner`, `editor`, `viewer`) |
 | `diagram_invites` | `token` text, `diagram_id` uuid, `role` text, `created_by` uuid, `expires_at` | PK `token`; `role` en (`editor`, `viewer`) |
 | `diagram_ops` | `diagram_id` uuid, `seq` bigint, `user_id` uuid, `op_id` uuid, `op` jsonb, `created_at` | PK (`diagram_id`, `seq`); único (`diagram_id`, `op_id`); `op` de 2 kB como máximo |
 
 Respecto a la v0.6 desaparecen `content` y `snapshot_seq`, y se añaden `last_seq`, `op_id` y
-`display_name`. Borrar un diagrama borra en cascada sus miembros, invitaciones y operaciones.
+`display_name`, `deleted_at`. Borrar un diagrama lo marca con `deleted_at` y conserva sus miembros, invitaciones y
+operaciones; solo una eliminación física (mantenimiento) las borra en cascada.
 
 ### Seguridad de fila
 
-RLS activado en las cuatro tablas. Ninguna admite escritura directa salvo el borrado de `diagrams`.
+RLS activado en las cuatro tablas. Ninguna admite escritura directa: `anon` no tiene permisos y `authenticated`
+solo puede leer.
 
 | Tabla | Lectura | Escritura |
 |---|---|---|
-| `diagrams` | Miembros | Crear: `create_diagram`. Borrar: el dueño. Título, tipo y dirección: `apply_op` con `setMeta` |
+| `diagrams` | Miembros; si está borrado, solo el dueño | Crear: `create_diagram`. Borrar y restaurar: `delete_diagram` y `restore_diagram` (el dueño). Título, tipo y dirección: `apply_op` con `setMeta` |
 | `diagram_members` | Miembros del mismo diagrama | Solo `create_diagram` y `accept_invite` |
 | `diagram_invites` | El dueño | Solo `create_invite` |
 | `diagram_ops` | Miembros | Solo `apply_op` |
 
 Las políticas usan una función auxiliar `member_role(diagram_id)`, `security definer`, para que la
-política de `diagram_members` no se consulte a sí misma.
+política de `diagram_members` no se consulte a sí misma. Esa función devuelve `null` a quien no es miembro y,
+si el diagrama está borrado, a todos salvo al dueño; `apply_op`, `create_invite` y `accept_invite` rechazan
+además un diagrama borrado.
 
 ### API
 
@@ -198,7 +205,8 @@ política de `diagram_members` no se consulte a sí misma.
 | `GET /rest/v1/diagrams` | Diagramas propios y compartidos (los filtra la RLS) |
 | `GET /rest/v1/diagram_members?diagram_id=eq.{id}` | Miembros y roles |
 | `GET /rest/v1/diagram_ops?diagram_id=eq.{id}&seq=gt.{n}&order=seq` | Operaciones desde una secuencia, de 1 000 en 1 000 |
-| `DELETE /rest/v1/diagrams?id=eq.{id}` | Borra un diagrama (solo el dueño) |
+| `rpc/delete_diagram(diagram_id)` | Marca un diagrama como borrado (solo el dueño) |
+| `rpc/restore_diagram(diagram_id)` | Quita la marca de borrado (solo el dueño) |
 | `rpc/create_diagram(title, kind)` | Crea el diagrama vacío ("Diagrama sin título", tipo flujo) y a su dueño como miembro |
 | `rpc/create_invite(diagram_id, role)` | Crea una invitación con token de 32 bytes y caducidad de 7 días |
 | `rpc/accept_invite(token)` | Añade al usuario como miembro si la invitación no ha caducado |
@@ -231,18 +239,22 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
 
 ### S1 · Proyecto Supabase, esquema y RLS (2,5 h)
 
-- Carpeta `supabase/` con la CLI: `supabase start` levanta el entorno local en Docker y
-  `supabase db push` aplica las migraciones al proyecto remoto.
-- Migraciones SQL de las cuatro tablas, índices, `member_role` y las políticas de la sección 5.
-- `diagram_ops` en la publicación `supabase_realtime`.
+- Carpeta `supabase/` con la CLI: `supabase start` levanta el entorno local en Docker. Solo local: el
+  proyecto remoto y `supabase db push` van en D1.
+- Migraciones SQL de las cuatro tablas (con `deleted_at`), índices, `member_role` y las políticas de la
+  sección 5, sin ninguna escritura directa.
+- Arnés de tests del backend (`supabase/tests/`, `node --test` con supabase-js y `postgres`) con los permisos
+  de este bloque; S3 lo amplía.
+- `diagram_ops` en la publicación `supabase_realtime`, solo con inserciones.
 - Claves y contraseñas fuera del repositorio. La clave pública (`anon`) sí va en el frontend: la
   protección es la RLS.
-- **Aceptación:** con la clave pública y sin sesión, `/rest/v1/diagrams` no devuelve filas; un `INSERT`
-  directo en `diagram_ops` con sesión de editor se rechaza.
+- **Aceptación:** con la clave pública y sin sesión, `/rest/v1/diagrams` no da acceso (error de permisos);
+  un `INSERT` directo en `diagram_ops` con sesión de editor se rechaza; un miembro no ve un diagrama
+  borrado y su dueño sí.
 
 ### S2 · Funciones de servidor (2 h)
 
-- `create_diagram`, `create_invite`, `accept_invite` y `apply_op`, en PL/pgSQL, `security definer` y
+- `create_diagram`, `create_invite`, `accept_invite`, `apply_op`, `delete_diagram` y `restore_diagram`, en PL/pgSQL, `security definer` y
   con `search_path` fijo. Permiso de ejecución solo para `authenticated`.
 - `apply_op` comprueba el rol (dueño o editor), el tipo de operación, el tamaño (2 kB; etiquetas de 200
   caracteres) y el tope de 5 000 operaciones. Con `setMeta` actualiza además título, tipo y dirección
@@ -259,8 +271,8 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   Realtime; un lector no escribe; una invitación caducada no se acepta.
 - **Convergencia con red:** varios clientes envían operaciones concurrentes sobre los mismos elementos;
   al final todos tienen el mismo grafo que resulta de reproducir `diagram_ops`.
-- **Diagramas:** un `setMeta` con título cambia `diagrams.title`; solo el dueño borra, y el borrado se
-  lleva miembros, invitaciones y operaciones.
+- **Diagramas:** un `setMeta` con título cambia `diagrams.title`; solo el dueño borra y restaura; borrar
+  oculta el diagrama a los miembros y restaurarlo lo devuelve intacto, con sus operaciones.
 - **Aceptación:** `node --test` en verde con el entorno local arrancado.
 
 ### F4 · Cliente colaborativo (2 h)
@@ -284,6 +296,8 @@ enviar su siguiente operación o al recargar, no al momento.
 
 - Publicar `frontend/` en un hosting estático con HTTPS (GitHub Pages, Cloudflare Pages o Netlify, a
   decidir en la sesión).
+- Crear el proyecto remoto de Supabase, enlazarlo (`supabase link`) y aplicar las migraciones con
+  `supabase db push`; la contraseña de la base de datos y las claves de servicio no entran en el repositorio.
 - Configurar en Supabase Auth la URL del sitio y las de redirección.
 - **Aceptación:** dos dispositivos colaboran a través de la URL pública.
 
@@ -338,6 +352,7 @@ reconocedor sin grabar nuevos (−1 h). La presencia ya está fuera del MVP.
 | Postgres Changes para repartir | Broadcast desde la base de datos | Menos piezas; queda como plan B si la latencia no basta |
 | Frontend en hosting estático | Servirlo desde Supabase Storage | Storage no está pensado para servir páginas HTML |
 | El borrado de un diagrama se detecta en la siguiente operación o al recargar | Suscribirse a los `DELETE` de `diagrams`; un RPC de borrado que avise por Broadcast | Los `DELETE` no se filtran ni pasan por RLS, y Broadcast exige un canal privado con su política. No compensa para un caso raro |
+| Borrar un diagrama lo marca con `deleted_at`, mediante `delete_diagram` y `restore_diagram` | Eliminarlo en cascada con `DELETE` directo y política de RLS para el dueño; borrado lógico con `UPDATE` directo | La papelera permite deshacer un borrado. Con borrado lógico, borrar es un `UPDATE` y una política por fila dejaría cambiar también `last_seq` o `title`; con funciones no hay ninguna escritura directa. Sin vista de papelera ni purgado en el MVP |
 | Solución intermedia descartada | Spring Boot solo para la colaboración y PostgREST para el resto | Ahorra unas 4 h, pero conserva el contenedor, el despliegue con WebSocket y las dos implementaciones de `apply` |
 
 ## 10. Adopción

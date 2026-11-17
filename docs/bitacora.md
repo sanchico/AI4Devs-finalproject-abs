@@ -1293,3 +1293,160 @@ ya tienes el archivo @frontend/test/fixtures/trazos/s-pen-validacion.json
 - Los trazos son de un solo usuario y dispositivo: el 90 % no cubre a otras personas.
 
 **Horas:** 3,25 (acumulado 14 h de 33). F3 superó con holgura sus 1,5 h previstas (cuatro changes y dos grabaciones extra); no se midió aparte de la adopción del PRD.
+
+## Sesión 6 bis · 16 nov 2026 · PRD v0.7.1: historial de cambios y regla de las operaciones pendientes
+
+**Objetivo:** trabajo hecho en el mismo registro de la sesión 6 después de cerrarla (desde las 10:40): explicar por qué había que corregir la regla de respuesta inmediata del PRD, discutir con el PO cómo tratar los cambios del PRD y publicar la v0.7.1.
+
+**Fase del ciclo de vida:** producto (gestión del PRD y trazabilidad).
+
+Empieza con "1 commit y push", la respuesta al cierre de la sesión 6: el agente hizo el commit `f5404eb` (bitácora de la sesión 6 y filtro de resúmenes en `prompts.cjs`) y lo subió a la PR #10.
+
+### Prompts
+
+**Prompt 1: por qué corregir la regla**
+
+```
+¿por qué hay que corregir esa regla?
+```
+
+- **Qué hizo el agente:** releyó la regla del PRD ("como en la v0.6") y el `design.md` archivado de `convergencia-sin-red`. Explicó el contraejemplo (dos `addNode` en la posición 0 acaban como `q, p, x` en un cliente y `p, q, x` en el otro, con Mermaid distinto) y la regla que sí converge (registro confirmado más pendientes aplicadas encima). Argumentó que había que escribirla antes de F4 para que `collab.js` no implemente la versión que diverge.
+- **Resultado:** ninguno; ofreció corregir la frase del PRD.
+- **Impacto:** deja claro que el test de F3 protege el modelo pero no el cliente de F4.
+
+**Prompt 2: cambiar el PRD o documentar el cambio de alcance**
+
+```
+Hagamos una discusión con el fin de mejorar mis habilidades como product owner: ¿esto de cambiar el PRD está bien o se considera una falta de previsión? Una vez visto que no era realizable ¿quizá en vez de modificarlo habría que añadir documentos de cambio de alcance?
+```
+
+- **Qué hizo el agente:** separó tres tipos de cambio (alcance, arquitectura con coste y error en una regla técnica) y situó la corrección en el tercero, sin cambio de alcance. Señaló que el fallo fue de nivel: el PRD describía un algoritmo en prosa sin test detrás, y esa regla la propuso el propio agente el 30 sep (`669dcc0`) sin probarla. Distinguió una línea base contractual (solicitudes de cambio) de un PRD vivo con trazabilidad, y propuso una tabla de historial de cambios y que el PRD diga el qué y no el cómo.
+- **Resultado:** ninguno; recomendación al PO.
+- **Impacto:** convierte una corrección en una práctica de producto (historial de cambios, criterios en vez de algoritmos).
+
+**Prompt 3: tabla de historial de cambios**
+
+```
+vale, añade una tabla de historia de cambios al PRD para mejorar la trazabilidad
+```
+
+- **Qué hizo el agente:** reconstruyó fechas y motivos de cada versión desde git y la bitácora y añadió la sección "Historial de cambios" al PRD (v0.1 a v0.7), marcando lo que no podía confirmar (fecha de la v0.1, redacción de los motivos de la v0.4 y la v0.5). El PO contestó "corrige la regla y un solo commit": el agente reescribió la regla de respuesta inmediata, añadió la fila 0.7.1 de tipo "Corrección" y avisó de que `PRD-backend-java.md` conserva la regla antigua.
+- **Resultado:** commit `8f81823` (PRD v0.7.1), sin push.
+- **Impacto:** el historial hace visible por qué cambió el plan; responde a la pregunta del prompt 2 con evidencia.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 1. Producto | Prompts 2 y 3 (cómo tratar los cambios del PRD y el historial de cambios) |
+| 2. Arquitectura | Prompt 1 (regla de convergencia con operaciones pendientes) |
+
+### Correcciones
+
+- **Regla propuesta sin probar.** El agente reconoció que la regla de respuesta inmediata, que divergía, la había propuesto él en la sesión 0 sin un test que la respaldara.
+- **Comillas invertidas perdidas en el shell.** La primera edición del PRD con `node -e` perdió las comillas invertidas; el agente la deshizo con `git checkout` y la reescribió desde un script.
+- **El PRD vuelve a describir el cómo.** La regla corregida explica el mecanismo, en contra de la recomendación del prompt 2, porque aún no existe la spec de convergencia a la que remitir. El agente lo dejó dicho.
+- **Fecha supuesta.** La fecha de la v0.1 no está en git; se puso el 28 sep sin poder confirmarlo y se pidió al PO que la revisara.
+
+### Pendiente
+
+- Al escribir la spec de convergencia en F4, recortar la regla del PRD y dejar solo el criterio y el enlace.
+- `PRD-backend-java.md` conserva la regla antigua: anotarlo en `mejoras.md`.
+- `CLAUDE.md`, el readme y `config.yaml` siguen diciendo "v0.7".
+- Revisar la fecha de la v0.1 y los motivos de la v0.4 y la v0.5 en el historial.
+
+**Horas:** 1 (acumulado 15 h de 33). No estaba planificada: es la continuación de la sesión 6 tras su cierre.
+
+## Sesión 7 · 16–17 nov 2026 · S1: esquema, RLS y borrado lógico en Supabase local
+
+**Objetivo:** cerrar el bloque S1 del PRD (proyecto Supabase, esquema y RLS): explorar con el PO las decisiones abiertas, proponer el change `esquema-y-rls`, implementarlo, archivarlo y abrir la PR.
+
+**Fase del ciclo de vida:** arquitectura y datos (modelo de datos, RLS y borrado), tests y pull requests.
+
+### Prompts
+
+**Prompt 1: elegir el bloque de la exploración**
+
+```
+S1
+```
+
+(Tras `/opsx:explore` sin tema.)
+
+- **Qué hizo el agente:** comprobó que no había changes activos ni carpeta `supabase/`, leyó la sección 5 y el bloque S1 del PRD y el `config.yaml`, y detectó una tensión: el invariante "ninguna escritura directa" frente al `DELETE` directo del dueño que permitía el PRD. Preguntó cómo tratar el borrado.
+- **Resultado:** ninguno todavía; fija el tema de la sesión.
+- **Impacto:** el hallazgo del `DELETE` directo acabó cambiando el modelo de datos y el PRD (v0.7.2).
+
+**Prompt 2: comprobar el cierre de F3**
+
+```
+antes de eso ¿puedes comprobar si se ha cerrado al F3?
+```
+
+- **Qué hizo el agente:** ejecutó los 118 tests del frontend (todos pasan), leyó la bitácora y consultó la PR #10 con `gh`: estaba abierta, sin fusionar. Avisó de que S1 debía salir de `develop` ya actualizado. Cuando el PO fusionó la PR, lo verificó (merge `9be8e3f`) y, con su sí, creó la rama `feat/s1-proyecto-supabase-y-rls` desde `origin/develop`.
+- **Resultado:** F3 cerrado y la rama de S1 creada.
+- **Impacto:** evita arrastrar los commits de F3 a la PR de S1, como pide la convención de una rama por bloque.
+
+**Prompt 3: pros y contras del borrado**
+
+```
+1 sí. 2 explícame los pros y los contras de cada una
+```
+
+- **Qué hizo el agente:** comparó `DELETE` directo con RLS (A) y una función `delete_diagram` (B). Había recomendado B por seguridad; al comparar, rectificó y se inclinó por A, porque B sustituía una política declarativa por una comprobación escrita a mano.
+- **Resultado:** el PO no eligió: respondió con el prompt siguiente.
+- **Impacto:** deja claro el compromiso entre uniformidad del invariante y menos código propio.
+
+**Prompt 4: papelera**
+
+```
+Si elijo la A el borrado sería definitivo ¿cierto? y si quisiera un borrado lógico, es decir, que no se elimine de la base de datos sino que se marque como borrado para poder recuperarlo de una "papelera"?
+```
+
+- **Qué hizo el agente:** confirmó que el borrado era definitivo y explicó que el borrado lógico (`deleted_at`) convierte borrar en un `UPDATE`, que una política por fila no puede limitar por columna; eso empuja a la opción B. Propuso tres niveles (definitivo, solo base de datos, papelera completa). El PO eligió el 2 (borrado lógico sin vista de papelera), aceptó estrenar el arnés de tests en S1 y decidió trabajar solo en local (el remoto pasa a D1).
+- **Resultado:** decisiones registradas y, tras `/opsx:propose`, el change `esquema-y-rls` con proposal, spec `diagram-storage`, design (11 decisiones) y tasks (15 tareas, 2,5 h).
+- **Impacto:** cambia el modelo de datos, la RLS y el PRD; es la decisión de producto más importante del bloque.
+
+**Prompt 5: una decisión que el agente tomó solo**
+
+```
+exlpicame tu decision 2
+```
+
+- **Qué hizo el agente:** explicó por qué Realtime solo publica inserciones de `diagram_ops`. Antes de responder consultó la documentación de Supabase (los `DELETE` no pasan por RLS ni se filtran) y valoró el riesgo como una fuga de metadatos, no de datos. Con el sí del PO añadió el riesgo a `design.md` (el `publish = 'insert'` vale para toda la publicación).
+- **Resultado:** `design.md` actualizado; después `/opsx:apply` implementó las 15 tareas, `/opsx:archive` creó la spec principal `diagram-storage` y archivó el change, y se abrió la PR #11.
+- **Impacto:** deja registrado un riesgo que afectaría a la presencia de la v2.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2. Arquitectura | Prompts 3 y 4 (borrado directo frente a función, y borrado lógico) |
+| 2.3 Modelo de datos | Prompt 4 (`deleted_at`) |
+| 2.5 Seguridad | Prompt 5 (Realtime, RLS y `DELETE`) |
+| 2.6 Tests | Prompt 4 (arnés de tests del backend ya en S1) |
+| 6. Tickets de trabajo | Prompt 4 (change con proposal, spec, design y tasks) |
+| 7. Pull Requests | Prompt 2 (cierre de F3) y la PR #11 |
+
+### Correcciones
+
+- **Recomendación que cambié sobre la marcha (prompt 3).** Recomendé primero la función de borrado y, al desarrollar los pros y contras, la desaconsejé por el mismo motivo que antes defendía. El PO se quedó con dos recomendaciones contradictorias; solo la pregunta de la papelera (prompt 4) lo resolvió.
+- **Decisión de Realtime escrita de memoria (prompt 5).** El `design.md` afirmaba que Realtime no aplica la RLS a los `DELETE` sin haberlo comprobado. Se verificó en la documentación solo después de que el PO preguntara; la afirmación era correcta, pero la comprobación debió ir antes.
+- **Seis decisiones tomadas sin consultar.** Al entregar el change, el agente las declaró como decisiones suyas (sin sesión → error de permisos, solo inserciones en Realtime, operaciones que sobreviven a la baja del usuario, dueño por la fila `owner`, CLI como dependencia fijada, restricciones nunca más estrictas que `ops.js`). El PO cuestionó la segunda; las otras cinco siguen sin revisar.
+- **Versión inventada.** Al fijar las dependencias el agente escribió `postgres` 3.4.7 de memoria; `npm view` daba 4.1.1 y lo corrigió antes de instalar.
+- **Avisos que habría dejado.** Los primeros tests de backend emitían un aviso de Node (módulo sin tipo) y otro por `shell: true`; se arreglaron con `supabase/package.json` y llamando a la CLI con `node`.
+- **Docker apagado.** `/opsx:apply` se detuvo en la tarea 1.2 en vez de seguir sin entorno; el PO arrancó Docker y se continuó.
+
+### Pendiente
+
+- Fusionar la PR #11 (S1) y borrar las ramas locales ya integradas (`docs/prd-v0-6`, `docs/prd-v0-7-supabase`, `chore/skill-cerrar-sesion-export`, `feat/f3-tests-del-frontend`).
+- Siguiente bloque: S2 (funciones de servidor) desde `develop` actualizado. Incluye `delete_diagram` y `restore_diagram`, y que `apply_op`, `create_invite` y `accept_invite` rechacen un diagrama en la papelera (no lo hace `member_role` para el dueño).
+- Revisar las cinco decisiones del agente que el PO no ha cuestionado (ver Correcciones).
+- Realtime con RLS por suscriptor sigue sin probarse: es de S3.
+- Sin purgado ni vista de papelera: los diagramas borrados se acumulan. Anotar para después de la entrega.
+- D1 incluye ahora crear el proyecto remoto de Supabase, enlazarlo y `db push` (0,5 h puede quedarse corto).
+- Escribir la spec de convergencia con operaciones pendientes al empezar F4.
+- Confirmar con el tutor que un backend en Supabase (SQL) cumple el requisito del curso.
+- Los trazos son de un solo usuario y dispositivo: el 90 % no cubre a otras personas.
+
+**Horas:** 2 (acumulado 17 h de 33, con la sesión 6 bis). S1 estaba prevista en 2,5 h y cupo en 2, con el arnés de tests incluido.
