@@ -49,3 +49,8 @@ create policy diagram_invites_lectura on public.diagram_invites
 
 create policy diagram_ops_lectura on public.diagram_ops
   for select to authenticated using (public.member_role(diagram_id) is not null);
+
+-- Realtime: solo se publica diagram_ops y solo sus inserciones. Realtime no aplica la RLS a los DELETE
+-- ni los filtra por diagrama, y el registro solo crece. Ojo: publish vale para toda la publicación.
+alter publication supabase_realtime add table public.diagram_ops;
+alter publication supabase_realtime set (publish = 'insert');

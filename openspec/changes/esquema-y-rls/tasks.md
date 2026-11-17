@@ -30,16 +30,16 @@ Requisito previo: Docker Desktop en marcha. No se modifica nada de `frontend/`.
 
 ## 5. Publicación de Realtime (0,15 h)
 
-- [ ] 5.1 Añadir a la migración de permisos `alter publication supabase_realtime add table public.diagram_ops` y `set (publish = 'insert')` (design.md §8). Crear `supabase/tests/realtime.test.js`, que con `sql` comprueba en `pg_publication_tables` que `diagram_ops` está en la publicación y las otras tres tablas no, y en `pg_publication` que solo se publican inserciones. Verificación: `npx supabase db reset` y `npm run test:backend` pasan.
+- [x] 5.1 Añadir a la migración de permisos `alter publication supabase_realtime add table public.diagram_ops` y `set (publish = 'insert')` (design.md §8). Crear `supabase/tests/realtime.test.js`, que con `sql` comprueba en `pg_publication_tables` que `diagram_ops` está en la publicación y las otras tres tablas no, y en `pg_publication` que solo se publican inserciones. Verificación: `npx supabase db reset` y `npm run test:backend` pasan.
 
 ## 6. PRD v0.7.2 (0,35 h)
 
-- [ ] 6.1 Actualizar `docs/PRD-MVP.md` según design.md §11: fila 0.7.2 en el historial (borrado lógico y remoto a D1, decisión del PO en la sesión 7); `deleted_at` en el modelo de datos; RLS con la papelera visible solo para el dueño y sin `DELETE` directo; API con `delete_diagram` y `restore_diagram` en lugar de `DELETE /rest/v1/diagrams`; S1 sin `db push` y con el arnés; aceptación de S1 "no accede" en lugar de "no devuelve filas"; S2 con las dos funciones y el rechazo de diagramas en la papelera; S3 con "borrar oculta y restaurar devuelve intacto"; D1 con el proyecto remoto; la decisión en la sección 9 con sus alternativas descartadas. Verificación: `grep -n "deleted_at\|delete_diagram\|restore_diagram\|0.7.2" docs/PRD-MVP.md` muestra cada punto, y no queda `DELETE /rest/v1/diagrams`.
+- [x] 6.1 Actualizar `docs/PRD-MVP.md` según design.md §11: fila 0.7.2 en el historial (borrado lógico y remoto a D1, decisión del PO en la sesión 7); `deleted_at` en el modelo de datos; RLS con la papelera visible solo para el dueño y sin `DELETE` directo; API con `delete_diagram` y `restore_diagram` en lugar de `DELETE /rest/v1/diagrams`; S1 sin `db push` y con el arnés; aceptación de S1 "no accede" en lugar de "no devuelve filas"; S2 con las dos funciones y el rechazo de diagramas en la papelera; S3 con "borrar oculta y restaurar devuelve intacto"; D1 con el proyecto remoto; la decisión en la sección 9 con sus alternativas descartadas. Verificación: `grep -n "deleted_at\|delete_diagram\|restore_diagram\|0.7.2" docs/PRD-MVP.md` muestra cada punto, y no queda `DELETE /rest/v1/diagrams`.
 
 ## 7. Comprobación final (0,1 h)
 
-- [ ] 7.1 Desde cero, `npx supabase db reset`, `npm run test:backend` y `node --test "frontend/**/*.test.js"` pasan con 0 fallos, y `git status -s frontend` no devuelve nada. Verificación: la salida de los tres comandos.
-- [ ] 7.2 Buscar secretos antes del commit: `git diff --cached` no contiene claves `sb_secret_`, `service_role` con valor, ni contraseñas de base de datos. Verificación: `git grep -n "sb_secret_\|eyJhbGci" -- supabase package.json` no devuelve nada.
+- [x] 7.1 Desde cero, `npx supabase db reset`, `npm run test:backend` y `node --test "frontend/**/*.test.js"` pasan con 0 fallos, y `git status -s frontend` no devuelve nada. Verificación: la salida de los tres comandos.
+- [x] 7.2 Buscar secretos antes del commit: `git diff --cached` no contiene claves `sb_secret_`, `service_role` con valor, ni contraseñas de base de datos. Verificación: `git grep -n "sb_secret_\|eyJhbGci" -- supabase package.json` no devuelve nada.
 
 ## Workflow follow-up
 
