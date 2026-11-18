@@ -34,7 +34,9 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `addEdge`, `updateEdge`, `removeEdge`, `setMeta` con dirección o `title`; el título se valida
   —texto de 1 a 200 caracteres, no solo espacios— pero se guarda sin transformar y no sale en el
   Mermaid). El tipo de diagrama se fija al crear: un `setMeta` con `kind` se rechaza. Las etiquetas de
-  nodos y conectores son texto de 200 caracteres como máximo (vacío vale). `apply(state, op)` la aplica o la rechaza con un motivo
+  nodos y conectores son texto de 200 caracteres como máximo (vacío vale). Una operación sin el objeto o los
+  identificadores de texto que necesita (`node`, `edge`, `id`, `set`) se rechaza como `invalid` en vez de lanzar:
+  un registro con una operación así no puede hacer caer a un cliente. `apply(state, op)` la aplica o la rechaza con un motivo
   sin cambiar nada; `inverse(state, op)` calcula cómo deshacerla; `newId()` da UUID v4 (con alternativa a
   `crypto.randomUUID`, que no existe en `http://<ip>` de la tablet). Es lo que F4 enviará por la red.
 - `model.js`: estado del diagrama (`state`: `kind`, `dir`, `title` —"Diagrama sin título" al empezar—,
@@ -53,10 +55,23 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `convergencia.test.js` prueba con `helpers/red-simulada.js` (servidor que numera y clientes con operaciones pendientes, semilla fija) que todos acaban con el mismo grafo y Mermaid;
   `mermaid-tipos.test.js` fija el código completo de un diagrama de Flujo y uno de Estados;
   `grabacion.test.js` prueba el estado de la grabación y `reconocedor.test.js` exige ≥ 90 % por forma y tipo de diagrama con los trazos del S Pen, en cada archivo de `fixtures/trazos/` y en el conjunto; `abiertos.test.js` fija que una línea, una "L", una "U" y un arco siguen siendo trazos abiertos (conectores).
-- `supabase/` (backend, bloque S1): `config.toml`, `migrations/` (esquema y permisos) y `tests/*.test.js`
-  con `node --test` y supabase-js contra el Supabase local; `tests/helpers/entorno.js` lee las claves de
-  `supabase status` y da `admin()`, `anonimo()`, `usuario()` y `sql`. Ninguna escritura directa en las
-  tablas: solo funciones (S2). Borrar un diagrama lo marca con `deleted_at` y solo lo ve su dueño.
+- `supabase/` (backend, bloques S1 y S2): `config.toml`, `migrations/` y `tests/*.test.js` con `node --test` y
+  supabase-js contra el Supabase local; `tests/helpers/entorno.js` lee las claves de `supabase status` y da
+  `admin()`, `anonimo()`, `usuario()` y `sql`, y `helpers/datos.js` prepara datos (`escenario()` siembra con la clave
+  de servicio; `equipo()` crea el diagrama con `create_diagram`, que es lo que hay que usar para probar escrituras).
+  Ninguna escritura directa en las tablas: solo estas funciones, `security definer` con `search_path` vacío y
+  ejecutables solo por `authenticated` (parámetros con prefijo `p_`): `create_diagram(p_kind)`, `delete_diagram` y
+  `restore_diagram` (solo el dueño, idempotentes), `create_invite` y `accept_invite` (el enlace se puede reutilizar
+  hasta que caduque y aceptar no cambia el rol de un miembro) y `apply_op(p_diagram_id, p_op_id, p_op)`, que
+  devuelve la secuencia. `apply_op` comprueba el rol y la forma de la operación, bloquea la fila del diagrama
+  (`FOR UPDATE`), devuelve la secuencia ya guardada si el `op_id` se repite, aplica el tope de 5 000 y copia el
+  título y la dirección de `setMeta` a `diagrams`; no interpreta el grafo. `validate_op` usa las reglas de
+  `ops.js` (longitud en UTF-16, blancos de `trim`). Cada rechazo es un `RAISE` con SQLSTATE `PT<estado>` y una clave
+  en `message` (404 `not_found` o `invite_invalid`, 403 `forbidden`, 410 `diagram_deleted`, 422 `invalid_op`, 409
+  `op_limit`), que PostgREST devuelve como ese estado HTTP; las auxiliares (`raise_api_error`,
+  `diagram_role_or_fail`, `validate_op`…) no se exponen. `fixtures-ops.test.js` envía al servidor las fixtures de
+  `frontend/test/fixtures/ops/` y exige que acepte lo que el cliente acepta o descarta por el grafo y rechace lo
+  que el cliente rechaza por su forma. Borrar un diagrama lo marca con `deleted_at` y solo lo ve su dueño.
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 
