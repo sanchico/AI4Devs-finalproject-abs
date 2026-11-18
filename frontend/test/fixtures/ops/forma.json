@@ -1,0 +1,30 @@
+{
+  "nombre": "forma",
+  "descripcion": "Operaciones mal formadas entre dos válidas: se rechazan sin lanzar ninguna excepción y el diagrama no cambia. El servidor (supabase/tests/fixtures-ops.test.js) las rechaza igual",
+  "ops": [
+    { "op": { "type": "addNode", "node": { "id": "a", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "A" } }, "resultado": "ok" },
+    { "op": { "type": "addNode" }, "resultado": "invalid" },
+    { "op": { "type": "addNode", "node": { "id": 42 } }, "resultado": "invalid" },
+    { "op": { "type": "addEdge" }, "resultado": "invalid" },
+    { "op": { "type": "addEdge", "edge": { "id": "e1", "from": "a" } }, "resultado": "invalid" },
+    { "op": { "type": "updateNode", "id": "a" }, "resultado": "invalid" },
+    { "op": { "type": "updateNode", "id": 7, "set": { "x": 1 } }, "resultado": "invalid" },
+    { "op": { "type": "updateEdge", "id": "e1", "set": "x" }, "resultado": "invalid" },
+    { "op": { "type": "removeNode" }, "resultado": "invalid" },
+    { "op": { "type": "removeEdge", "id": 1 }, "resultado": "invalid" },
+    { "op": { "type": "setMeta" }, "resultado": "invalid" },
+    { "op": { "type": "setMeta", "set": "LR" }, "resultado": "invalid" },
+    { "op": null, "resultado": "unknown" },
+    { "op": 5, "resultado": "unknown" },
+    { "op": [], "resultado": "unknown" },
+    { "op": { "type": "addNode", "node": { "id": "b", "shape": "rect", "x": 0, "y": 100, "w": 80, "h": 40, "label": "B" } }, "resultado": "ok" }
+  ],
+  "final": {
+    "kind": "flow", "dir": "TD", "title": "Diagrama sin título",
+    "nodes": [
+      { "id": "a", "shape": "rect", "x": 0, "y": 0, "w": 80, "h": 40, "label": "A" },
+      { "id": "b", "shape": "rect", "x": 0, "y": 100, "w": 80, "h": 40, "label": "B" }
+    ],
+    "edges": []
+  }
+}

@@ -126,6 +126,25 @@ const rechazos = [
   ['setMeta con un título que no es texto', { type: 'setMeta', set: { title: 42 } }, 'invalid'],
   ['setMeta con título válido y tipo desconocido', { type: 'setMeta', set: { title: 'Login', kind: 'clases' } }, 'invalid'],
   ['operación de tipo desconocido', { type: 'teletransportar', id: 'a' }, 'unknown'],
+  // Mal formadas: faltan el objeto o los identificadores de texto que apply() lee (antes lanzaban una excepción)
+  ['addNode sin node', { type: 'addNode' }, 'invalid'],
+  ['addNode con node que no es un objeto', { type: 'addNode', node: 'a' }, 'invalid'],
+  ['addNode con node nulo', { type: 'addNode', node: null }, 'invalid'],
+  ['addNode con un id numérico', { type: 'addNode', node: { id: 42 } }, 'invalid'],
+  ['addEdge sin edge', { type: 'addEdge' }, 'invalid'],
+  ['addEdge sin extremos', { type: 'addEdge', edge: { id: 'e9' } }, 'invalid'],
+  ['addEdge con un extremo numérico', { type: 'addEdge', edge: { id: 'e9', from: 'a', to: 3 } }, 'invalid'],
+  ['updateNode con un id numérico', { type: 'updateNode', id: 42, set: { x: 1 } }, 'invalid'],
+  ['updateNode sin set', { type: 'updateNode', id: 'a' }, 'invalid'],
+  ['updateNode con set que no es un objeto', { type: 'updateNode', id: 'a', set: [] }, 'invalid'],
+  ['updateEdge sin set', { type: 'updateEdge', id: 'e1' }, 'invalid'],
+  ['removeNode sin id', { type: 'removeNode' }, 'invalid'],
+  ['removeEdge con un id numérico', { type: 'removeEdge', id: 1 }, 'invalid'],
+  ['setMeta sin set', { type: 'setMeta' }, 'invalid'],
+  ['setMeta con set que no es un objeto', { type: 'setMeta', set: 'LR' }, 'invalid'],
+  ['una operación nula', null, 'unknown'],
+  ['una operación que es un número', 5, 'unknown'],
+  ['una operación que es un array', [], 'unknown'],
 ];
 for (const [nombre, op, reason] of rechazos) {
   test(`rechaza ${nombre} (${reason}) sin cambiar nada`, () => {
@@ -163,6 +182,35 @@ test('dos réplicas con la misma secuencia (con rechazos) terminan iguales', () 
   assert.deepEqual(r1, r2);
   assert.deepEqual(res1.map(r => r.ok), [true, true, true, false, false, true, true, false, true]);
   assert.deepEqual(r1.nodes, [node('a', { label: 'Inicio' })]);
+});
+
+test('un registro con operaciones mal formadas no lanza y deja a todas las réplicas con el mismo diagrama', () => {
+  const secuencia = [
+    { type: 'addNode', node: node('a') },
+    { type: 'addNode' },                                   // sin node: antes lanzaba un TypeError
+    { type: 'addEdge' },                                   // sin edge
+    { type: 'addEdge', edge: { id: 'e1' } },               // sin extremos
+    { type: 'updateNode', id: 'a' },                       // sin set
+    { type: 'removeNode' },
+    null,
+    { type: 'addNode', node: node('b') },
+    { type: 'addEdge', edge: edge('e1', 'a', 'b') },
+  ];
+  const r1 = empty(), r2 = empty();
+  const res1 = secuencia.map(op => apply(r1, op));         // si alguna lanzara, el test fallaría aquí
+  const res2 = secuencia.map(op => apply(r2, JSON.parse(JSON.stringify(op))));
+  assert.deepEqual(res1, res2);
+  assert.deepEqual(r1, r2);
+  assert.deepEqual(res1.map(r => r.ok ? 'ok' : r.reason), ['ok', 'invalid', 'invalid', 'invalid', 'invalid', 'invalid', 'unknown', 'ok', 'ok']);
+  assert.deepEqual(r1.nodes.map(n => n.id), ['a', 'b']);
+  assert.deepEqual(r1.edges.map(e => e.id), ['e1']);
+});
+
+test('inverse devuelve una lista vacía, sin lanzar, para una operación mal formada', () => {
+  const s = triangle();
+  for (const op of [{ type: 'addNode' }, { type: 'addEdge' }, { type: 'updateNode', id: 'a' }, { type: 'removeNode' }, { type: 'setMeta' }]) {
+    assert.deepEqual(inverse(s, op), [], JSON.stringify(op));
+  }
 });
 
 // ---------- model.js: gestos, deshacer ----------

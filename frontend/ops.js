@@ -14,10 +14,26 @@ const MAX_TITLE = 200;
 const MAX_LABEL = 200;
 // The title is stored exactly as received (no trimming), so the server can copy it without transforming it
 const validTitle = t => typeof t === 'string' && t.trim() !== '' && t.length <= MAX_TITLE;
-// Same measure as the title (UTF-16 units; the server counts code points, so it is never stricter). Empty is valid.
+// Same measure as the title: UTF-16 units, which the server's validate_op counts the same way. Empty is valid.
 const validLabel = l => typeof l === 'string' && l.length <= MAX_LABEL;
 // A label that is present must be valid; an absent one is not this check's business
 const labelOk = obj => !obj || !('label' in obj) || validLabel(obj.label);
+
+// Shape of each operation: the objects and text ids that apply() and inverse() read. A malformed operation
+// is rejected instead of throwing, so one bad entry in the log can never take a client down. The server's
+// validate_op checks the same shape before it stores anything.
+const isObj = v => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isStr = v => typeof v === 'string';
+function wellFormed(op) {
+  switch (op.type) {
+    case 'addNode': return isObj(op.node) && isStr(op.node.id);
+    case 'addEdge': return isObj(op.edge) && isStr(op.edge.id) && isStr(op.edge.from) && isStr(op.edge.to);
+    case 'updateNode': case 'updateEdge': return isStr(op.id) && isObj(op.set);
+    case 'removeNode': case 'removeEdge': return isStr(op.id);
+    case 'setMeta': return isObj(op.set);
+    default: return true;   // an unknown type is rejected as 'unknown' by the switch
+  }
+}
 
 const ok = () => ({ ok: true });
 const fail = reason => ({ ok: false, reason });
@@ -38,6 +54,7 @@ const nodeIndex = (s, id) => s.nodes.findIndex(n => n.id === id);
 const edgeIndex = (s, id) => s.edges.findIndex(e => e.id === id);
 
 export function apply(state, op) {
+  if (isObj(op) && !wellFormed(op)) return fail('invalid');
   switch (op?.type) {
     case 'addNode': {
       if (!labelOk(op.node)) return fail('invalid');
@@ -98,6 +115,7 @@ export function apply(state, op) {
 // order returned. Returns [] if `op` would be rejected. Undo is local to each client, so this has no
 // counterpart on the server.
 export function inverse(state, op) {
+  if (isObj(op) && !wellFormed(op)) return [];
   switch (op?.type) {
     case 'addNode': return [{ type: 'removeNode', id: op.node.id }];
     case 'addEdge': return [{ type: 'removeEdge', id: op.edge.id }];
