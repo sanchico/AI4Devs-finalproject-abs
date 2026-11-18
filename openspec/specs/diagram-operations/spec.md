@@ -9,7 +9,7 @@ la misma secuencia y llegar al mismo estado, y cada usuario pueda deshacer solo 
 ## Requirements
 
 ### Requirement: Todo cambio del diagrama es una operación
-El sistema SHALL realizar todo cambio de nodos, aristas, tipo, dirección o título mediante una operación de
+El sistema SHALL realizar todo cambio de nodos, aristas, dirección o título mediante una operación de
 uno de estos tipos: `addNode`, `updateNode`, `removeNode`, `addEdge`, `updateEdge`, `removeEdge` o
 `setMeta`. Una operación MUST ser un objeto JSON plano (sin funciones ni referencias a objetos del modelo),
 de modo que aplicar la operación o su copia serializada y deserializada produzca el mismo estado.
@@ -126,6 +126,10 @@ válido, el sistema MUST NOT aplicar ninguno.
 - **WHEN** se aplica `setMeta` con el título "Login" y un tipo de diagrama desconocido
 - **THEN** la operación se rechaza y ni el título ni el tipo cambian
 
+#### Scenario: Título válido con una dirección inválida
+- **WHEN** se aplica `setMeta` con el título "Login" y una dirección desconocida
+- **THEN** la operación se rechaza y ni el título ni la dirección cambian
+
 ### Requirement: El título no forma parte del código Mermaid
 El sistema MUST NOT incluir el título en el código Mermaid generado: cambiar el título SHALL dejar el código
 idéntico.
@@ -133,3 +137,45 @@ idéntico.
 #### Scenario: Renombrar el ejemplo
 - **WHEN** se carga el ejemplo, se genera su código Mermaid y después se aplica `setMeta` con el título "Login"
 - **THEN** el código Mermaid generado es idéntico al de antes
+
+### Requirement: El tipo del diagrama no cambia con operaciones
+El sistema MUST NOT cambiar el tipo de un diagrama con ninguna operación: el tipo se fija al crear el
+diagrama. Una operación `setMeta` que incluya el campo `kind` SHALL rechazarse con el motivo "inválido"
+sin aplicar ninguno de sus campos.
+
+#### Scenario: Cambiar el tipo
+- **WHEN** se aplica `setMeta` con el tipo "state" a un diagrama de tipo "flow"
+- **THEN** la operación se rechaza con el motivo "inválido" y el tipo sigue siendo "flow"
+
+#### Scenario: Tipo junto a un título válido
+- **WHEN** se aplica `setMeta` con el título "Login" y el tipo "state"
+- **THEN** la operación se rechaza y el título no cambia
+
+#### Scenario: Dirección y título siguen siendo editables
+- **WHEN** se aplica `setMeta` con la dirección "LR" y el título "Login"
+- **THEN** la operación se acepta y el tipo, los nodos y las aristas no cambian
+
+### Requirement: Validación de las etiquetas
+El sistema SHALL rechazar con el motivo "inválido", sin cambiar nada, una operación que añada o cambie la
+etiqueta de un nodo o de un conector con algo que no sea texto o con más de 200 caracteres. Una etiqueta
+vacía MUST aceptarse.
+
+#### Scenario: Etiqueta de 200 caracteres
+- **WHEN** se aplica `addNode` con una etiqueta de exactamente 200 caracteres
+- **THEN** la operación se acepta
+
+#### Scenario: Etiqueta demasiado larga en un nodo
+- **WHEN** se aplica `updateNode` con una etiqueta de 201 caracteres
+- **THEN** la operación se rechaza con el motivo "inválido" y la etiqueta del nodo no cambia
+
+#### Scenario: Etiqueta demasiado larga en un conector
+- **WHEN** se aplica `addEdge` o `updateEdge` con una etiqueta de 201 caracteres
+- **THEN** la operación se rechaza y el diagrama no cambia
+
+#### Scenario: Etiqueta que no es texto
+- **WHEN** se aplica `updateNode` con la etiqueta `42`
+- **THEN** la operación se rechaza y la etiqueta del nodo no cambia
+
+#### Scenario: Etiqueta vacía
+- **WHEN** se aplica `updateNode` con la etiqueta ""
+- **THEN** la operación se acepta y el nodo queda sin etiqueta

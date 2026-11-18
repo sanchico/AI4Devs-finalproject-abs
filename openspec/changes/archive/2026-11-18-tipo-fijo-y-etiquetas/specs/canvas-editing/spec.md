@@ -29,8 +29,8 @@ diagrama y el tipo MUST quedar como estaban.
 El sistema SHALL deshacer el último gesto del usuario sobre el modelo (crear, conectar, mover, renombrar,
 borrar o limpiar), con un máximo de 60 pasos, devolviendo los nodos y aristas afectados a su estado y su
 orden anteriores, y SHALL avisar "Nada que deshacer" si no queda ninguno. Un arrastre completo de un nodo
-SHALL contar como un solo paso. Los cambios de dirección MUST NOT entrar en la pila de deshacer, y cambiar
-el tipo de diagrama, que empieza un diagrama nuevo, SHALL vaciarla. "Limpiar" SHALL vaciar el diagrama.
+SHALL contar como un solo paso. Los cambios de dirección MUST NOT entrar en la pila de deshacer y el cambio de
+tipo SHALL vaciarla. "Limpiar" SHALL vaciar el diagrama.
 
 #### Scenario: Deshacer un nodo nuevo
 - **WHEN** el usuario dibuja un rectángulo y pulsa "Deshacer"
