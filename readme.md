@@ -133,8 +133,8 @@ de tipos de Mermaid), pan y zoom, escritura a mano para las etiquetas e importac
 ### **1.4. Instrucciones de instalación:**
 > Documenta de manera precisa las instrucciones para instalar y poner en marcha el proyecto en local (librerías, backend, frontend, servidor, base de datos, migraciones y semillas de datos, etc.)
 
-**Prototipo actual (solo frontend).** No tiene dependencias ni build: basta con servir la carpeta
-`frontend/` con cualquier servidor HTTP estático (requiere Node).
+**Prototipo actual (frontend y backend local).** El frontend no tiene dependencias ni build: basta con servir
+la carpeta `frontend/` con cualquier servidor HTTP estático (requiere Node).
 
 ```bash
 npx -y http-server -p 8000 -s -c-1 frontend
@@ -149,6 +149,17 @@ Tests del frontend (Node 22 o superior, sin instalar nada):
 ```bash
 node --test "frontend/**/*.test.js"
 ```
+
+Backend en local (Supabase, bloques S1 y S2). Hace falta Docker en marcha; desde la raíz del repositorio:
+
+```bash
+npm install
+npx supabase start       # la primera vez descarga las imágenes
+npm run test:backend     # node --test sobre supabase/tests
+```
+
+`npx supabase db reset` vuelve a aplicar las migraciones desde cero y `npx supabase stop` apaga el entorno. Es
+solo local: el proyecto remoto llega en D1, y el frontend todavía no usa el backend (llega en F4).
 
 **MVP (previsto).** *Pendiente de confirmar al implementarlo.* Requisitos: Java 21, Maven 3.9,
 Docker y una cuenta de Supabase.
@@ -277,13 +288,17 @@ trazo-mermaid/
 │   ├── package.json          Solo declara "type": "module" para poder importar desde Node
 │   ├── geometry.js           Utilidades geométricas (puro)
 │   ├── recognizer.js         Reconocimiento de trazos (puro)
+│   ├── grabacion.js          Modo de grabación ?grabar: muestras de trazos por forma (puro)
 │   ├── kinds/                Un módulo por tipo de diagrama (formas y sintaxis) y mermaidCode (puro)
 │   ├── ops.js                Operaciones sobre el grafo: apply, inverse y UUID (puro)
 │   ├── model.js              Estado del diagrama, gestos y deshacer por operaciones inversas (sin DOM)
 │   ├── render.js             Canvas, vista previa y leyenda
 │   ├── input.js              Pointer Events, toque y editor de etiqueta
 │   ├── main.js               Arranque, barra de herramientas y avisos
-│   └── test/                 Tests con node --test y línea base del refactor
+│   └── test/                 Tests con node --test, trazos grabados y fixtures de operaciones
+├── supabase/                 Backend local: config.toml, migrations/ (esquema, RLS y funciones) y
+│                             tests/ (node --test contra el Supabase local)
+├── package.json              Dependencias solo de los tests del backend (supabase-js, postgres, CLI)
 ├── openspec/                 Specs principales y cambios (propuesta, diseño y tareas)
 ├── CLAUDE.md                 Contexto del proyecto para Claude Code
 ├── prompts.md                Prompts principales (entrega del curso)
