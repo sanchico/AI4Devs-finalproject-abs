@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Estado | Vigente: es el PRD de la entrega. Sustituye a la v0.6, que se conserva como mejora futura en [PRD-backend-java.md](PRD-backend-java.md) |
-| Versión | 0.7.2 · 17 nov 2026 (borrado lógico y proyecto remoto en D1). La 0.7.1, del 16 nov, corrigió la regla de las operaciones pendientes. La 0.7, del 13 nov, adoptó la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov |
+| Versión | 0.7.3 · 18 nov 2026 (el tipo de diagrama se fija al crear y las etiquetas tienen tope). La 0.7.2, del 17 nov, añadió el borrado lógico y el proyecto remoto en D1. La 0.7.1, del 16 nov, corrigió la regla de las operaciones pendientes. La 0.7, del 13 nov, adoptó la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov |
 | Base | `develop` con F1 y F2 cerrados (sesión 4 de la [bitácora](bitacora.md), más F2) |
 | Presupuesto | 27,5 h en total: 8 h gastadas hasta la sesión 4, 3 h previstas de F2 (ya hecho) y 16,5 h por hacer |
 | Motivo | F1 costó 5,25 h frente a 3 h previstas y la sesión 4 fue un arreglo no planificado de 2,25 h; al plan v0.6 ya no le caben sus 32 h |
@@ -24,6 +24,7 @@ indicada. Hasta la v0.6 el documento es el que hoy se conserva como [PRD-backend
 | 0.7 | 13 nov 2026 | Arquitectura y plan | Todo el backend en Supabase (PostgreSQL con RLS, `apply_op` en PL/pgSQL y Realtime); mismo producto y criterios que la v0.6; 27,5 h | F1 costó 5,25 h frente a 3 y la sesión 4 añadió 2,25 h sin planificar: a la v0.6 no le caben sus 32 h; sesiones 5 y 6, commit `f2bc764` |
 | 0.7.1 | 16 nov 2026 | Corrección | Reescribe la regla de respuesta inmediata: registro confirmado más operaciones pendientes aplicadas encima; un rechazo solo quita la pendiente. Alcance y horas sin cambios | La regla anterior diverge con dos inserciones en la misma posición; probado con un cliente de control en el change `convergencia-sin-red` (F3, sesión 6) |
 | 0.7.2 | 17 nov 2026 | Arquitectura | Borrar un diagrama lo marca (`deleted_at`) en vez de eliminarlo y solo lo ve su dueño; borrar y restaurar son funciones (`delete_diagram`, `restore_diagram`) y no hay escrituras directas en ninguna tabla; el proyecto remoto de Supabase pasa de S1 a D1. Sin vista de papelera ni purgado en el MVP; horas sin cambios | Decisión del PO en la sesión 7: un borrado tiene que poder deshacerse; con borrado lógico, borrar es un `UPDATE` y una política por fila dejaría cambiar también `last_seq` o `title`; change `esquema-y-rls` (S1) |
+| 0.7.3 | 18 nov 2026 | Arquitectura | El tipo de diagrama se fija al crear (`create_diagram(kind)`, sin `title`) y `setMeta` solo cambia dirección y título; las etiquetas de nodos y conectores se limitan a 200 caracteres también en el cliente. Alcance y horas sin cambios | Con tipos de formas distintas, cambiar el tipo con el diagrama dibujado deja nodos sin significado, y como operación dejaba la fila de `diagrams` y el registro diciendo cosas distintas; sesión 8, change `tipo-fijo-y-etiquetas` |
 
 ## 1. Resumen
 
@@ -134,7 +135,8 @@ versión (aquí serían Realtime Presence y pedir las operaciones que faltan al 
 ### Modelo de colaboración
 
 - **Operaciones:** las mismas de la v0.6 (`addNode`, `updateNode`, `removeNode`, `addEdge`, `updateEdge`,
-  `removeEdge`, `setMeta`), con identificadores UUID. F2 no cambia.
+  `removeEdge`, `setMeta`), con identificadores UUID. Desde la v0.7.3 `setMeta` solo cambia la dirección y el título: el tipo se fija al
+  crear el diagrama. F2 cambia solo en eso y en el tope de 200 caracteres de las etiquetas.
 - **Orden:** el cliente llama a `apply_op(diagrama, id_de_operación, operación)`. La función incrementa
   `diagrams.last_seq` con un `UPDATE`, que bloquea la fila hasta el final de la transacción. Dos
   operaciones sobre el mismo diagrama nunca se numeran a la vez: es el equivalente a la cola por sala.
@@ -160,6 +162,8 @@ versión (aquí serían Realtime Presence y pedir las operaciones que faltan al 
   a solo lectura con el aviso "Sin conexión: recarga la página". Al recargar se reproduce el registro.
   Las operaciones propias sin confirmar se pierden.
 - **Título:** `apply_op` con `setMeta` lo copia a `diagrams.title`, y la lista lo lee de ahí.
+- **Tipo:** lo fija `create_diagram` y no cambia nunca; el cliente lo lee de `diagrams.kind` antes de reproducir
+  el registro. Cambiar de tipo es crear otro diagrama (en modo local, el selector de la barra, con confirmación si hay nodos).
 - **Diagrama borrado:** `delete_diagram` lo marca con `deleted_at` y conserva miembros, invitaciones y
   operaciones; `restore_diagram` quita la marca. Quien lo tenga abierto recibe un error en su siguiente
   `apply_op`, o cero filas al recargar (salvo el dueño); el cliente muestra "Este diagrama se ha borrado"
@@ -188,7 +192,7 @@ solo puede leer.
 
 | Tabla | Lectura | Escritura |
 |---|---|---|
-| `diagrams` | Miembros; si está borrado, solo el dueño | Crear: `create_diagram`. Borrar y restaurar: `delete_diagram` y `restore_diagram` (el dueño). Título, tipo y dirección: `apply_op` con `setMeta` |
+| `diagrams` | Miembros; si está borrado, solo el dueño | Crear: `create_diagram`. Borrar y restaurar: `delete_diagram` y `restore_diagram` (el dueño). Título y dirección: `apply_op` con `setMeta`; el tipo se fija en `create_diagram` y no cambia |
 | `diagram_members` | Miembros del mismo diagrama | Solo `create_diagram` y `accept_invite` |
 | `diagram_invites` | El dueño | Solo `create_invite` |
 | `diagram_ops` | Miembros | Solo `apply_op` |
@@ -207,7 +211,7 @@ además un diagrama borrado.
 | `GET /rest/v1/diagram_ops?diagram_id=eq.{id}&seq=gt.{n}&order=seq` | Operaciones desde una secuencia, de 1 000 en 1 000 |
 | `rpc/delete_diagram(diagram_id)` | Marca un diagrama como borrado (solo el dueño) |
 | `rpc/restore_diagram(diagram_id)` | Quita la marca de borrado (solo el dueño) |
-| `rpc/create_diagram(title, kind)` | Crea el diagrama vacío ("Diagrama sin título", tipo flujo) y a su dueño como miembro |
+| `rpc/create_diagram(kind)` | Crea el diagrama vacío ("Diagrama sin título", del tipo indicado) y a su dueño como miembro |
 | `rpc/create_invite(diagram_id, role)` | Crea una invitación con token de 32 bytes y caducidad de 7 días |
 | `rpc/accept_invite(token)` | Añade al usuario como miembro si la invitación no ha caducado |
 | `rpc/apply_op(diagram_id, op_id, op)` | Autoriza, numera y guarda una operación; devuelve su secuencia |
@@ -257,7 +261,7 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
 - `create_diagram`, `create_invite`, `accept_invite`, `apply_op`, `delete_diagram` y `restore_diagram`, en PL/pgSQL, `security definer` y
   con `search_path` fijo. Permiso de ejecución solo para `authenticated`.
 - `apply_op` comprueba el rol (dueño o editor), el tipo de operación, el tamaño (2 kB; etiquetas de 200
-  caracteres) y el tope de 5 000 operaciones. Con `setMeta` actualiza además título, tipo y dirección
+  caracteres) y el tope de 5 000 operaciones. Con `setMeta` (que no admite el tipo) actualiza además título y dirección
   en `diagrams`.
 - `accept_invite` guarda en `display_name` el correo del JWT.
 - **Aceptación:** dos sesiones llaman a `apply_op` a la vez sobre el mismo diagrama y reciben secuencias
