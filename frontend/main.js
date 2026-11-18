@@ -14,7 +14,14 @@ const toast = m => { toastEl.textContent = m; toastEl.classList.add('show'); cle
 initInput({toast});
 
 // ---------- Toolbar ----------
-$('kind').addEventListener('change', e => { model.setKind(e.target.value); renderLegend(); update(); toast('Ahora solo se reconocen las formas de: '+KINDS[state.kind].name); });
+// The type is fixed when a diagram is created: choosing another one starts a new diagram. With nodes on the
+// canvas it asks first; cancelling puts the selector back on the current type.
+$('kind').addEventListener('change', e => {
+  const kind = e.target.value;
+  if(state.nodes.length && !confirm('Cambiar a '+KINDS[kind].name+' empieza un diagrama nuevo y borra el actual. Esta acción no se puede deshacer.')){ e.target.value = state.kind; return; }
+  if(!model.newDiagram(kind).ok){ e.target.value = state.kind; return; }
+  renderLegend(); update(); toast('Ahora solo se reconocen las formas de: '+KINDS[state.kind].name);
+});
 $('dir').addEventListener('change', e => { model.setDir(e.target.value); update(); });
 $('mode').addEventListener('click', e => { const draws=toggleMouseDraws(); e.target.textContent = draws?'Ratón: dibuja':'Ratón: mueve'; canvas.style.cursor = draws?'crosshair':'grab'; });
 $('undo').addEventListener('click', () => { if(!model.undo().ok){ toast('Nada que deshacer'); return; } update(); });
