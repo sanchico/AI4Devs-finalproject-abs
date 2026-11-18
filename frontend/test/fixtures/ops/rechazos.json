@@ -19,6 +19,8 @@
     { "op": { "type": "updateEdge", "id": "nope", "set": { "label": "x" } }, "resultado": "missing" },
     { "op": { "type": "removeEdge", "id": "nope" }, "resultado": "missing" },
     { "op": { "type": "setMeta", "set": { "kind": "clases" } }, "resultado": "invalid" },
+    { "op": { "type": "setMeta", "set": { "kind": "state" } }, "resultado": "invalid" },
+    { "op": { "type": "updateNode", "id": "a", "set": { "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" } }, "resultado": "invalid" },
     { "op": { "type": "setMeta", "set": { "dir": "RL" } }, "resultado": "invalid" },
     { "op": { "type": "setMeta", "set": { "title": "   " } }, "resultado": "invalid" },
     { "op": { "type": "setMeta", "set": { "title": "Nuevo", "kind": "clases" } }, "resultado": "invalid" },

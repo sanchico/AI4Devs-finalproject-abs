@@ -1,8 +1,9 @@
 {
   "nombre": "estados-con-pseudoestados",
   "descripcion": "Diagrama de estados de izquierda a derecha: elipses inicial y final ([*]), un estado y una elección",
+  "inicial": { "kind": "state", "dir": "TD", "title": "Diagrama sin título", "nodes": [], "edges": [] },
   "ops": [
-    { "op": { "type": "setMeta", "set": { "kind": "state", "dir": "LR" } }, "resultado": "ok" },
+    { "op": { "type": "setMeta", "set": { "dir": "LR" } }, "resultado": "ok" },
     { "op": { "type": "addNode", "node": { "id": "i", "shape": "ellipse", "x": 0, "y": 0, "w": 64, "h": 40, "label": "" } }, "resultado": "ok" },
     { "op": { "type": "addNode", "node": { "id": "s", "shape": "rect", "x": 100, "y": 0, "w": 100, "h": 40, "label": "Activo" } }, "resultado": "ok" },
     { "op": { "type": "addNode", "node": { "id": "c", "shape": "diamond", "x": 240, "y": 0, "w": 64, "h": 40, "label": "ignorada" } }, "resultado": "ok" },
