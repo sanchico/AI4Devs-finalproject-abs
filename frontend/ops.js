@@ -2,18 +2,38 @@
 // Every change to the diagram is one of these plain-JSON operations:
 //   addNode {node, at?}   updateNode {id, set}   removeNode {id}
 //   addEdge {edge, at?}   updateEdge {id, set}   removeEdge {id}
-//   setMeta {set:{kind?, dir?, title?}}
+//   setMeta {set:{dir?, title?}}   (the diagram type is fixed at creation: a `kind` is rejected)
 // `state` is {kind, dir, title, nodes, edges}. apply() mutates it in place and returns {ok:true} or
 // {ok:false, reason}; a rejected operation never changes anything.
-import { KINDS } from './kinds/index.js';
 
 const NODE_FIELDS = ['x', 'y', 'w', 'h', 'label'];
 const EDGE_FIELDS = ['label'];
-const META_FIELDS = ['kind', 'dir', 'title'];
+const META_FIELDS = ['dir', 'title'];
 const DIRS = ['TD', 'LR'];
 const MAX_TITLE = 200;
+const MAX_LABEL = 200;
 // The title is stored exactly as received (no trimming), so the server can copy it without transforming it
 const validTitle = t => typeof t === 'string' && t.trim() !== '' && t.length <= MAX_TITLE;
+// Same measure as the title: UTF-16 units, which the server's validate_op counts the same way. Empty is valid.
+const validLabel = l => typeof l === 'string' && l.length <= MAX_LABEL;
+// A label that is present must be valid; an absent one is not this check's business
+const labelOk = obj => !obj || !('label' in obj) || validLabel(obj.label);
+
+// Shape of each operation: the objects and text ids that apply() and inverse() read. A malformed operation
+// is rejected instead of throwing, so one bad entry in the log can never take a client down. The server's
+// validate_op checks the same shape before it stores anything.
+const isObj = v => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isStr = v => typeof v === 'string';
+function wellFormed(op) {
+  switch (op.type) {
+    case 'addNode': return isObj(op.node) && isStr(op.node.id);
+    case 'addEdge': return isObj(op.edge) && isStr(op.edge.id) && isStr(op.edge.from) && isStr(op.edge.to);
+    case 'updateNode': case 'updateEdge': return isStr(op.id) && isObj(op.set);
+    case 'removeNode': case 'removeEdge': return isStr(op.id);
+    case 'setMeta': return isObj(op.set);
+    default: return true;   // an unknown type is rejected as 'unknown' by the switch
+  }
+}
 
 const ok = () => ({ ok: true });
 const fail = reason => ({ ok: false, reason });
@@ -34,8 +54,10 @@ const nodeIndex = (s, id) => s.nodes.findIndex(n => n.id === id);
 const edgeIndex = (s, id) => s.edges.findIndex(e => e.id === id);
 
 export function apply(state, op) {
+  if (isObj(op) && !wellFormed(op)) return fail('invalid');
   switch (op?.type) {
     case 'addNode': {
+      if (!labelOk(op.node)) return fail('invalid');
       if (nodeIndex(state, op.node.id) >= 0) return fail('duplicate');
       state.nodes.splice(clamp(op.at, state.nodes.length), 0, { ...op.node });
       return ok();
@@ -43,6 +65,7 @@ export function apply(state, op) {
     case 'updateNode': {
       const n = state.nodes[nodeIndex(state, op.id)];
       if (!n) return fail('missing');
+      if (!labelOk(op.set)) return fail('invalid');
       Object.assign(n, pick(op.set, NODE_FIELDS));
       return ok();
     }
@@ -55,6 +78,7 @@ export function apply(state, op) {
     }
     case 'addEdge': {
       const { id, from, to } = op.edge;
+      if (!labelOk(op.edge)) return fail('invalid');
       if (nodeIndex(state, from) < 0 || nodeIndex(state, to) < 0) return fail('missing');
       if (edgeIndex(state, id) >= 0 || state.edges.some(e => e.from === from && e.to === to)) return fail('duplicate');
       state.edges.splice(clamp(op.at, state.edges.length), 0, { ...op.edge });
@@ -63,6 +87,7 @@ export function apply(state, op) {
     case 'updateEdge': {
       const e = state.edges[edgeIndex(state, op.id)];
       if (!e) return fail('missing');
+      if (!labelOk(op.set)) return fail('invalid');
       Object.assign(e, pick(op.set, EDGE_FIELDS));
       return ok();
     }
@@ -73,8 +98,9 @@ export function apply(state, op) {
       return ok();
     }
     case 'setMeta': {
+      // The type is fixed at creation: any `kind` rejects the whole operation, like any other invalid field
+      if (op.set && 'kind' in op.set) return fail('invalid');
       const set = pick(op.set, META_FIELDS);
-      if ('kind' in set && !(set.kind in KINDS)) return fail('invalid');
       if ('dir' in set && !DIRS.includes(set.dir)) return fail('invalid');
       if ('title' in set && !validTitle(set.title)) return fail('invalid');
       Object.assign(state, set);
@@ -89,6 +115,7 @@ export function apply(state, op) {
 // order returned. Returns [] if `op` would be rejected. Undo is local to each client, so this has no
 // counterpart on the server.
 export function inverse(state, op) {
+  if (isObj(op) && !wellFormed(op)) return [];
   switch (op?.type) {
     case 'addNode': return [{ type: 'removeNode', id: op.node.id }];
     case 'addEdge': return [{ type: 'removeEdge', id: op.edge.id }];

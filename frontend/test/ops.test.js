@@ -71,12 +71,31 @@ test('addEdge, updateEdge y removeEdge', () => {
   assert.equal(s.edges.length, 3);
 });
 
-test('setMeta cambia tipo y dirección', () => {
+test('setMeta cambia dirección y título, y el tipo no cambia', () => {
   const s = triangle();
-  assert.equal(apply(s, { type: 'setMeta', set: { kind: 'state' } }).ok, true);
-  assert.equal(apply(s, { type: 'setMeta', set: { dir: 'LR' } }).ok, true);
-  assert.equal(s.kind, 'state');
+  assert.equal(apply(s, { type: 'setMeta', set: { dir: 'LR', title: 'Login' } }).ok, true);
   assert.equal(s.dir, 'LR');
+  assert.equal(s.title, 'Login');
+  assert.equal(s.kind, 'flow');
+  assert.equal(s.nodes.length, 3);
+});
+
+// ---------- Etiquetas: texto de 200 caracteres como máximo, vacío válido ----------
+test('acepta etiquetas de 200 caracteres y vacías en nodos y conectores', () => {
+  const s = triangle(), larga = 'x'.repeat(200);
+  assert.equal(apply(s, { type: 'addNode', node: node('d', { label: larga }) }).ok, true);
+  assert.equal(apply(s, { type: 'updateNode', id: 'a', set: { label: larga } }).ok, true);
+  assert.equal(apply(s, { type: 'updateNode', id: 'a', set: { label: '' } }).ok, true);
+  assert.equal(apply(s, { type: 'addEdge', edge: edge('e4', 'a', 'c', larga) }).ok, true);
+  assert.equal(apply(s, { type: 'updateEdge', id: 'e4', set: { label: '' } }).ok, true);
+  assert.equal(s.nodes.find(n => n.id === 'a').label, '');
+  assert.equal(s.nodes.find(n => n.id === 'd').label, larga);
+});
+
+test('una etiqueta inválida no deja aplicar ni los demás campos de la operación', () => {
+  const s = triangle(), antes = copy(s);
+  assert.deepEqual(apply(s, { type: 'updateNode', id: 'a', set: { x: 99, label: 'x'.repeat(201) } }), { ok: false, reason: 'invalid' });
+  assert.deepEqual(s, antes);
 });
 
 // ---------- apply: rechazos (no cambian nada) ----------
@@ -91,6 +110,14 @@ const rechazos = [
   ['updateEdge de una arista que no existe', { type: 'updateEdge', id: 'zz', set: { label: 'x' } }, 'missing'],
   ['removeEdge de una arista que no existe', { type: 'removeEdge', id: 'zz' }, 'missing'],
   ['setMeta con un tipo desconocido', { type: 'setMeta', set: { kind: 'clases' } }, 'invalid'],
+  ['setMeta con un tipo válido (el tipo se fija al crear)', { type: 'setMeta', set: { kind: 'state' } }, 'invalid'],
+  ['setMeta con título válido y tipo válido', { type: 'setMeta', set: { title: 'Login', kind: 'state' } }, 'invalid'],
+  ['setMeta con título válido y dirección inválida', { type: 'setMeta', set: { title: 'Login', dir: 'XX' } }, 'invalid'],
+  ['addNode con una etiqueta de 201 caracteres', { type: 'addNode', node: node('d', { label: 'x'.repeat(201) }) }, 'invalid'],
+  ['updateNode con una etiqueta de 201 caracteres', { type: 'updateNode', id: 'a', set: { label: 'x'.repeat(201) } }, 'invalid'],
+  ['updateNode con una etiqueta que no es texto', { type: 'updateNode', id: 'a', set: { label: 42 } }, 'invalid'],
+  ['addEdge con una etiqueta de 201 caracteres', { type: 'addEdge', edge: edge('e9', 'a', 'c', 'x'.repeat(201)) }, 'invalid'],
+  ['updateEdge con una etiqueta de 201 caracteres', { type: 'updateEdge', id: 'e1', set: { label: 'x'.repeat(201) } }, 'invalid'],
   ['setMeta con una dirección inválida', { type: 'setMeta', set: { dir: 'XX' } }, 'invalid'],
   ['setMeta válido a medias (no aplica nada)', { type: 'setMeta', set: { dir: 'LR', kind: 'clases' } }, 'invalid'],
   ['setMeta con un título de solo espacios', { type: 'setMeta', set: { title: '   ' } }, 'invalid'],
@@ -99,6 +126,25 @@ const rechazos = [
   ['setMeta con un título que no es texto', { type: 'setMeta', set: { title: 42 } }, 'invalid'],
   ['setMeta con título válido y tipo desconocido', { type: 'setMeta', set: { title: 'Login', kind: 'clases' } }, 'invalid'],
   ['operación de tipo desconocido', { type: 'teletransportar', id: 'a' }, 'unknown'],
+  // Mal formadas: faltan el objeto o los identificadores de texto que apply() lee (antes lanzaban una excepción)
+  ['addNode sin node', { type: 'addNode' }, 'invalid'],
+  ['addNode con node que no es un objeto', { type: 'addNode', node: 'a' }, 'invalid'],
+  ['addNode con node nulo', { type: 'addNode', node: null }, 'invalid'],
+  ['addNode con un id numérico', { type: 'addNode', node: { id: 42 } }, 'invalid'],
+  ['addEdge sin edge', { type: 'addEdge' }, 'invalid'],
+  ['addEdge sin extremos', { type: 'addEdge', edge: { id: 'e9' } }, 'invalid'],
+  ['addEdge con un extremo numérico', { type: 'addEdge', edge: { id: 'e9', from: 'a', to: 3 } }, 'invalid'],
+  ['updateNode con un id numérico', { type: 'updateNode', id: 42, set: { x: 1 } }, 'invalid'],
+  ['updateNode sin set', { type: 'updateNode', id: 'a' }, 'invalid'],
+  ['updateNode con set que no es un objeto', { type: 'updateNode', id: 'a', set: [] }, 'invalid'],
+  ['updateEdge sin set', { type: 'updateEdge', id: 'e1' }, 'invalid'],
+  ['removeNode sin id', { type: 'removeNode' }, 'invalid'],
+  ['removeEdge con un id numérico', { type: 'removeEdge', id: 1 }, 'invalid'],
+  ['setMeta sin set', { type: 'setMeta' }, 'invalid'],
+  ['setMeta con set que no es un objeto', { type: 'setMeta', set: 'LR' }, 'invalid'],
+  ['una operación nula', null, 'unknown'],
+  ['una operación que es un número', 5, 'unknown'],
+  ['una operación que es un array', [], 'unknown'],
 ];
 for (const [nombre, op, reason] of rechazos) {
   test(`rechaza ${nombre} (${reason}) sin cambiar nada`, () => {
@@ -136,6 +182,35 @@ test('dos réplicas con la misma secuencia (con rechazos) terminan iguales', () 
   assert.deepEqual(r1, r2);
   assert.deepEqual(res1.map(r => r.ok), [true, true, true, false, false, true, true, false, true]);
   assert.deepEqual(r1.nodes, [node('a', { label: 'Inicio' })]);
+});
+
+test('un registro con operaciones mal formadas no lanza y deja a todas las réplicas con el mismo diagrama', () => {
+  const secuencia = [
+    { type: 'addNode', node: node('a') },
+    { type: 'addNode' },                                   // sin node: antes lanzaba un TypeError
+    { type: 'addEdge' },                                   // sin edge
+    { type: 'addEdge', edge: { id: 'e1' } },               // sin extremos
+    { type: 'updateNode', id: 'a' },                       // sin set
+    { type: 'removeNode' },
+    null,
+    { type: 'addNode', node: node('b') },
+    { type: 'addEdge', edge: edge('e1', 'a', 'b') },
+  ];
+  const r1 = empty(), r2 = empty();
+  const res1 = secuencia.map(op => apply(r1, op));         // si alguna lanzara, el test fallaría aquí
+  const res2 = secuencia.map(op => apply(r2, JSON.parse(JSON.stringify(op))));
+  assert.deepEqual(res1, res2);
+  assert.deepEqual(r1, r2);
+  assert.deepEqual(res1.map(r => r.ok ? 'ok' : r.reason), ['ok', 'invalid', 'invalid', 'invalid', 'invalid', 'invalid', 'unknown', 'ok', 'ok']);
+  assert.deepEqual(r1.nodes.map(n => n.id), ['a', 'b']);
+  assert.deepEqual(r1.edges.map(e => e.id), ['e1']);
+});
+
+test('inverse devuelve una lista vacía, sin lanzar, para una operación mal formada', () => {
+  const s = triangle();
+  for (const op of [{ type: 'addNode' }, { type: 'addEdge' }, { type: 'updateNode', id: 'a' }, { type: 'removeNode' }, { type: 'setMeta' }]) {
+    assert.deepEqual(inverse(s, op), [], JSON.stringify(op));
+  }
 });
 
 // ---------- model.js: gestos, deshacer ----------
@@ -295,16 +370,45 @@ test('las operaciones ajenas no entran en la pila de deshacer', () => {
   assert.deepEqual(model.state.nodes.map(k => k.id), ['ajeno']);
 });
 
-test('el tipo y la dirección no se deshacen', () => {
+test('la dirección no se deshace', () => {
   model.reset();
   model.addNode('rect', bb(0, 0));
-  model.setKind('state');
   model.setDir('LR');
   assert.equal(model.undo().ok, true);
   assert.equal(model.state.nodes.length, 0);
-  assert.equal(model.state.kind, 'state');
   assert.equal(model.state.dir, 'LR');
   assert.deepEqual(model.undo(), { ok: false, reason: 'empty' });
+});
+
+test('un diagrama nuevo queda vacío, sin título, del tipo elegido y sin nada que deshacer', () => {
+  model.reset();
+  model.addNode('rect', bb(0, 0));
+  model.setDir('LR');
+  apply(model.state, { type: 'setMeta', set: { title: 'Login' } });
+  assert.deepEqual(model.newDiagram('state'), { ok: true });
+  assert.deepEqual(model.state.nodes, []);
+  assert.deepEqual(model.state.edges, []);
+  assert.equal(model.state.kind, 'state');
+  assert.equal(model.state.title, SIN_TITULO);
+  assert.equal(model.state.dir, 'LR');                       // la dirección se conserva
+  assert.deepEqual(model.undo(), { ok: false, reason: 'empty' });
+  assert.equal(model.state.kind, 'state');                   // deshacer no devuelve el diagrama anterior
+});
+
+test('un diagrama nuevo del mismo tipo también vacía el diagrama', () => {
+  model.reset();
+  model.addNode('rect', bb(0, 0));
+  assert.deepEqual(model.newDiagram('flow'), { ok: true });
+  assert.equal(model.state.nodes.length, 0);
+  assert.deepEqual(model.undo(), { ok: false, reason: 'empty' });
+});
+
+test('un tipo desconocido no empieza un diagrama nuevo', () => {
+  model.reset();
+  model.addNode('rect', bb(0, 0));
+  assert.deepEqual(model.newDiagram('clases'), { ok: false, reason: 'invalid' });
+  assert.equal(model.state.nodes.length, 1);
+  assert.equal(model.state.kind, 'flow');
 });
 
 test('la pila guarda como máximo 60 pasos', () => {

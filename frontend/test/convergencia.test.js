@@ -144,7 +144,7 @@ function operacionAleatoria(c, rng) {
   const v = c.visible, id = `${c.nombre}-${c.contador + 1}`;
   const tipo = elige([...TIPOS, 'addNode', 'updateNode', 'addEdge']);
   const n = v.nodes.length, e = v.edges.length;
-  if (tipo === 'updateNode' && n) return { type: tipo, id: elige(v.nodes).id, set: rng() < 0.5 ? { label: id } : { x: ent(500), y: ent(500) } };
+  if (tipo === 'updateNode' && n) return { type: tipo, id: elige(v.nodes).id, set: rng() < 0.5 ? { label: rng() < 0.15 ? 'x'.repeat(201) : id } : { x: ent(500), y: ent(500) } };
   if (tipo === 'removeNode' && n > 2) return { type: tipo, id: elige(v.nodes).id };
   if (tipo === 'addEdge' && n) return { type: tipo, edge: arista(id, elige(v.nodes).id, elige(v.nodes).id), ...(rng() < 0.5 && { at: ent(e + 1) }) };
   if (tipo === 'updateEdge' && e) return { type: tipo, id: elige(v.edges).id, set: { label: id } };

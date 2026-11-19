@@ -37,9 +37,16 @@ function textOf(content) {
     .join('\n');
 }
 
+// El IDE y Claude Code añaden bloques de contexto junto al texto que escribe el usuario: la selección o el
+// archivo abierto en el IDE y los recordatorios del sistema. No son del usuario, pero el mensaje sí lo es:
+// se quitan los bloques y se conserva el resto (antes se descartaba el mensaje entero y se perdían prompts).
+function sinContexto(t) {
+  return t.replace(/<(ide_[a-z_]+|system-reminder|local-command-caveat)>[\s\S]*?<\/\1>/g, '').trim();
+}
+
 // Una skill o comando invocado con /nombre llega como etiquetas XML; se muestra como "/nombre args".
 function promptText(content) {
-  const t = textOf(content).trim();
+  const t = sinContexto(textOf(content));
   const name = t.match(/<command-name>\s*([^<]*?)\s*<\/command-name>/);
   if (!name) return t;
   const args = t.match(/<command-args>\s*([\s\S]*?)\s*<\/command-args>/);
@@ -53,7 +60,7 @@ function isHumanPrompt(e) {
   if (e.origin && e.origin.kind !== 'human') return false;
   const c = e.message && e.message.content;
   if (Array.isArray(c) && c.some((b) => b.type === 'tool_result')) return false;
-  const t = textOf(c).trim();
+  const t = sinContexto(textOf(c));
   if (!t) return false;
   if (/^<(system-reminder|ide_|local-command-stdout)/.test(t)) return false;
   return true;

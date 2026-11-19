@@ -81,8 +81,14 @@ export function undo(){
   }
   return {ok: false, reason: 'empty'};
 }
-// Type and direction are changes of the diagram but not undoable steps
-export function setKind(kind){ return applyRemote({type:'setMeta', set:{kind}}); }
+// The type is fixed when a diagram is created, so choosing another one starts a new diagram: empty, untitled,
+// with no undo history. The direction is kept (the toolbar selector still shows it).
+export function newDiagram(kind){
+  if(!(kind in KINDS)) return {ok: false, reason: 'invalid'};
+  state.kind=kind; state.title=UNTITLED; state.nodes=[]; state.edges=[]; history=[];
+  return {ok: true};
+}
+// The direction is a change of the diagram but not an undoable step
 export function setDir(dir){ return applyRemote({type:'setMeta', set:{dir}}); }
 
 // ---------- Example so the page opens working ----------

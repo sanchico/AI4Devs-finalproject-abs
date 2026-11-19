@@ -1,5 +1,5 @@
-// Borrado lógico. Hasta S2 no existen delete_diagram ni restore_diagram: se marca deleted_at con la
-// clave de servicio, que es lo que harán esas funciones.
+// Borrado lógico: lo que ve cada rol cuando un diagrama está en la papelera. Aquí se marca deleted_at con la
+// clave de servicio, que es lo que hacen delete_diagram y restore_diagram (probadas en ciclo-de-vida.test.js).
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from './helpers/entorno.js';
