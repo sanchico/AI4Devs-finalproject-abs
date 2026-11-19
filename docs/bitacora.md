@@ -1573,3 +1573,235 @@ exlpicame tu decision 2
 - Los trazos son de un solo usuario y dispositivo: el 90 % no cubre a otras personas.
 
 **Horas:** 2 (acumulado 17 h de 33, con la sesión 6 bis). S1 estaba prevista en 2,5 h y cupo en 2, con el arnés de tests incluido.
+
+## Sesión 8 · 17–18 nov 2026 · S2: funciones de servidor, con el change previo `tipo-fijo-y-etiquetas`
+
+**Objetivo:** cerrar el bloque S2 del PRD (funciones de servidor). Explorar con el PO las decisiones abiertas, lo que llevó a un change previo (`tipo-fijo-y-etiquetas`), y después proponer, implementar y archivar `funciones-servidor`.
+
+**Fase del ciclo de vida:** arquitectura, API, seguridad, tests y tickets de trabajo.
+
+### Prompts
+
+**Prompt 1: comprobar la PR #11 y cambiar a `develop`**
+
+```
+comprueba que la PR#11 esta cerrada, cambia a develop y /opsx:explore
+```
+
+(Después, `/model sonnet` y `/opsx:explore` sin tema.)
+
+- **Qué hizo el agente:** consultó la PR con `gh` (fusionada en `develop`, no solo cerrada), cambió a `develop` y la actualizó con `git pull --ff-only` (10 commits). Al entrar en explore sin tema, listó el estado y las tres líneas posibles.
+- **Resultado:** `develop` al día; ningún change activo.
+- **Impacto:** deja claro que la rama de S2 sale de `develop` ya fusionado.
+
+**Prompt 2: explorar S2**
+
+```
+Hablame en español /opsx:explore  S2
+```
+
+- **Qué hizo el agente:** leyó el PRD (arquitectura, API y S2), las migraciones de S1, el spec `diagram-storage` y `ops.js`, y consultó la base local: PostgreSQL 17 con `pgcrypto` en el esquema `extensions`. Detectó cuatro problemas:
+  - El orden de `apply_op` del PRD (`UPDATE` primero) gasta una secuencia en un reintento.
+  - Los errores no están definidos.
+  - `create_diagram(title, kind)` deja la ficha y el registro diciendo cosas distintas.
+  - Ni `ops.js` ni la interfaz limitan las etiquetas, aunque el PRD exige 200 caracteres.
+- **Resultado:** exploración sin escribir nada; propuso preguntar primero por `create_diagram`.
+- **Impacto:** de aquí salieron las decisiones de todo el bloque.
+
+**Prompt 3: comprobar si ha entendido el estado**
+
+```
+A ver si he entendido bien el estado actual propuesto: create_diagram escribe en la tabla diagrams, mientras que setMeta en diagram_ops y copia a diagrams. Al crear un diagrama si sólo se ejecuta create_diagram no hay registro en diagram_ops, que es la fuente de verdad
+```
+
+- **Qué hizo el agente:** confirmó con matices (`setMeta` pasa por `apply_op`; el hueco solo existe si `create_diagram` recibe algo distinto de los valores por defecto), dibujó el flujo y recomendó que `create_diagram` insertara un `setMeta` como `seq = 1`.
+- **Resultado:** ninguno; abre el prompt siguiente.
+- **Impacto:** el PO fija el principio "el registro es la única verdad" que guía el resto del diseño.
+
+**Prompt 4: el tipo de diagrama no debe cambiar**
+
+```
+No se si es correcto que setMeta pueda cambiar el tipo de diagrama ya dibujado. Ahora mismo estamos usando un subconjunto muy reducido de formas pero mas adelante, si incluimos más formas o más tipos de diagramas habrá formas incompatibles
+```
+
+- **Qué hizo el agente:** leyó `flow.js`, `state.js` y los specs, y razonó que hoy el cambio solo reinterpreta tres formas compartidas, pero dejaría de valer con tipos nuevos y, con colaboración, un editor cambiaría las reglas del lápiz de los demás. Comparó cuatro opciones y recomendó fijar el tipo al crear: así desaparece el hueco de `create_diagram` y se simplifica `apply_op`.
+- **Qué siguió:** el PO respondió "Opción 1, tipo fijo al crear; el modo local se mantiene". El agente preguntó qué hace entonces el selector local y detectó la trampa de "Deshacer" tras cambiar de tipo. El PO eligió "A, cambiar de tipo es empezar un diagrama nuevo. En el aviso añadir 'esta acción no se puede deshacer'".
+- **Resultado:** decisión de diseño: `create_diagram(kind)` sin título, `setMeta` sin tipo, cambio de tipo = diagrama nuevo con confirmación.
+- **Impacto:** cambia el modelo del PRD (v0.7.3) y reabre F2 en un punto.
+
+**Prompt 5: el tope de etiquetas y los dos changes**
+
+```
+¿a qué te refieres con tope en 3 capas?
+```
+
+- **Qué hizo el agente:** explicó las tres comprobaciones del mismo límite de 200 caracteres (interfaz con `maxlength`, `ops.js` y `apply_op`) y por qué cada una es necesaria; solo la del servidor es seguridad. Con el "Sí, tope en las tres capas y dos changes" del PO, resumió lo confirmado y lo propuesto por defecto, y con "Sí, crea la rama y el change" creó la rama `feat/s2-funciones-de-servidor` y el change `tipo-fijo-y-etiquetas` (proposal, dos deltas de spec, design y tasks).
+- **Resultado:** rama y change con `openspec validate --strict` en verde.
+- **Impacto:** separa en dos changes lo que toca el frontend y lo que es servidor, como pide la convención de la rama.
+
+**Prompt 6: implementar `tipo-fijo-y-etiquetas`**
+
+```
+/opsx:apply
+```
+
+- **Qué hizo el agente:** implementó las tareas: `setMeta` rechaza `kind`, validación de etiquetas en `ops.js`, `model.newDiagram`, interfaz y documentación. Verificó con Chromium (Playwright) y 131 tests. **Para la interfaz leyó `notas/mejoras.md` y construyó sobre sus apuntes** (botón "Nuevo", diálogo, quitar el selector).
+- **Resultado:** código y artefactos hechos, pero sobre una fuente que el PO no quería (ver Correcciones).
+- **Impacto:** mostró cuándo el agente toma un archivo adjunto por una instrucción.
+
+**Prompt 7: corrección, ignorar `mejoras.md`**
+
+```
+no tenias que haber leído mejoras.md, se adjuntó por error. repite los mismos prompts sin tener enc cuienta este archivo
+```
+
+- **Qué hizo el agente:** deshizo la parte influida por el archivo (botón, diálogo, etiqueta "Flujo · Dirección"), restauró el selector con `confirm()` y la advertencia acordada, reescribió proposal, design, spec y tareas, y repitió las comprobaciones en el navegador (20 puntos) y los tests.
+- **Resultado:** el change queda como habíamos acordado, con 11 de 11 tareas.
+- **Impacto:** una de las correcciones más claras de la sesión.
+
+**Prompt 8: commits del primer change**
+
+```
+He comprobado que confirm() está OK.haz los commits
+```
+
+- **Qué hizo el agente:** marcó la tarea de la tablet y creó cuatro commits (`248955b`, `23a31b7`, `3c61512`, `8b892a2`), dejando fuera el `.gitignore` del PO.
+- **Resultado:** cuatro commits en la rama.
+- **Impacto:** el PO probó `confirm()` en la tablet, lo único que el agente no puede hacer.
+
+**Prompt 9: archivar el primer change**
+
+```
+/opsx:archive
+```
+
+(Después, "haz el commit. Incluye el gitignore".)
+
+- **Qué hizo el agente:** sincronizó los deltas con `diagram-operations` y `canvas-editing`; un requisito superaba los 500 caracteres y rompía la validación estricta, así que lo acortó en el delta y resincronizó. Archivó en `2026-11-18-tipo-fijo-y-etiquetas`.
+- **Resultado:** commit `e44e7b6`, con el `.gitignore`.
+- **Impacto:** deja los specs principales al día antes de escribir S2.
+
+**Prompt 10: proponer `funciones-servidor`**
+
+```
+/opsx:propose funciones-servidor
+```
+
+- **Qué hizo el agente:** leyó el arnés de tests de S1, comprobó en la base real que `extensions.gen_random_bytes` existe y verificó en la documentación de PostgREST que un `RAISE` con SQLSTATE `PTxyz` devuelve ese estado HTTP. Escribió proposal, cuatro specs (tres capacidades nuevas y un añadido), design con siete decisiones y 13 tareas. **Detectó un riesgo que no pedía nadie:** `ops.js` lanza una excepción si una operación no trae `node` o `edge`, así que un editor modificado podría hacer caer a todos los clientes; lo añadió al alcance.
+- **Resultado:** change validado, con 13 tareas en 5 grupos.
+- **Impacto:** fija la convención de errores (404 uniforme, 403, 410, 422, 409) y el orden de `apply_op`.
+
+**Prompt 11: implementar `funciones-servidor`**
+
+```
+/opsx:apply funciones-servidor
+```
+
+(Después, "haz los commits como la vez anterior".)
+
+- **Qué hizo el agente:** escribió tres migraciones (`funciones_base`, `apply_op`, `invitaciones`) y cinco ficheros de tests, y endureció `apply` en `ops.js`. Comprobó que los tests no eran vacíos: sin `FOR UPDATE` falla el test del mismo `op_id` simultáneo, y con una fixture cambiada falla el contrato con el cliente. Los 91 tests del backend y los 153 del frontend pasan.
+- **Resultado:** commits `4007683`, `3fee696`, `62d8d52` y `0e61e70`.
+- **Impacto:** es el núcleo de seguridad del backend: toda escritura pasa por funciones `security definer`.
+
+**Prompt 12: archivar `funciones-servidor`**
+
+```
+/opsx:archive
+```
+
+- **Qué hizo el agente:** creó los specs `operation-log`, `diagram-lifecycle` y `diagram-sharing`, añadió el requisito a `diagram-operations` y lo verificó contra los deltas.
+- **Resultado:** archivado en `2026-11-18-funciones-servidor`.
+- **Impacto:** los specs principales ya describen el servidor.
+
+**Prompt 13: revisar el readme**
+
+```
+revisa si hay que actualizar el readme.md
+```
+
+(Después, "haz las dos correcciones del readme y el commit".)
+
+- **Qué hizo el agente:** comprobó que lo desactualizado ya estaba señalado para P2 y que solo dos huecos eran del estado actual del repositorio. Corrigió 1.4 (backend local y sus tests) y 2.3 (estructura), y no reescribió 2, 3, 4 y 6.
+- **Resultado:** commits `47b5c5f` (archivado) y `8013f41` (readme).
+- **Impacto:** no duplica el trabajo de P2.
+
+**Prompt 14: cerrar la sesión**
+
+```
+/cerrar-sesion
+```
+
+- **Qué hizo el agente:** al extraer los prompts vio que el script devolvía 20 y recordaba más; comprobó que el registro los tenía y corrigió `prompts.cjs`, que descartaba los mensajes con adjuntos del IDE. Con el arreglo salieron 26. Redactó esta entrada y la propuso para que el PO la revisara.
+- **Resultado:** arreglo de `prompts.cjs` y entrada propuesta.
+- **Impacto:** sin el arreglo faltaban 6 prompts, entre ellos las decisiones de diseño.
+
+**Prompt 15: ¿es ese el arreglo?**
+
+```
+En esta sesión se han añadido archivos a varios prompts por error, no quiero que prompts.cjs los tenga en cuenta ¿es ese el arreglo al script?
+```
+
+- **Qué hizo el agente:** confirmó que sí y lo comprobó: en la salida del script no queda ningún resto de adjuntos, y los 6 mensajes de esta sesión que los llevaban salen solo con el texto del PO. Aclaró que el script quita todos los adjuntos y no distingue los puestos por error de los intencionados.
+- **Resultado:** confirmación con la comprobación.
+- **Impacto:** deja claro que el extractor devuelve solo lo que escribe el PO.
+
+**Prompt 16: el pendiente de las entradas anteriores**
+
+```
+En la propuesta de bitácora: Quita de pendiente lo de mejoras.md. Explicame Revisar las entradas anteriores de la bitácora con el script corregido (--since): pueden faltar prompts con contexto del IDE.
+```
+
+- **Qué hizo el agente:** revisó todos los registros anteriores: el script viejo había perdido 9 prompts en 5 registros, y buscados en la bitácora solo uno estaba ya recogido. Explicó qué implicaba revisarlos, qué prompts eran y cuáles valían para `prompts.md`, y reescribió el pendiente con ese detalle.
+- **Resultado:** lista de lo perdido y pendiente reformulado.
+- **Impacto:** convierte una frase vaga en un trabajo acotado.
+
+**Prompt 17: completar la bitácora ahora**
+
+```
+hagámoslo ahora
+```
+
+(Después, "Sí, guárdala y haz los commits. He corregido algunos commits que has recuperado en @docs/bitacora.md".)
+
+- **Qué hizo el agente:** localizó cada prompt perdido en su registro y leyó qué respondió el agente. El hueco era mayor de lo anunciado: había una **sesión entera** sin recoger (5–7 nov, 5 prompts), que pasó a ser la sesión 1ter. Añadió además los prompts 6 y 7 a la sesión −1 (30 sep), el de Context7 a la sesión 2 y el del encabezado a la sesión 5, y comprobó que cada uno está copiado literal. Los tres "y ahora?" y "comprueba si he parado el servidor" se citan dentro del prompt anterior, según la regla de la skill.
+- **Qué corrigió el PO:** quitó de la sesión 5 el prompt del encabezado y cambió el título y el impacto del de Context7. El agente respetó los cambios antes de guardar esta entrada.
+- **Resultado:** commits `35d957b` (arreglo de `prompts.cjs`) y `fb9d4d7` (bitácora recuperada), y esta entrada.
+- **Impacto:** la bitácora vuelve a ser la materia prima completa de `prompts.md`.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2. Arquitectura | 4 (tipo fijo al crear), 10 (funciones de servidor, errores, orden de `apply_op`) |
+| 2.3 Modelo de datos | 3 (el registro como fuente de verdad) |
+| 2.5 Seguridad | 10 y 11 (validación mínima, operaciones mal formadas, 404 uniforme) |
+| 2.6 Tests | 11 (concurrencia, mutaciones, fixtures compartidas con el cliente) |
+| 4. API | 10 y 11 (funciones RPC, errores `PTxyz`) |
+| 6. Tickets de trabajo | 5, 6, 10 y 11 (changes con proposal, specs, design y tasks) |
+| 7. Pull Requests | la rama `feat/s2-funciones-de-servidor` (PR pendiente) |
+| Nota sobre el proceso | 14 a 17 (el extractor de prompts y la bitácora) |
+
+### Correcciones
+
+- **Leí `notas/mejoras.md` y construí sobre él (prompt 7).** El archivo se adjuntó por error. El agente adoptó sus apuntes (botón "Nuevo", diálogo, quitar el selector) como interfaz del change y lo presentó como "tus notas de hoy", sin preguntar si ese era el alcance. Hubo que rehacer la interfaz, tres artefactos, el PRD y `CLAUDE.md`.
+- **Respondí en inglés (prompt 2).** Las primeras respuestas fueron en inglés y el PO tuvo que pedir "hablame en español", aunque la convención del proyecto es el español.
+- **Afirmé que el PRD no fijaba la serialización de `apply_op`.** Sí la fijaba (`UPDATE ... last_seq`); se corrigió en el mensaje siguiente.
+- **Redacción larga que rompía la validación.** El primer sync de `canvas-editing` dejó un requisito de más de 500 caracteres y falló en modo estricto; se acortó. Además, una fixture se escribió con `"x".repeat(201)`, que no es JSON válido, y dos scripts de sync fallaron por un escape y por una carpeta sin crear (sin escribir nada).
+- **`RAISE` con `detail` nulo.** Los rechazos sin texto daban 400 en lugar de 403/404 (error `22004`); los tests lo mostraron y se corrigió en la migración.
+- **Regla de S1 que no valía para el servidor.** El diseño partía de la decisión de S1 ("nunca más estricto que `ops.js`", con `char_length` y `btrim`), pero para el título, que se copia a `diagrams`, habría dejado la ficha distinta del registro con 101 emojis o tabuladores. Se detectó antes de implementar y se cambió a las reglas exactas del cliente (UTF-16 y `trim`).
+- **El script de prompts perdía mensajes (prompt 14).** `prompts.cjs` descartaba todo mensaje que empezara por una etiqueta del IDE (`<ide_selection>`, `<ide_opened_file>`), aunque llevara el texto real del PO. Perdió 6 de 26 prompts de esta sesión y otros 9 de sesiones anteriores. Se corrigió y se recuperó lo perdido.
+- **Subestimé el hueco de la bitácora (prompt 17).** Al proponer completar la bitácora hablé de 8 prompts; al revisar los registros faltaba además una sesión entera (la 1ter).
+- **Dos fallos transitorios** de los tests tras `db reset` (Auth aún arrancando); no eran del código, pero costaron una repetición.
+
+### Pendiente
+
+- Abrir la PR de `feat/s2-funciones-de-servidor` contra `develop` (los dos changes del bloque).
+- Decidir si se suman al acumulado las 0,5 h de la sesión 1ter, que no estaban contadas, y qué se hace con la rama `chore/skill-openspec-implement`.
+- F4 tiene que leer el tipo de `diagrams.kind` antes de reproducir el registro, y F5 elegir el tipo al crear con `create_diagram(p_kind)`. Los parámetros llevan prefijo `p_`.
+- S3 sigue pendiente: matriz completa de permisos y Realtime con RLS por suscriptor, que no se ha probado.
+- Un `op_id` repetido con otro contenido devuelve la secuencia guardada sin comparar; documentado como fallo del cliente.
+- El readme tiene "500 nodos por diagrama" en 2.5, un límite que no existe en ningún sitio; decidirlo o quitarlo en P2, junto con las secciones 2.5, 2.6, 3, 4 y 6.
+- Punto de control del PRD tras la sesión 10: con 19,5 h acumuladas y 2,5 y 1,5 h previstas para las sesiones 9 y 10, se llegaría a 23,5 h, por encima de las 22 h; habrá que recortar en el orden del PRD.
+- Invitaciones de un solo uso, revocarlas y límites de frecuencia quedan para la v2.
+
+**Horas:** 2,5 (acumulado 19,5 h de 33). El PRD preveía 17 h tras la sesión 8: vamos 2,5 h por encima, con S2 y el change previo hechos. El script mide los huecos de menos de 30 minutos; la estimación de 3,25 h del change `funciones-servidor` era previa y no se ha medido por separado.

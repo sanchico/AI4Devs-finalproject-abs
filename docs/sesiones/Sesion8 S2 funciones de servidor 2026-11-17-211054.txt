@@ -1,0 +1,1493 @@
+> comprueba que la PR#11 esta cerrada, cambia a develop y /opsx:explore
+
+  ⎿ Bash: Check state of PR #11
+
+● PR #11 is not open: GitHub reports it as `MERGED` (closed at 2026-11-17 20:09:27Z), into `develop`. Now I'll switch to `develop`.
+
+  ⎿ Bash: Switch to develop branch and update it
+
+● Now I'll run the explore skill.
+
+  ⎿ Skill: opsx:explore
+
+  ⎿ Bash: List active OpenSpec changes and specs (read-only)
+
+  ⎿ Bash: Scan PRD headings and upcoming blocks
+
+  ⎿ Bash: Read S2 block description in PRD
+
+● Explore mode, no topic given, so here is where things stand and where I'd start.
+  
+  **Where the project is**
+  
+  - PR #11 (S1, esquema y RLS) is merged into `develop`. I switched to `develop` and fast-forwarded it to `origin/develop`.
+  - No OpenSpec changes are in flight. Specs exist for canvas-editing, diagram-operations, diagram-storage, mermaid-generation, mermaid-preview, shape-recognition and stroke-recording.
+  - The next block in the PRD is **S2 · Funciones de servidor** (2 h, depends on S1). It needs `create_diagram`, `create_invite`, `accept_invite`, `apply_op`, `delete_diagram` and `restore_diagram`.
+  
+  **Dependency picture**
+  
+  ```
+  S1 (merged) --> S2 funciones --> S3 tests backend
+                      |
+                      +--> F4 cliente colaborativo --> F5 login/invitaciones
+  ```
+  
+  **The part of S2 that is hardest to get right**
+  
+  `apply_op` has to hand out consecutive sequence numbers when two sessions write to the same diagram at once, and it has to return the same sequence when the same `op_id` is sent twice. The PRD does not say how to serialize writes. Two options:
+  
+  ```
+  A) Lock the diagram row:  SELECT ... FROM diagrams WHERE id=$1 FOR UPDATE
+     -> next seq = max(seq)+1 under the lock; simple, serial per diagram
+  B) Rely on a unique (diagram_id, seq) and retry on conflict
+     -> no lock, but retries and a more involved idempotency path
+  ```
+  
+  My recommendation is A. Diagram writes are small and infrequent, so a per-diagram lock costs little, and it makes the acceptance test ("secuencias consecutivas") easy to state and to check. Option B only pays off if many writers hit one diagram, which is not the MVP case.
+  
+  A second thing to settle: the frontend already validates operations with `ops.js`. The server must validate them again (size, tipo, rol), since it cannot trust the client. That duplication is intended, but it means the rules have to match exactly. Keeping `test/fixtures/ops/*.json` as the shared source for both sides would prevent drift.
+  
+  **Questions only you can answer**
+  
+  1. Do you want S2 captured as a change now (for example `s2-funciones-servidor`, with proposal, design, specs and tasks), or do you want to keep thinking first?
+  2. Are you happy with the per-diagram row lock (option A) for `apply_op`, or do you want to look at option B?
+  
+  I have not written anything. If you want the change captured, say so and I will list the artifacts I would create before writing them.
+
+> /model sonnet
+
+> /opsx:explore
+
+● Explore mode is on again, now on Sonnet 5.5. The `/opsx:explore` call had no topic, so I have nothing new to look at.
+  
+  Nothing has changed since my last message. I'm on `develop` with a clean tree, there are no active OpenSpec changes, and S2 (funciones de servidor) is the next block in the PRD. I haven't written any files.
+  
+  What do you want to think through? Here are three options:
+  
+  1. **S2 `apply_op`:** how to serialize concurrent writes and keep `op_id` idempotent. I recommend locking the diagram row.
+  2. **Server and client validation:** how to keep `ops.js` and the PL/pgSQL checks identical, probably by having both read the `test/fixtures/ops/*.json` fixtures.
+  3. **Something else:** F4, the roadmap, the reconocedor, or anything you have in mind.
+
+> Hablame en español /opsx:explore  S2
+
+  ⎿ Skill: opsx:explore
+
+  ⎿ Bash: Leer PRD (arquitectura, datos, API) y migraciones
+
+  ⎿ Bash: Leer spec diagram-storage y cabecera de ops.js
+
+  ⎿ Bash: Leer resto de ops.js, límites y decisiones de S1 relativas a S2
+
+  ⎿ Bash: Leer decisión 6 de S1 y buscar límite de etiqueta en la UI
+
+● Vuelvo a leer el PRD, las migraciones de S1 y `ops.js`. Antes de nada, una corrección: dije que el PRD no decía cómo serializar `apply_op`, y sí lo dice. Usa `UPDATE diagrams SET last_seq = last_seq + 1`, que bloquea la fila, así que mi "opción A" ya estaba decidida. Lo que sigue son los puntos que el PRD deja abiertos o que chocan con lo que S1 ya dejó hecho.
+  
+  ## 1. El orden de las operaciones dentro de `apply_op`
+  
+  El PRD empieza por el `UPDATE`, pero la idempotencia pide otro orden:
+  
+  ```
+  PRD literal:                      Orden que propongo:
+   1. UPDATE last_seq+1 (bloquea)    1. rol y borrado   (member_role, deleted_at)
+   2. INSERT diagram_ops             2. SELECT ... FOR UPDATE (bloquea)
+      -> si op_id repetido: error    3. ¿existe (diagram_id, op_id)? -> devolver su seq
+                                     4. ¿last_seq >= 5000?  -> rechazar
+                                     5. UPDATE last_seq+1, INSERT, (setMeta -> diagrams)
+  ```
+  
+  - Con el `UPDATE` primero, un reenvío ya habría gastado un número y solo se arreglaría con una excepción. Eso es un error, no "devuelve la misma secuencia".
+  - La comprobación de duplicado va antes del tope de 5 000. Así un reintento de la operación nº 5 000 no se rechaza.
+  - Los dos pasos de bloqueo dan lo que pide la aceptación: dos sesiones a la vez reciben secuencias consecutivas. Además, como el bloqueo dura hasta el commit, Realtime (que lee el WAL en orden de commit) entrega las filas de un diagrama en orden de `seq`. Eso sostiene la regla de F4 de "hueco = solo lectura".
+  - `apply_op` también debería actualizar `updated_at` y poner `user_id = auth.uid()`, sin aceptarlo del cliente.
+  
+  ## 2. Hueco real: `create_diagram(title, kind)` no deja rastro en el registro
+  
+  La verdad del diagrama es el registro, porque el cliente reproduce las operaciones al recargar. `diagrams.title`, `kind` y `direction` son copias que deja `setMeta`.
+  
+  Si `create_diagram('Mi flujo', 'state')` solo rellena la fila, quien reproduzca un registro vacío verá "Diagrama sin título" de tipo Flujo. Hay tres salidas:
+  
+  | Opción | Efecto |
+  |---|---|
+  | A. `create_diagram` inserta un `setMeta` como `seq = 1` si el título o el tipo no son los de por defecto | El registro sigue siendo la única verdad. El diagrama nuevo ya no queda siempre vacío. |
+  | B. `create_diagram` sin parámetros y el cliente envía un `setMeta` después | Cambia la firma del PRD. Dejas una ventana en la que el diagrama existe con los valores por defecto. |
+  | C. El cliente toma la fila de `diagrams` como estado base | Hay dos fuentes de verdad, y la convergencia por registro deja de bastar. |
+  
+  Recomiendo A.
+  
+  ## 3. La validación de la operación en SQL
+  
+  S1 descartó explícitamente reproducir en SQL la validación exacta de `ops.js`. Dejó dos reglas para S2: el tamaño se mide sobre `op::text`, y el servidor manda. Entonces S2 solo necesita comprobar:
+  
+  - que el tipo está entre los 7 conocidos, y que `op` es un objeto;
+  - el tamaño;
+  - que las etiquetas son de 200 caracteres como máximo;
+  - para `setMeta`, que `kind`, `dir` y `title` caben en los CHECK de `diagrams`. Si no, el `UPDATE` fallaría después de haber insertado la operación.
+  
+  El grafo no se valida: "duplicado" y "falta" se descartan igual en todos los clientes.
+  
+  Aquí hay un problema. **Ni `ops.js` ni la interfaz limitan las etiquetas a 200 caracteres**; solo el título lo hace. Un nodo con una etiqueta de 300 caracteres se pinta al momento en el cliente y el servidor lo rechaza. Con la regla del PRD (pendiente fuera + aviso) no diverge, pero el usuario ve su dibujo desaparecer. Puede resolverse con un tope en la interfaz (F4), con `MAX_LABEL` en `ops.js` (toca el spec `diagram-operations`) o dejando el aviso como está.
+  
+  ## 4. Detalles de las otras funciones
+  
+  - **`accept_invite`:** si el usuario ya es miembro, no debe degradarse. El dueño que abre su propio enlace de lector no puede pasar a lector. Además, el PRD no dice si el enlace es de un solo uso o de varios, y tampoco si se consume. Lo más barato es que sea reutilizable hasta caducar. `display_name` sale de `auth.jwt()->>'email'`.
+  - **Token de 32 bytes:** con `search_path` fijado a `''`, `gen_random_bytes` hay que llamarlo cualificado como `extensions.gen_random_bytes`. Hay que comprobar que `pgcrypto` está activo en local. Si no, valen dos `gen_random_uuid()` concatenados.
+  - **Errores:** conviene distinguir "borrado", "sin permiso" y "operación inválida", porque F4 muestra mensajes distintos. A un ajeno hay que devolverle el mismo error que a un diagrama inexistente. PostgREST permite códigos `PTxxx` para fijar el estado HTTP, pero tendría que verificarlo con la documentación antes de apoyarme en eso.
+  - **`delete_diagram` y `restore_diagram`:** hay que decidir si repetir la llamada devuelve error o no hace nada. Recomiendo que no haga nada, para que los reintentos sean seguros.
+  - **Permisos de ejecución:** S1 ya deja las funciones nuevas cerradas por defecto. Cada una necesita `grant execute ... to authenticated`, y un test con `anon` que lo confirme.
+  
+  ## Qué hay que decidir primero
+  
+  Las demás decisiones dependen de la opción del punto 2, y no es algo que yo pueda decidir por ti. ¿Quieres que `create_diagram` meta un `setMeta` inicial como `seq = 1` cuando el título o el tipo no son los de por defecto (opción A), o prefieres cambiar la firma (B)?
+  
+  Después de eso, el siguiente punto es el tope de etiquetas del punto 3. Todavía no he escrito nada.
+
+> /rename sesion 8 S2
+
+> A ver si he entendido bien el estado actual propuesto: create_diagram escribe en la tabla diagrams, mientras que setMeta en diagram_ops y copia a diagrams. Al crear un diagrama si sólo se ejecuta create_diagram no hay registro en diagram_ops, que es la fuente de verdad
+
+● Sí, lo has entendido bien. Dos matices:
+  
+  - `setMeta` no escribe directamente en ninguna tabla. Va por `apply_op`, que lo inserta en `diagram_ops` (la fuente de verdad) y, en la misma transacción, copia título, tipo y dirección a `diagrams`. Esa copia existe para que la lista de diagramas no tenga que reproducir el registro de cada uno.
+  - Es un hueco solo cuando `create_diagram` recibe algo distinto de los valores por defecto. Con "Diagrama sin título" y tipo `flow`, un registro vacío y la fila de `diagrams` cuentan lo mismo. Con `create_diagram('Mi flujo', 'state')` dejan de coincidir.
+  
+  ```
+  Camino normal (apply_op)             Camino de create_diagram (PRD actual)
+  
+    cliente                              cliente
+       |                                    |
+       v                                    v
+    apply_op(setMeta)                    create_diagram('Mi flujo','state')
+       |                                    |
+       +--> diagram_ops  (verdad)           +--> diagrams: title='Mi flujo', kind='state'
+       |                                    |
+       +--> diagrams     (copia)            +--> diagram_ops: vacío   <-- sin rastro
+                                         
+    Al recargar el cliente reproduce el registro vacío y pinta
+    "Diagrama sin título" de tipo Flujo, aunque la lista diga "Mi flujo".
+  ```
+  
+  Por eso recomiendo la opción A. Cuando el título o el tipo no son los de por defecto, `create_diagram` inserta además un `setMeta` como `seq = 1` y deja `last_seq = 1`. Así la copia en `diagrams` nunca dice algo que el registro no diga. La alternativa es que `create_diagram` no reciba título ni tipo y el cliente mande un `setMeta` después.
+  
+  ¿Prefieres A o esa alternativa?
+
+> /model opus
+
+> No se si es correcto que setMeta pueda cambiar el tipo de diagrama ya dibujado. Ahora mismo estamos usando un subconjunto muy reducido de formas pero mas adelante, si incluimos más formas o más tipos de diagramas habrá formas incompatibles
+
+  ⎿ Bash: Ver formas por tipo y cómo se cambia el tipo hoy
+
+  ⎿ Grep: (?i)tipo de diagrama|cambia.*tipo|kind
+
+  ⎿ Bash: Leer requisitos de cambio de tipo y menciones en el PRD
+
+● Tienes razón. Además, si el tipo no se puede cambiar, el problema de `create_diagram` desaparece.
+  
+  ## Por qué hoy funciona y mañana no
+  
+  Hoy un nodo guarda una forma geométrica (`rect`, `diamond`, `ellipse`) y cada tipo la interpreta a su manera:
+  
+  ```
+  nodo.shape     Flujo (flow.js)        Estados (state.js)
+  -----------    -------------------    ----------------------
+  rect       --> Proceso   n1["..."]    Estado   state "..." as n1
+  diamond    --> Decisión  n1{"..."}    Elección state n1 <<choice>>
+  ellipse    --> Inicio/Fin n1(["..."]) [*]
+  ```
+  
+  Cambiar de tipo solo reinterpreta los nodos, y como los dos tipos tienen exactamente las mismas tres formas, nada se rompe. En cuanto entren clases UML, ER o secuencia, esa simetría desaparece. Una caja de clase con compartimentos no significa nada en un flujo, y una flecha de herencia tampoco. En secuencia ni siquiera existe un grafo de nodos colocados libremente.
+  
+  ## Con colaboración, además, molesta
+  
+  ```
+  A cambia el tipo a Estados  --> llega a B mientras dibuja
+                                  B dibuja un rombo esperando "Decisión"
+                                  y el reconocedor ya lo trata como "Elección"
+  ```
+  
+  El tipo decide qué reconoce el lápiz de todos. Que lo cambie uno de los editores en mitad de una sesión es un cambio de reglas para los demás.
+  
+  ## Opciones
+  
+  | Opción | Qué pasa | Coste |
+  |---|---|---|
+  | **1. Tipo fijo al crear** | `create_diagram(kind)` lo fija y `setMeta` deja de aceptar `kind` | Hay que tocar `ops.js`, `diagram-operations` y `canvas-editing`. El selector solo sirve al crear. |
+  | 2. Cambiable mientras el diagrama esté vacío | `apply` rechaza `kind` si hay nodos. Es determinista, así que converge. | El servidor no conoce el grafo y no puede validarlo. Si dos llegan a la vez, una operación se descarta en todos. |
+  | 3. Cambiable solo hacia tipos compatibles | Hay que comprobar que cada forma existe en el tipo destino | Es lo más complejo, y también tendría que comprobarlo `addNode`. |
+  | 4. Libre, como ahora | Las formas incompatibles se ignoran o se pintan genéricas | El Mermaid resultante miente. |
+  
+  ## Mi recomendación: la opción 1
+  
+  - Es el principio de diseño de CLAUDE.md ("el tipo de diagrama restringe las formas") llevado hasta el final: el tipo es una propiedad del documento, no un ajuste del lienzo.
+  - **Elimina el hueco de antes.** El tipo vive solo en la fila de `diagrams` y nunca cambia, así que el cliente lo lee antes de reproducir el registro y no hay dos verdades. El título tampoco es problema: el PRD ya dice que `create_diagram` crea "Diagrama sin título", así que el parámetro `title` sobra. Quedaría `create_diagram(kind)`, y renombrar sería un `setMeta` normal. No hace falta el `setMeta` como `seq = 1`.
+  - `apply_op` se simplifica: con `setMeta` solo copia `title` y `direction`.
+  
+  Tiene dos costes. Primero, se modifica F2, que ya está entregado: `setMeta` sin `kind`, `apply` rechazándolo, y los specs `diagram-operations` y `canvas-editing` con sus escenarios ("El tipo no se deshace", "Paso a Estados"). Es un cambio pequeño. Segundo, el selector de tipo de la barra pasa a tener sentido solo en el modo local sin sesión, o en el diálogo de crear diagrama de F5.
+  
+  ## Lo que necesito saber de ti
+  
+  ¿El modo local actual (sin login y con el diagrama de ejemplo) se mantiene después de F5? Si se mantiene, ahí el selector de tipo podría seguir funcionando como hasta ahora, cambiando el tipo con `Limpiar` o solo con el lienzo vacío. Si desaparece, el tipo solo se elige al crear y el selector se va de la barra.
+  
+  No he escrito nada todavía.
+
+> Opción 1, tipo fijo al crear; el modo local se mantiene
+
+● Decidido: el tipo se fija al crear y el modo local se mantiene. Con eso cambian estas cosas:
+  
+  - `create_diagram(kind)` sin `title`. El diagrama nace como "Diagrama sin título" y renombrarlo es un `setMeta` normal.
+  - `setMeta` deja de aceptar `kind` y `apply` lo rechaza como `invalid`. Hay que tocar `ops.js`, `diagram-operations` y `canvas-editing`.
+  - `apply_op` con `setMeta` solo copia `title` y `direction` a `diagrams`.
+  - En modo colaborativo, el cliente lee `diagrams.kind` antes de reproducir el registro.
+  
+  Al mantener el modo local queda un punto abierto. Si el tipo ya no es una operación, el selector de la barra tiene que hacer otra cosa. Además hay una trampa con "Deshacer":
+  
+  ```
+  Ejemplo de flujo --> Limpiar --> cambiar a Estados --> Deshacer
+                                                          |
+                                                          v
+                           vuelven los 5 nodos del flujo... ¿dentro de un diagrama de Estados?
+  ```
+  
+  Estas son las opciones para el selector en modo local:
+  
+  | Opción | Comportamiento |
+  |---|---|
+  | **A. Cambiar el tipo es empezar un diagrama nuevo** | Se vacía el lienzo, se vacía la pila de deshacer y aparece el aviso "Nuevo diagrama de Estados". Si hay nodos, se pide confirmación. |
+  | B. Solo con el lienzo vacío | El selector se desactiva si hay nodos. Aun así hay que vaciar la pila al cambiar, por la trampa de arriba. |
+  | C. Libre en local, como ahora | Es una excepción a la regla, y deja de funcionar en cuanto entre un tipo con otras formas. |
+  
+  Recomiendo la A. Trata el tipo igual que en el modo colaborativo, como una propiedad del documento, de modo que cambiarlo es crear otro documento. Además coincide con lo que hará F5, donde elegir el tipo ocurre al crear el diagrama. Con el lienzo vacío no hace falta confirmación, así que cambiar de tipo antes de empezar a dibujar sigue siendo inmediato.
+  
+  ¿Te sirve la A?
+  
+  Después de esto queda pendiente el tope de 200 caracteres en las etiquetas, que hoy ni `ops.js` ni la interfaz aplican.
+
+> A, cambiar de tipo es empezar un diagrama nuevo. En el aviso añadir "esta acción no se puede deshacer"
+
+  ⎿ Grep: (?i)input|label
+
+● Decidido. Si hay nodos, la confirmación dirá algo como "Cambiar a Estados empieza un diagrama nuevo y borra el actual. Esta acción no se puede deshacer". Con el lienzo vacío no se pide confirmación.
+  
+  ## Siguiente punto: el tope de 200 caracteres en las etiquetas
+  
+  Así está hoy:
+  
+  - `ops.js` solo valida el título. `addNode`, `updateNode`, `addEdge` y `updateEdge` aceptan etiquetas de cualquier longitud.
+  - El campo `editInput` de [index.html:43](frontend/index.html#L43) no tiene `maxlength`.
+  - El PRD pide que `apply_op` rechace las etiquetas de más de 200 caracteres.
+  
+  Si lo dejamos así, el servidor rechazaría algo que el cliente ya ha pintado. Por eso propongo hacer con las etiquetas lo mismo que con el título:
+  
+  ```
+  interfaz           ops.js (apply)              apply_op (SQL)
+  maxlength=200 -->  label.length <= 200   -->   char_length(label) <= 200
+                     si no: 'invalid'            (más permisivo: cuenta puntos de
+                                                  código, no unidades UTF-16)
+  ```
+  
+  - **Interfaz:** con el `maxlength` el usuario ni siquiera puede pasarse.
+  - **`ops.js`:** rechaza la operación, igual que hace ya con el título. Una operación rechazada no cambia nada, así que no se pinta.
+  - **Servidor:** comprueba lo mismo, pero nunca es más estricto que el cliente (decisión 6 de S1).
+  
+  Un efecto que conviene fijar con un test: con 200 caracteres como máximo, una operación honrada no llega a 2 kB. El peor caso son 200 comillas escapadas (unos 400 bytes) o 200 caracteres de 3 bytes (unos 600 bytes), siempre con margen. El límite de 2 kB queda solo como protección contra clientes manipulados.
+  
+  ## Cómo repartirlo en changes
+  
+  Esto, junto con el tipo fijo, es trabajo de frontend que S2 necesita tener hecho antes. Siguiendo la convención de CLAUDE.md, propongo dos changes seguidos en la rama `feat/s2-funciones-de-servidor`:
+  
+  1. **`tipo-fijo-y-etiquetas`** (frontend): `setMeta` sin `kind`, el selector que empieza un diagrama nuevo, la validación de etiquetas en `ops.js` y el `maxlength`. Toca los specs `diagram-operations` y `canvas-editing`. Se aplica y se archiva primero.
+  2. **`funciones-servidor`** (S2): las seis funciones, escritas contra los specs ya actualizados.
+  
+  ¿Te parece bien el tope en las tres capas y este reparto en dos changes?
+
+> ¿a qué te refieres con tope en 3 capas?
+
+● Me refiero a que el mismo límite de 200 caracteres para las etiquetas se comprobaría en tres sitios, cada uno con su propio papel:
+  
+  | Sitio | Qué hace | Para qué sirve |
+  |---|---|---|
+  | 1. Interfaz: `maxlength="200"` en el campo de etiqueta | No deja escribir el carácter 201 | Que el usuario normal nunca vea un error |
+  | 2. Cliente: `ops.js`, dentro de `apply` | Rechaza como `invalid` una operación con una etiqueta de más de 200 caracteres, igual que ya hace con el título | Que ninguna operación inválida se pinte ni se envíe, aunque no venga del campo de texto: un fixture, una operación remota o el pegado de un texto largo |
+  | 3. Servidor: `apply_op` | Rechaza la operación antes de guardarla | Es la única barrera de verdad. Un cliente manipulado se salta los sitios 1 y 2, porque puede llamar al RPC directamente |
+  
+  En la práctica el servidor es imprescindible porque es la seguridad, y el cliente (`ops.js`) también, porque garantiza que nunca se pinte en local algo que el servidor va a rechazar. El `maxlength` es solo comodidad para el usuario y se podría omitir, pero cuesta un atributo.
+  
+  ¿Lo dejamos así, con los tres, y repartido en los dos changes que propuse (`tipo-fijo-y-etiquetas` primero y `funciones-servidor` después)?
+
+> Sí, tope en las tres capas y dos changes
+
+● Decidido. Este es el estado de la exploración de S2:
+  
+  **Confirmado**
+  1. `apply_op` sigue este orden: comprobar rol y borrado, bloquear con `FOR UPDATE`, devolver la secuencia si el `op_id` ya existe, aplicar el tope de 5 000 y, por último, `last_seq + 1`, el `INSERT` y la copia de `setMeta` a `diagrams`. Además pone `user_id = auth.uid()` y actualiza `updated_at`.
+  2. El tipo se fija al crear. Queda `create_diagram(kind)` sin `title`, y `setMeta` deja de aceptar `kind`.
+  3. En modo local, cambiar de tipo empieza un diagrama nuevo. Si hay nodos se pide confirmación con "Esta acción no se puede deshacer", y la pila de deshacer se vacía.
+  4. El tope de 200 caracteres por etiqueta se comprueba en tres sitios: el `maxlength` de la interfaz, `ops.js` y `apply_op`.
+  5. Habrá dos changes seguidos en la rama de S2: primero `tipo-fijo-y-etiquetas` (frontend) y después `funciones-servidor`.
+  
+  **Propuestas por defecto que no hemos discutido** (son del segundo change y se pueden revisar entonces)
+  - `accept_invite` nunca degrada a quien ya es miembro, el enlace se puede reutilizar hasta que caduca, y `display_name` sale del correo del JWT.
+  - `delete_diagram` y `restore_diagram` no hacen nada si se repiten.
+  - Los errores distinguen "borrado", "sin permiso" y "operación inválida". A un usuario ajeno se le responde lo mismo que si el diagrama no existiera.
+  - El token de 32 bytes se genera con `extensions.gen_random_bytes`. Falta comprobar que `pgcrypto` está activo en local.
+  
+  **Siguiente paso**
+  
+  El primer change ya tiene el alcance cerrado. ¿Hago lo siguiente?
+  
+  1. Crear la rama `feat/s2-funciones-de-servidor` desde `develop`.
+  2. Crear el change `tipo-fijo-y-etiquetas` con `openspec new change` y escribir sus cuatro artefactos: `proposal.md`, `design.md`, los deltas de `specs/diagram-operations` y `specs/canvas-editing`, y `tasks.md`.
+  
+  Solo serían artefactos de planificación, sin tocar código. Si prefieres hacerlo tú, `/opsx:propose tipo-fijo-y-etiquetas` hace lo mismo partiendo de esta conversación.
+
+> /model sonnet
+
+> Sí, crea la rama y el change
+
+  ⎿ Bash: Crear rama y scaffold del change
+
+  ⎿ Bash: Instrucciones del proposal, config y un proposal de ejemplo
+
+  ⎿ Bash: Leer HU del PRD y los specs a modificar
+
+  ⎿ Bash: Leer model.js, main.js y usos de setKind/setLabel
+
+  ⎿ Bash: Buscar usos de kind en tests y el resto del spec de canvas-editing
+
+● Estoy leyendo `notas/mejoras.md`, porque tiene apuntes tuyos sobre el selector de tipo y un botón "Nuevo" que pueden cambiar el diseño del primer change.
+
+  ⎿ Read: c:\dev\lidr\AI4Devs-finalproject\notas\mejoras.md
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\proposal.md
+
+  ⎿ Bash: Instrucciones de specs y design
+
+  ⎿ Bash: Instrucciones de specs, design y tasks con node
+
+● Escribo el delta de `diagram-operations`.
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\specs\diagram-operations\spec.md
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\specs\canvas-editing\spec.md
+
+  ⎿ Read: c:\dev\lidr\AI4Devs-finalproject\openspec\specs\canvas-editing\spec.md
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\specs\canvas-editing\spec.md
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\design.md
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\tasks.md
+
+  ⎿ Bash: Validar el change y ver estado
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\specs\diagram-operations\spec.md
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\specs\canvas-editing\spec.md
+
+  ⎿ Bash: Ver cambio en .gitignore y revalidar
+
+● Creé la rama y el change, y `openspec validate tipo-fijo-y-etiquetas --strict` pasa. No he tocado código ni he hecho commit.
+  
+  Estoy en `feat/s2-funciones-de-servidor`, creada desde `develop`. Los cuatro artefactos están en `openspec/changes/tipo-fijo-y-etiquetas/`:
+  
+  - **`proposal.md`:** explica por qué, qué cambia, qué queda fuera y el impacto.
+  - **`specs/diagram-operations/`:** `setMeta` rechaza `kind`, y las etiquetas se validan (texto de 200 caracteres como máximo, vacía válida).
+  - **`specs/canvas-editing/`:** "Cambio de tipo de diagrama" pasa a "Diagrama nuevo con el tipo elegido". "Deshacer y limpiar" y "Un toque edita la etiqueta" también cambian.
+  - **`design.md`:** recoge las decisiones con sus alternativas descartadas y el impacto en `apply_op`.
+  - **`tasks.md`:** cinco grupos, unas 3 h en total, con los tests dentro de cada grupo.
+  
+  ## Lo que decidí yo y conviene que revises
+  
+  1. **Usé tus apuntes de `notas/mejoras.md`** (18 nov, líneas 81-86): quito el selector de tipo, añado el botón "Nuevo" a la izquierda de "Deshacer" y un `<dialog>` con la advertencia, el selector de tipo y Aceptar/Cancelar. Es una interfaz más grande que el `confirm()` que te propuse. Si la prefieres, es el punto 4 de `design.md`.
+  2. **El diálogo sale siempre**, también con el lienzo vacío, porque es la única forma de elegir el tipo.
+  3. **"Nuevo" conserva la dirección.** Vacía nodos y aristas, pone el título "Diagrama sin título" y deja vacía la pila de deshacer, pero no toca la dirección.
+  4. **Leí tu apunte 2 como** "Flujo · Dirección" en la etiqueta del selector de dirección. Si querías otra cosa, dilo y lo cambio en el escenario "Tipo visible".
+  5. **`setMeta` con `kind` se rechaza entero**, no se ignora en silencio. Así cliente y servidor responden lo mismo.
+  
+  ## Dos avisos
+  
+  - Tu `.gitignore` aparece modificado (`notas/mejoras.md` pasa a `notas/`). No lo he tocado. Como `notas/` se ignora, el proposal cita un archivo que no está en git; no afecta a nada.
+  - El PRD pasaría a la v0.7.3 en la tarea 4.1, con `create_diagram(kind)` sin `title`.
+  
+  ## Siguiente paso
+  
+  `/opsx:apply` implementa el change, y `/opsx:archive` lo archiva antes de escribir `funciones-servidor`. ¿Quieres revisar los artefactos antes de aplicar?
+
+> /opsx:apply
+
+  ⎿ Bash: Obtener instrucciones de apply
+
+● Using change: `tipo-fijo-y-etiquetas` (11 tareas, 0 hechas). Empiezo por el grupo 1 (`ops.js`) y leo antes los tests que toca.
+
+  ⎿ Bash: Leer tests afectados por el cambio
+
+  ⎿ Bash: Leer fixture de estados y rechazos
+
+● Implemento 1.1 y 1.2 en `ops.js`.
+
+  ⎿ Bash: Aplicar cambios de setMeta y etiquetas en ops.js
+
+  ⎿ Bash: Comprobar finales de línea de ops.js
+
+● El script no escribió nada (los finales de línea son CRLF). Uso `Edit`.
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\test\ops.test.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\test\ops.test.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\test\convergencia.test.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\test\fixtures\ops\estados-con-pseudoestados.json
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\test\fixtures\ops\rechazos.json
+
+● Error mío: `"x".repeat(201)` no es JSON válido. Lo sustituyo por una cadena literal de 201 caracteres.
+
+  ⎿ Bash: Corregir fixture y ejecutar los tests del frontend
+
+● Ese fallo era esperado: el test viejo usa `model.setKind`, que es la tarea 2. La modificación del JSON es la mía de antes. Paso al grupo 2.
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\model.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\test\ops.test.js
+
+  ⎿ Bash: Ejecutar los tests y buscar usos de setKind
+
+● Grupo 1 y 2 en verde (131 tests). Marco las cinco tareas.
+
+  ⎿ Bash: Marcar tareas 1.1 a 2.2 como hechas
+
+● Pasa al grupo 3 (interfaz). Leo `index.html`, los usos del selector en `render.js` y los estilos.
+
+  ⎿ Bash: Leer index.html, render.js y styles.css
+
+  ⎿ Bash: Editar index.html, styles.css y main.js para el botón Nuevo
+
+● Edité los tres archivos. Para comprobarlo en un navegador real uso la skill del proyecto.
+
+  ⎿ Skill: run-trazo-mermaid
+
+  ⎿ Bash: Leer el driver e instalar playwright-core temporal
+
+  ⎿ Bash: Servir frontend por HTTP en segundo plano
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\nu…
+
+  ⎿ Bash: Ver por qué falló el servidor
+
+● El puerto 8000 ya está ocupado por otro proceso. Compruebo si es un servidor de este proyecto antes de usarlo.
+
+  ⎿ Bash: Comprobar qué sirve el puerto 8000
+
+● Es un `http-server` de este mismo proyecto, sin caché, y ya sirve mi `index.html` (contiene `newBtn`). Lo uso tal cual y no lo paro, porque no lo lancé yo.
+
+  ⎿ Bash: Ejecutar la comprobación en Chromium
+
+● Todo pasa. Miro la captura del diálogo para revisar el aspecto.
+
+  ⎿ Read: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\di…
+
+● El diálogo se ve bien y la barra cabe en una fila. Ejecuto también el driver de la skill para comprobar que no hay regresión en el flujo de dibujo.
+
+  ⎿ Bash: Ejecutar driver de la skill y comparar con la referencia
+
+  ⎿ Bash: Marcar tareas y leer cabecera e menciones del PRD
+
+  ⎿ Bash: Leer las líneas exactas del PRD a editar
+
+  ⎿ Bash: Actualizar el PRD a la v0.7.3
+
+  ⎿ Bash: Actualizar CLAUDE.md y buscar firmas antiguas en el PRD
+
+  ⎿ Bash: Pulir CLAUDE.md, marcar 4.x, tests y validar
+
+  ⎿ Bash: Marcar 5.1 y comprobar el progreso
+
+● Implementé el change `tipo-fijo-y-etiquetas`: 10 de las 11 tareas están hechas y falta una, la prueba a mano en la tablet. Los 131 tests de `node --test "frontend/**/*.test.js"` pasan y `openspec validate tipo-fijo-y-etiquetas --strict` da el change por válido.
+  
+  ## Qué cambió
+  
+  - **Operaciones (`ops.js`)**: `setMeta` solo admite dirección y título. Con `kind` se rechaza como inválido sin aplicar ningún campo. Las etiquetas de `addNode`, `updateNode`, `addEdge` y `updateEdge` deben ser texto de 200 caracteres como máximo (la vacía vale).
+  - **Modelo (`model.js`)**: `setKind` desaparece y entra `newDiagram(kind)`. Vacía nodos y aristas, pone "Diagrama sin título" y borra el historial de deshacer. Conserva la dirección y rechaza un tipo desconocido.
+  - **Interfaz**:
+    - La barra ya no tiene el selector de tipo.
+    - Hay un botón "Nuevo" a la izquierda de "Deshacer", con un diálogo que avisa "Se va a borrar el diagrama actual. Esta acción no se puede deshacer."
+    - El diálogo lleva el selector de tipo, con Aceptar y Cancelar.
+    - La etiqueta de la dirección ahora dice "Flujo · Dirección".
+    - El editor de etiquetas tiene `maxlength="200"`.
+  - **Tests**: casos nuevos de rechazo de `kind` y de etiquetas, tests de `newDiagram`, y los fixtures y el generador de convergencia adaptados.
+  - **Documentación**: PRD a la v0.7.3 con su fila en el historial, y `CLAUDE.md` actualizado.
+  
+  ## Cómo lo comprobé
+  
+  Con un script en Chromium comprobé 21 puntos y todos pasan:
+  
+  - No hay selector de tipo y "Nuevo" está antes de "Deshacer".
+  - El diálogo advierte y preselecciona el tipo actual.
+  - Cancelar y Escape no cambian nada.
+  - Aceptar con Estados vacía el diagrama y cambia leyenda y etiqueta.
+  - "Deshacer" avisa "Nada que deshacer".
+  - Pegar 300 caracteres en el editor deja 200.
+  
+  El driver de la skill también termina en `OK`.
+  
+  ## Pendiente y avisos
+  
+  - **Tarea 3.3, pendiente y necesita la tablet:** abrir `http://<ip>:8000`, comprobar que el diálogo se abre y se cierra con Cancelar y con Escape, y que la barra cabe en menos filas.
+  - **Sin commits:** no he hecho ninguno. Tu `.gitignore` aparece modificado y lo dejaría fuera del commit.
+  - **Servidor en el puerto 8000:** ya había un `http-server` de este proyecto en ese puerto. Lo usé tal cual y no lo paré.
+  - **Cancelar un diálogo no se había especificado:** si lo cierras con Escape no cambia nada. Está en los escenarios del spec.
+  
+  Lo siguiente es probar la 3.3 en la tablet. Después va `/opsx:archive`, y con él archivado se propone `funciones-servidor`. ¿Hago antes los commits?
+
+> no tenias que haber leído mejoras.md, se adjuntó por error. repite los mismos prompts sin tener enc cuienta este archivo
+
+● Entendido: rehago el trabajo como si `notas/mejoras.md` no existiera. Eso deshace el botón "Nuevo" con su diálogo, la etiqueta "Flujo · Dirección" y la retirada del selector. Vuelvo a lo que habíamos acordado antes: el selector sigue en la barra, y cambiarlo empieza un diagrama nuevo, con aviso de "Esta acción no se puede deshacer" cuando hay nodos. Lo que no depende de ese archivo (`ops.js`, `newDiagram`, los tests de etiquetas) se queda. Empiezo por el código de interfaz.
+
+  ⎿ Bash: Restaurar index.html, styles.css y main.js a su estado original
+
+  ⎿ Bash: Restaurar el selector con confirmación y el maxlength
+
+● Ahora reescribo los artefactos del change sin esa fuente. Empiezo por el proposal.
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\proposal.md
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\tipo-fijo-y-etiquetas\specs\canvas-editing\spec.md
+
+● Ahora el `design.md` y el `tasks.md`.
+
+  ⎿ Bash: Reescribir decisiones 3 y 4 del design y limpiar menciones
+
+  ⎿ Bash: Reescribir el grupo 3 de tasks.md y buscar restos
+
+● Quedan limpiar el PRD y `CLAUDE.md`, y volver a verificar en el navegador, porque marqué 3.1 y 3.2 antes de comprobarlas.
+
+  ⎿ Bash: Limpiar PRD y CLAUDE.md, ejecutar tests y validar
+
+● Reescribo la comprobación del navegador para el flujo del selector con `confirm()`.
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\se…
+
+  ⎿ Bash: Ejecutar la comprobación del selector y el driver de la skill
+
+● Rehice el change sin tener en cuenta `notas/mejoras.md`. Los 131 tests pasan, `openspec validate tipo-fijo-y-etiquetas --strict` da el change por válido y la comprobación en Chromium pasa entera.
+  
+  ## Lo que deshice
+  
+  - **Interfaz:** vuelve el selector de tipo en la barra, sin botón "Nuevo", sin diálogo y sin la etiqueta "Flujo · Dirección". `index.html`, `styles.css` y `main.js` los restauré desde git y reaplico solo lo necesario.
+  - **Artefactos del change:** reescribí el proposal, la decisión 4 del design y los grupos 3 y 4 del `tasks.md`. Del spec de `canvas-editing` reescribí "Cambio de tipo de diagrama". Ya no hace falta el `RENAMED` ni el nombre "Diagrama nuevo con el tipo elegido".
+  - **Documentación:** quité las menciones a "Nuevo" del PRD v0.7.3 y de `CLAUDE.md`.
+  
+  ## Cómo queda
+  
+  - **Selector de tipo:** al cambiarlo se empieza un diagrama nuevo.
+    - Con nodos dibujados pide confirmación con `confirm()`: "Cambiar a Estados empieza un diagrama nuevo y borra el actual. Esta acción no se puede deshacer."
+    - Si cancelas, el selector vuelve al tipo anterior.
+    - Con el lienzo vacío cambia sin preguntar.
+  - **Lo que se queda de antes:** `setMeta` sin tipo, el tope de 200 caracteres en las etiquetas, `newDiagram`, el `maxlength` del editor y los tests de todo eso, porque no dependían de ese archivo.
+  - **Tiempo estimado del change:** baja de 3 h a 2,75 h.
+  
+  ## Pendiente
+  
+  Sigue faltando la tarea 3.3, que necesita la tablet: comprobar que `confirm()` se muestra y responde bien al cambiar el tipo con nodos dibujados.
+  
+  No he hecho commits. Tu `.gitignore` sigue modificado y lo dejaría fuera.
+
+> He comprobado que confirm() está OK.haz los commits
+
+  ⎿ Bash: Marcar 3.3 y comprobar rama y estado
+
+● Las 11 tareas están marcadas. Hago cuatro commits, dejando fuera tu `.gitignore`.
+
+  ⎿ Bash: Crear los cuatro commits del change
+
+● Hice los cuatro commits en `feat/s2-funciones-de-servidor`; en el árbol solo queda tu `.gitignore`, que dejé fuera. No los he subido a GitHub.
+  
+  ```
+  8b892a2 docs: pasa el PRD a la v0.7.3 y actualiza CLAUDE.md
+  3c61512 feat: cambiar el tipo en el selector empieza un diagrama nuevo
+  23a31b7 feat: rechaza el tipo en setMeta y valida las etiquetas en las operaciones
+  248955b docs: propone el change tipo-fijo-y-etiquetas
+  ```
+  
+  Los avisos de Git sobre LF y CRLF no son un problema. El cambio queda con las 11 tareas hechas, incluida la prueba de `confirm()` en la tablet.
+  
+  El siguiente paso es `/opsx:archive`, que reescribe `openspec/specs/` y añade la entrada de la sesión en `docs/bitacora.md`. Después se propone `funciones-servidor`, escrito contra esos specs ya actualizados.
+
+> /opsx:archive
+
+● Using change: `tipo-fijo-y-etiquetas` (para otro, `/opsx:archive <nombre>`).
+
+  ⎿ Bash: Leer instrucciones de archive, estado y tareas del change
+
+  ⎿ AskUserQuestion
+
+  ⎿ Bash: Leer reglas de specs y estructura de los specs principales
+
+● Sin reglas extra para los specs. Aplico el merge: cada requisito modificado sustituye a su bloque en su sitio y los añadidos van al final.
+
+  ⎿ Bash: Sincronizar los deltas con los specs principales y validarlos
+
+● Falló el escape de la expresión regular antes de escribir nada. Uso un script en archivo y busco los bloques por posición, sin regex con nombres.
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\sy…
+
+  ⎿ Bash: Ejecutar el sync y validar los specs principales
+
+  ⎿ Bash: Acortar el requisito, resincronizar y validar
+
+● Los siete specs pasan en modo estricto. Verifico que cada requisito del delta está idéntico en el spec principal, y archivo.
+
+  ⎿ Bash: Verificar que los deltas están en los specs principales
+
+  ⎿ Bash: Mover el change a archive y comprobar el resultado
+
+● ## Archive Complete
+  
+  **Change:** `tipo-fijo-y-etiquetas` (esquema `spec-driven`)
+  **Archivado en:** `openspec/changes/archive/2026-11-18-tipo-fijo-y-etiquetas/`
+  **Specs:** sincronizados con los principales
+  
+  Los 4 artefactos y las 11 tareas estaban completos. Tras el archivado:
+  
+  - **`diagram-operations`:** dos requisitos modificados y dos añadidos.
+  - **`canvas-editing`:** tres requisitos modificados.
+  - **Validación:** los 7 specs pasan `openspec validate --specs --strict`, y los 131 tests siguen en verde.
+  - **Comprobación del merge:** cada requisito del delta está idéntico en el spec principal y no queda ningún encabezado de delta.
+  
+  Hice un ajuste al sincronizar. Mi redacción de "Deshacer y limpiar" superaba los 500 caracteres y hacía fallar `canvas-editing` en modo estricto, que antes pasaba limpio. La acorté en el delta y resincronicé. La regla de que el cambio de tipo vacía el historial se mantiene: el escenario "El tipo no se deshace" sigue cubriéndola.
+  
+  ## Pendiente (no lo he hecho)
+  
+  - **Commit:** el archivado deja sin confirmar el movimiento del change y los dos specs principales (más tu `.gitignore`, que sigue fuera). ¿Hago el commit?
+  - **Bitácora:** `docs/bitacora.md` pide la entrada de la sesión, que se escribe con `/cerrar-sesion`. Mejor al final de la sesión, con el siguiente change ya hecho.
+  - **`readme`:** `config.yaml` sugiere revisar sus secciones 2.x, 3 y 4. No he mirado si algo cambia.
+  - **Siguiente change:** `funciones-servidor` (S2), escrito contra los specs ya actualizados. Este es el momento de proponerlo con `/opsx:propose`.
+
+> haz el commit. Incluye el gitignore
+
+  ⎿ Bash: Añadir y confirmar el archivado y .gitignore
+
+● Hecho el commit `e44e7b6` en `feat/s2-funciones-de-servidor`, con el archivado del change, los dos specs principales sincronizados y tu `.gitignore`. El árbol de trabajo está limpio y no he subido nada a GitHub.
+  
+  Siguiente paso: proponer `funciones-servidor` (S2) con `/opsx:propose`.
+
+> /opsx:propose funciones-servidor
+
+  ⎿ Bash: Contexto OpenSpec, arnés de tests de Supabase y estado del entorno local
+
+● El Supabase local está en marcha, así que puedo comprobar en la base de datos real dos puntos abiertos de la exploración: dónde está `pgcrypto` y qué `search_path` tienen los roles.
+
+  ⎿ Bash: Consultar extensiones y funciones disponibles en la base local
+
+  ⎿ Bash: Repetir la consulta con una URL de módulo válida
+
+  ⎿ mcp__context7__resolve-library-id
+
+  ⎿ mcp__context7__query-docs
+
+  ⎿ Bash: Buscar la definición de las historias HU-01..03 y los tests del backend
+
+● Tengo el contexto. Creo el change.
+
+  ⎿ Bash: Crear el change funciones-servidor y leer las historias HU-01..03
+
+● HU-02 pide expresamente un 404 para quien no es miembro y rechazar las operaciones de un lector, y encaja con el diseño de errores. Escribo el proposal.
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\funciones-servidor\proposal.md
+
+● Ahora los cuatro specs, uno por capacidad.
+
+  ⎿ Bash: Crear las carpetas de los specs del change
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\funciones-servidor\specs\operation-log\spec.md
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\funciones-servidor\specs\diagram-lifecycle\spec.md
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\funciones-servidor\specs\diagram-sharing\spec.md
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\funciones-servidor\specs\diagram-operations\spec.md
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\funciones-servidor\specs\operation-log\spec.md
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\funciones-servidor\specs\operation-log\spec.md
+
+● Ahora el `design.md`.
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\funciones-servidor\design.md
+
+● Falta el `tasks.md`.
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\openspec\changes\funciones-servidor\tasks.md
+
+  ⎿ Bash: Ajustar horas y redacción y validar el change
+
+● Propuesto el change `funciones-servidor` (S2) en `openspec/changes/funciones-servidor/`, con los cuatro artefactos listos. `openspec validate funciones-servidor --strict` lo da por válido. Solo hay planificación: no he tocado código ni hecho commits.
+  
+  ## Qué contiene
+  
+  - **`proposal.md`:** explica por qué, qué cambia, qué queda fuera y el impacto.
+  - **`specs/`:** tres capacidades nuevas y un añadido a `diagram-operations`.
+    - `operation-log` cubre `apply_op`.
+    - `diagram-lifecycle` cubre `create_diagram`, `delete_diagram` y `restore_diagram`.
+    - `diagram-sharing` cubre `create_invite` y `accept_invite`.
+    - `diagram-operations` gana "Operaciones mal formadas".
+  - **`design.md`:** siete decisiones con sus alternativas descartadas, y riesgos.
+  - **`tasks.md`:** cinco grupos, 3,25 h.
+  
+  ## Decisiones que conviene que mires
+  
+  1. **Orden de `apply_op`:** primero rol, estado de borrado y forma de la operación sin bloqueo. Después `FOR UPDATE`, reintento por `op_id` y tope de 5 000. Por último `last_seq + 1` e inserción. Cambia el orden literal del PRD (`UPDATE` primero) para que un reintento no gaste una secuencia, y el tope se comprueba después del reintento.
+  2. **Errores:** `PTxyz` como SQLSTATE, con una clave estable en `message`.
+     - 404 es `not_found` (ajeno o diagrama inexistente, igual que pide HU-02) o `invite_invalid`.
+     - 403 `forbidden`, 410 `diagram_deleted`, 422 `invalid_op` y 409 `op_limit`.
+     - Verifiqué en la documentación de PostgREST que `PTxyz` produce ese estado HTTP.
+  3. **Un miembro de un diagrama borrado recibe 410**, no 404. Por eso las funciones leen `diagram_members` directamente y no `member_role`.
+  4. **Invitaciones reutilizables** hasta caducar. Aceptar nunca cambia el rol de quien ya es miembro.
+  5. **`pgcrypto`:** comprobé en el Supabase local que `extensions.gen_random_bytes` existe, así que el token usa esa función.
+  
+  ## Dos cosas que no estaban en tu petición
+  
+  - **Hallazgo de seguridad:** `ops.js` lanza una excepción si una operación no trae `node` o `edge`. Un editor con un cliente modificado podría enviar un `addNode` sin `node` y hacer caer a todos los clientes al reproducir el registro. El servidor lo rechaza, y añadí a este change que `apply` rechace esas operaciones sin lanzar (el requisito añadido a `diagram-operations`). Es lo único que toca el frontend; si prefieres dejarlo fuera, se puede quitar el grupo 4.1.
+  - **Presupuesto:** el PRD da 2 h a S2 y esto son 3,25 h, porque las pruebas de cada función van dentro del change. S3 conserva su alcance (la matriz completa de permisos y Realtime). Está anotado en el proposal.
+  
+  Un test nuevo pasa al servidor las fixtures de `frontend/test/fixtures/ops/*.json` y comprueba que cliente y servidor rechazan lo mismo.
+  
+  Para empezar, `/opsx:apply funciones-servidor`; necesita Docker y el Supabase local en marcha, que ya lo está.
+
+> /opsx:apply funciones-servidor
+
+● Using change: `funciones-servidor` (otro: `/opsx:apply <nombre>`).
+
+  ⎿ Bash: Obtener instrucciones de apply y ver el estado del repositorio
+
+● Grupo 1, tarea 1.1: escribo la migración base.
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\supabase\migrations\20261118120000_funciones_base.sql
+
+  ⎿ Bash: Aplicar la migración pendiente en el Supabase local
+
+● La migración se aplica. La tarea pide `db reset` como verificación, así que lo ejecuto ahora, en local y con las migraciones desde cero.
+
+  ⎿ Bash: Reaplicar todas las migraciones desde cero en el Supabase local
+
+● Las tres migraciones se aplican desde cero. Marco 1.1 y escribo los tests de 1.2.
+
+  ⎿ Bash: Marcar la tarea 1.1
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\supabase\tests\ciclo-de-vida.test.js
+
+  ⎿ Bash: Ejecutar los tests del ciclo de vida
+
+● `create_diagram` funciona, pero los rechazos de `delete_diagram` devuelven 400 en vez de 403/404. Miro el error real.
+
+  ⎿ Bash: Ver el error devuelto por delete_diagram a un editor y a un ajeno
+
+● `RAISE` no admite un `detail` nulo, y los rechazos sin texto lo dejaban nulo. Como la migración aún no se ha publicado, la corrijo en su sitio.
+
+  ⎿ Bash: Corregir el detail nulo, reaplicar migraciones y repetir los tests
+
+● 12 de 12 en verde. Marco 1.2 y escribo la documentación de 1.3 en el PRD.
+
+  ⎿ Bash: Marcar 1.2 y localizar dónde documentar los errores en el PRD
+
+  ⎿ Bash: Comprobar si el PRD mezcla finales de línea
+
+● El PRD es coherente (CRLF en el árbol de trabajo, LF en git). Añado la sección de errores.
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\pr…
+
+  ⎿ Bash: Aplicar la documentación en el PRD y marcar 1.3
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\supabase\migrations\20261118120100_apply_op.sql
+
+  ⎿ Bash: Aplicar la migración de apply_op y probar las funciones auxiliares
+
+  ⎿ Bash: Añadir equipo(), nodo(), meta(), enviar() y guardar() a datos.js
+
+● Ahora los tests de `apply_op` (tarea 2.2).
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\supabase\tests\apply-op.test.js
+
+  ⎿ Bash: Ejecutar los tests de apply_op
+
+● Los 19 pasan a la primera, y desconfío de eso. Compruebo que el test de concurrencia no es vacío: quito el `FOR UPDATE` en la base local y debería fallar.
+
+  ⎿ Bash: Mutación: quitar FOR UPDATE y comprobar que los tests de concurrencia fallan
+
+  ⎿ Bash: Restaurar la función con db reset, repetir los tests y marcar 2.1 y 2.2
+
+● Fallan solo los tres primeros tests justo después del reset, lo que apunta a que los servicios aún se estaban reiniciando. Repito para confirmarlo.
+
+  ⎿ Bash: Repetir los tests de apply_op tras estabilizarse el entorno
+
+● 19 de 19: era transitorio. Ahora la tabla de validación (tarea 2.3).
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\supabase\tests\validacion-op.test.js
+
+  ⎿ Bash: Ejecutar los tests de validación de operaciones
+
+● Pasan las 5 tablas de validación. Marco 2.3. Antes de la documentación de 2.4, alineo el design y el spec con lo que acabo de implementar (longitud UTF-16 y blancos de JavaScript).
+
+  ⎿ Bash: Marcar 2.3 y alinear design y spec con la validación implementada
+
+  ⎿ Bash: Leer la sección S2 y la fila 0.7.3 del PRD
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\pr…
+
+  ⎿ Bash: Aplicar la actualización del PRD a la v0.7.4
+
+  ⎿ Bash: Dejar S2 en 2 h en el PRD y marcar 2.4
+
+● Grupo 3: invitaciones. Escribo la migración (3.1).
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\supabase\migrations\20261118120200_invitaciones.sql
+
+  ⎿ Bash: Aplicar la migración de invitaciones
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\supabase\tests\invitaciones.test.js
+
+  ⎿ Bash: Ejecutar los tests de invitaciones
+
+● 16 de 16. Marco 3.1 y 3.2 y paso al grupo 4: primero el endurecimiento de `apply` en `ops.js`. Releo la parte que voy a tocar.
+
+  ⎿ Bash: Marcar 3.1 y 3.2 y leer la cabecera de ops.js
+
+● Además de añadir la comprobación de forma, corrijo el comentario de `validLabel`, que quedó obsoleto porque el servidor ya cuenta unidades UTF-16.
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\ops.js
+
+  ⎿ Bash: Comprobar que los tests existentes siguen en verde con el endurecimiento
+
+● Los 131 existentes siguen en verde con la comprobación nueva. Añado los casos de operaciones mal formadas en `ops.test.js` y la fixture compartida con el servidor.
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\test\ops.test.js
+
+  ⎿ Bash: Localizar dónde añadir los tests de réplicas e inversas
+
+  ⎿ Bash: Leer el test de réplicas para extenderlo
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\frontend\test\ops.test.js
+
+● Ese test me quedó enrevesado. Lo simplifico: si `apply` lanzara, el propio `map` haría fallar el test.
+
+  ⎿ Bash: Simplificar el test de réplicas, crear la fixture forma.json y ejecutar los tests
+
+  ⎿ Bash: Ver por qué falla la fixture forma.json
+
+● El fallo está en el propio harness de fixtures: su mensaje de error lee `op.type`, que con `null` revienta. Lo corrijo con `op?.type`.
+
+  ⎿ Bash: Corregir el mensaje del harness de fixtures y repetir los tests
+
+● 153 en verde. Marco 4.1 y escribo el test de contrato con el servidor (4.2).
+
+  ⎿ Bash: Marcar la tarea 4.1
+
+  ⎿ Write: c:\dev\lidr\AI4Devs-finalproject\supabase\tests\fixtures-ops.test.js
+
+  ⎿ Bash: Ejecutar el test de contrato con las fixtures
+
+● Pasan las 7. La verificación de la tarea pide además comprobar que el test se pone en rojo si una fixture cambia de `invalid` a `ok`; lo hago con una copia y restauro después.
+
+  ⎿ Bash: Mutación de la fixture: comprobar que el test falla y restaurar
+
+● El test se pone en rojo con la fixture mutada y vuelve a verde al restaurarla. Marco 4.2 y actualizo `CLAUDE.md` (4.3).
+
+  ⎿ Bash: Marcar 4.2 y leer el apartado supabase de CLAUDE.md
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\cl…
+
+  ⎿ Bash: Actualizar CLAUDE.md y comprobar que coincide con los archivos
+
+  ⎿ Bash: Actualizar un comentario obsoleto, marcar 4.3 y reaplicar migraciones desde cero
+
+  ⎿ Bash: Esperar a Auth y ejecutar todos los tests del backend
+
+● Un solo fallo, con 31 s de duración: es la primera prueba tras el reset, con los servicios aún calentando. Repito la batería completa para confirmarlo.
+
+  ⎿ Bash: Repetir tests del backend y del frontend y validar OpenSpec
+
+● Todo en verde: 91 tests del backend, 153 del frontend y OpenSpec válido. Marco la última tarea.
+
+  ⎿ Bash: Marcar 5.1 y comprobar el progreso final y los archivos cambiados
+
+● ## Implementation Complete
+  
+  **Change:** `funciones-servidor` (esquema `spec-driven`)
+  **Progress:** 13/13 tareas ✓
+  
+  Los 91 tests del backend (`npm run test:backend`) y los 153 del frontend pasan sobre una base reconstruida con `npx supabase db reset`. `openspec validate funciones-servidor --strict` y los 7 specs principales también pasan.
+  
+  ## Qué se ha hecho
+  
+  - **Migraciones nuevas (3):**
+    - `20261118120000_funciones_base.sql`: `create_diagram`, `delete_diagram` y `restore_diagram`, más los helpers de errores y de rol.
+    - `20261118120100_apply_op.sql`: `apply_op` y `validate_op`, con la numeración bajo `FOR UPDATE`, el reintento por `op_id`, el tope de 5 000 y la copia de `setMeta` a `diagrams`.
+    - `20261118120200_invitaciones.sql`: `create_invite` y `accept_invite`.
+  - **Tests nuevos:** `ciclo-de-vida`, `apply-op`, `validacion-op`, `invitaciones` y `fixtures-ops`.
+  - **Frontend:** `apply` e `inverse` de `ops.js` rechazan sin lanzar las operaciones mal formadas, con una fixture nueva (`forma.json`) y casos en `ops.test.js`.
+  - **Documentación:** PRD v0.7.4 y `CLAUDE.md`.
+  
+  ## Cosas que debes saber
+  
+  1. **Longitud UTF-16 y blancos de `trim` en el servidor.** Mientras implementaba vi que el título se copia a `diagrams`. Con `char_length` y `btrim` (la regla de S1), un título de 101 emojis o de tabuladores lo aceptaría el servidor y lo rechazarían los clientes, y la ficha divergiría del registro reproducido. Añadí `utf16_length` e `is_blank` para igualar las reglas de `ops.js`; el design y el spec de `operation-log` ya lo recogen.
+  2. **Parámetros con prefijo `p_`** (`p_diagram_id`, `p_op_id`, `p_op`, `p_kind`…), porque los nombres a secas chocan con las columnas dentro de PL/pgSQL. El PRD lo documenta y F4 tendrá que llamarlos así.
+  3. **Comprobé que los tests no son vacíos.** Sin el `FOR UPDATE`, falla el test de reintentos simultáneos. Con una fixture cambiada de `invalid` a `ok`, falla `fixtures-ops`. Ambas mutaciones se restauraron.
+  4. **Dos fallos transitorios** justo después de un `db reset` (los primeros tests, con Auth aún arrancando); al repetir todo pasó.
+  5. **El título de S2 en el PRD sigue en 2 h.** Reales han sido unas 3,25 h; lo anoté en el historial de la v0.7.4 para no tocar el plan de sesiones.
+  
+  No he hecho commits. ¿Los hago como la vez anterior (migraciones, tests y frontend por separado, más los artefactos del change)? Después `/opsx:archive`, que sincronizará los specs de las tres capacidades nuevas y el añadido a `diagram-operations`.
+
+> haz los commits como la vez anterior
+
+  ⎿ Bash: Crear los cuatro commits de S2
+
+● Hecho: cuatro commits en `feat/s2-funciones-de-servidor`, con el árbol de trabajo limpio y sin subir nada a GitHub.
+  
+  ```
+  0e61e70 docs: pasa el PRD a la v0.7.4 y actualiza CLAUDE.md con S2
+  62d8d52 feat: añade las funciones de servidor del backend (S2)
+  3fee696 feat: rechaza las operaciones mal formadas en lugar de lanzar una excepción
+  4007683 docs: propone el change funciones-servidor
+  ```
+  
+  Los avisos de LF y CRLF no importan.
+  
+  El siguiente paso es `/opsx:archive` para `funciones-servidor`: sincroniza los specs de las tres capacidades nuevas y el añadido a `diagram-operations`.
+
+> /opsx:archive
+
+● Using change: `funciones-servidor` (otro: `/opsx:archive <nombre>`).
+
+  ⎿ Bash: Leer guía de archive, estado, tareas y estructura de los deltas
+
+  ⎿ AskUserQuestion
+
+  ⎿ Bash: Leer reglas de specs y el formato de un spec principal
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\sy…
+
+  ⎿ Bash: Ejecutar el sync y validar los specs principales
+
+● Faltaba crear las carpetas de los specs nuevos. No se escribió nada. Lo corrijo y repito.
+
+  ⎿ Bash: Crear las carpetas, ejecutar el sync y validar
+
+● Sincronizado y válido (10 de 10). Verifico que cada requisito del delta está idéntico en su spec principal y archivo.
+
+  ⎿ Bash: Verificar el sync contra los deltas y mover el change a archive
+
+● ## Archive Complete
+  
+  **Change:** `funciones-servidor` (esquema `spec-driven`)
+  **Archivado en:** `openspec/changes/archive/2026-11-18-funciones-servidor/`
+  **Specs:** sincronizados con los principales
+  
+  Los 4 artefactos y las 13 tareas estaban completos. Tras el sync:
+  
+  - **Specs nuevos:** `operation-log` (9 requisitos), `diagram-lifecycle` (3) y `diagram-sharing` (3), cada uno con el Purpose del delta.
+  - **Spec ampliado:** `diagram-operations` pasa a 12 requisitos con "Operaciones mal formadas".
+  - **Verificación:** los 10 specs pasan `openspec validate --specs --strict`, cada requisito del delta está idéntico en el principal y no queda ningún encabezado de delta.
+  
+  No he hecho commit: quedan sin confirmar el movimiento del change y los cuatro specs. ¿Lo hago?
+  
+  Pendiente que sugiere `config.yaml` y que no he hecho:
+  - **Bitácora:** la entrada de la sesión en `docs/bitacora.md`, con `/cerrar-sesion`.
+  - **`readme.md`:** revisar sus secciones 2.x, 3 y 4. No he mirado si algo cambia.
+  
+  Con S2 cerrado, el siguiente bloque del PRD es S3 (tests del backend) o F4 (cliente colaborativo); cada uno va en su propia rama.
+
+> revisa si hay que actualizar el readme.md
+
+  ⎿ Bash: Ver la estructura del readme
+
+  ⎿ Bash: Buscar en el readme menciones afectadas por los dos changes
+
+● El propio readme avisa en la línea 17 de que las secciones 2, 3, 4 y 6 siguen describiendo el diseño anterior. Leo ese aviso y las secciones que tocan lo que hemos cambiado.
+
+  ⎿ Bash: Leer el aviso de plan y las secciones 2.5, 2.6 y 3.2 del readme
+
+  ⎿ Bash: Leer el inicio de la sección 4, la 7 y el último cambio del readme
+
+  ⎿ Bash: Leer 1.4 (instalación) y 2.3 (estructura de ficheros) del readme
+
+  ⎿ Bash: Comprobar el tope de 500 nodos y qué cubre el bloque P2 en el PRD
+
+● Sí hay cosas desactualizadas, pero casi ninguna la han causado los dos changes de hoy. No he editado nada.
+  
+  ## Lo que ya estaba desactualizado
+  
+  La línea 17 del readme avisa de que las secciones 2, 3, 4 y 6 siguen describiendo el diseño con Spring Boot. El PRD v0.7 ya fija que se reescriben en el bloque P2 (3 h), con la lista exacta: arquitectura y seguridad con RLS y funciones `security definer`, API con `apply_op`, `create_invite` y `accept_invite`, y tickets de S1, S2 y F4. Casi todo lo que sigue estaba desfasado desde S1 o antes:
+  
+  | Sección | Qué dice hoy | Qué es cierto ahora |
+  |---|---|---|
+  | 2.5 Seguridad | Valida el JWT con JWKS en el backend y el WebSocket; RLS "sin políticas"; backend con rol de servidor | No hay backend propio. RLS con políticas de lectura y escrituras solo por funciones `security definer` |
+  | 2.5 Seguridad | "500 nodos por diagrama" | No existe en el PRD, en los specs ni en el código, así que hay que quitarlo o decidirlo |
+  | 2.6 Tests | MockMvc, Testcontainers y WebSocket | `node --test` contra el Supabase local |
+  | 3.2 Modelo de datos | `content`, `snapshot_seq`, título de 1–120 y token en base64url | Hay `last_seq`, `deleted_at`, `op_id` y `display_name`. El título es de 1–200 y el token son 64 caracteres hexadecimales |
+  | 4 API | OpenAPI de Spring (`/diagrams/{id}/invites`) | Funciones RPC con parámetros `p_…` y errores `PTxyz` |
+  | 1.4 y 2.3 (MVP) | Java 21, Maven y `docker compose` | Docker y `npx supabase start` |
+  
+  ## Lo que sí tocan los cambios de hoy
+  
+  Muy poco, y está en esas mismas secciones: lo de los lectores que reciben un error (403) y los ajenos que reciben 404 en 2.5 ahora es cierto, pero el apartado sigue titulado "previstas". Para el tipo fijo y las etiquetas no hay nada falso: la tabla de la línea 100 ("el tipo limita las formas") sigue siendo correcta.
+  
+  ## Lo único que corregiría ya
+  
+  Dos huecos son del estado actual del repositorio, no del diseño futuro:
+  
+  - **1.4, "Prototipo actual (solo frontend)":** ya existe un backend local con tests y no se dice cómo lanzarlo: `npm install`, `npx supabase start` y `npm run test:backend` (Docker en marcha). Está en `CLAUDE.md` pero no en el readme.
+  - **2.3, "Estructura actual (prototipo)":** faltan `supabase/` (migraciones y tests), `grabacion.js` y el `package.json` de la raíz.
+  
+  Reescribir 2, 3 y 4 ahora duplicaría el trabajo de P2, y es lo que recomiendo no hacer. Para esas dos pequeñas correcciones, que son un par de párrafos, solo necesito que me digas si las hago o las dejo para P2.
+
+> haz las dos correcciones del readme y el commit
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\re…
+
+  ⎿ Bash: Aplicar las dos correcciones del readme y revisar el diff
+
+● Las dos correcciones están aplicadas. Hago los commits: el archivado de `funciones-servidor`, que seguía sin confirmar, y después el readme.
+
+  ⎿ Bash: Crear el commit del archivado y el del readme
+
+● Hechas las dos correcciones del readme y los commits, con el árbol limpio y sin subir nada a GitHub.
+  
+  ```
+  8013f41 docs: añade al readme el backend local y la estructura actual
+  47b5c5f docs: archiva funciones-servidor y sincroniza sus specs
+  ```
+  
+  - **Readme, sección 1.4:** el "Prototipo actual" ya no dice "solo frontend". Añade cómo arrancar el backend local: `npm install`, `npx supabase start` y `npm run test:backend`, con Docker en marcha. También indica que el frontend aún no lo usa (F4) y que el remoto llega en D1.
+  - **Readme, sección 2.3:** la estructura actual incluye `supabase/`, `grabacion.js` y el `package.json` de la raíz, y la descripción de `test/` menciona los trazos grabados y las fixtures de operaciones.
+  - **Commit extra:** el archivado de `funciones-servidor` seguía sin confirmar desde antes, así que lo incluí como commit aparte. Los dos avisos de LF y CRLF no importan.
+  
+  Las secciones 2.5, 2.6, 3, 4 y 6 del readme siguen describiendo el diseño anterior, como dice su propio aviso; se reescriben en P2.
+  
+  La rama `feat/s2-funciones-de-servidor` ya está lista para la PR contra `develop`. Falta la entrada de la sesión en `docs/bitacora.md` (`/cerrar-sesion`), que conviene escribir antes de abrirla.
+
+> /cerrar-sesion
+
+  ⎿ Bash: Extraer los prompts literales y las horas activas de la sesión
+
+  ⎿ Bash: Ver commits recientes y la última entrada de la bitácora
+
+  ⎿ Bash: Leer el filtrado del script y comprobar si el registro contiene los prompts que faltan
+
+  ⎿ Bash: Corregir el filtro de prompts con contexto del IDE y volver a extraerlos
+
+● El parche inline falló por el escape de la plantilla y no tocó el archivo. Lo aplico con `Edit`.
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\.claude\skills\cerrar-sesion\prompts.cjs
+
+  ⎿ Edit: c:\dev\lidr\AI4Devs-finalproject\.claude\skills\cerrar-sesion\prompts.cjs
+
+  ⎿ Bash: Aplicar el arreglo al script y volver a extraer los prompts
+
+● Ahora salen 26 prompts, 6 más que antes. Leo el texto completo de los nuevos.
+
+  ⎿ Read: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\pr…
+
+● Para seguir el formato al pie de la letra, leo el principio de la entrada de la sesión 7.
+
+  ⎿ Bash: Leer el formato de la entrada de la sesión 7 y los archivos de sesiones
+
+● Compruebo el plan de sesiones del PRD para anotar bien las horas acumuladas.
+
+  ⎿ Bash: Leer el plan de sesiones del PRD
+
+● Tengo los datos. Esta es la entrada que propongo para la bitácora. Según la skill, no la guardo hasta que la revises.
+  
+  ---
+  
+  ## Sesión 8 · 17–18 nov 2026 · S2: funciones de servidor, con el change previo `tipo-fijo-y-etiquetas`
+  
+  **Objetivo:** cerrar el bloque S2 del PRD (funciones de servidor). Explorar con el PO las decisiones abiertas, lo que llevó a un change previo (`tipo-fijo-y-etiquetas`), y después proponer, implementar y archivar `funciones-servidor`.
+  
+  **Fase del ciclo de vida:** arquitectura, API, seguridad, tests y tickets de trabajo.
+  
+  ### Prompts
+  
+  **Prompt 1: comprobar la PR #11 y cambiar a `develop`**
+  
+  ```
+  comprueba que la PR#11 esta cerrada, cambia a develop y /opsx:explore
+  ```
+  
+  (Después, `/model sonnet` y `/opsx:explore` sin tema.)
+  
+  - **Qué hizo el agente:** consultó la PR con `gh` (fusionada en `develop`, no solo cerrada), cambió a `develop` y la actualizó con `git pull --ff-only` (10 commits). Al entrar en explore sin tema, listó el estado y las tres líneas posibles.
+  - **Resultado:** `develop` al día; ningún change activo.
+  - **Impacto:** deja claro que la rama de S2 sale de `develop` ya fusionado.
+  
+  **Prompt 2: explorar S2**
+  
+  ```
+  Hablame en español /opsx:explore  S2
+  ```
+  
+  - **Qué hizo el agente:** leyó el PRD (arquitectura, API y S2), las migraciones de S1, el spec `diagram-storage` y `ops.js`, y consultó la base local: PostgreSQL 17 con `pgcrypto` en el esquema `extensions`. Detectó cuatro problemas:
+    - El orden de `apply_op` del PRD (`UPDATE` primero) gasta una secuencia en un reintento.
+    - Los errores no están definidos.
+    - `create_diagram(title, kind)` deja la ficha y el registro diciendo cosas distintas.
+    - Ni `ops.js` ni la interfaz limitan las etiquetas, aunque el PRD exige 200 caracteres.
+  - **Resultado:** exploración sin escribir nada; propuso preguntar primero por `create_diagram`.
+  - **Impacto:** de aquí salieron las decisiones de todo el bloque.
+  
+  **Prompt 3: comprobar si ha entendido el estado**
+  
+  ```
+  A ver si he entendido bien el estado actual propuesto: create_diagram escribe en la tabla diagrams, mientras que setMeta en diagram_ops y copia a diagrams. Al crear un diagrama si sólo se ejecuta create_diagram no hay registro en diagram_ops, que es la fuente de verdad
+  ```
+  
+  - **Qué hizo el agente:** confirmó con matices (`setMeta` pasa por `apply_op`; el hueco solo existe si `create_diagram` recibe algo distinto de los valores por defecto), dibujó el flujo y recomendó que `create_diagram` insertara un `setMeta` como `seq = 1`.
+  - **Resultado:** ninguno; abre el prompt siguiente.
+  - **Impacto:** el PO fija el principio "el registro es la única verdad" que guía el resto del diseño.
+  
+  **Prompt 4: el tipo de diagrama no debe cambiar**
+  
+  ```
+  No se si es correcto que setMeta pueda cambiar el tipo de diagrama ya dibujado. Ahora mismo estamos usando un subconjunto muy reducido de formas pero mas adelante, si incluimos más formas o más tipos de diagramas habrá formas incompatibles
+  ```
+  
+  - **Qué hizo el agente:** leyó `flow.js`, `state.js` y los specs, y razonó que hoy el cambio solo reinterpreta tres formas compartidas, pero dejaría de valer con tipos nuevos y, con colaboración, un editor cambiaría las reglas del lápiz de los demás. Comparó cuatro opciones y recomendó fijar el tipo al crear: así desaparece el hueco de `create_diagram` y se simplifica `apply_op`.
+  - **Qué siguió:** el PO respondió "Opción 1, tipo fijo al crear; el modo local se mantiene". El agente preguntó qué hace entonces el selector local y detectó la trampa de "Deshacer" tras cambiar de tipo. El PO eligió "A, cambiar de tipo es empezar un diagrama nuevo. En el aviso añadir 'esta acción no se puede deshacer'".
+  - **Resultado:** decisión de diseño: `create_diagram(kind)` sin título, `setMeta` sin tipo, cambio de tipo = diagrama nuevo con confirmación.
+  - **Impacto:** cambia el modelo del PRD (v0.7.3) y reabre F2 en un punto.
+  
+  **Prompt 5: el tope de etiquetas y los dos changes**
+  
+  ```
+  ¿a qué te refieres con tope en 3 capas?
+  ```
+  
+  - **Qué hizo el agente:** explicó las tres comprobaciones del mismo límite de 200 caracteres (interfaz con `maxlength`, `ops.js` y `apply_op`) y por qué cada una es necesaria; solo la del servidor es seguridad. Con el "Sí, tope en las tres capas y dos changes" del PO, resumió lo confirmado y lo propuesto por defecto, y con "Sí, crea la rama y el change" creó la rama `feat/s2-funciones-de-servidor` y el change `tipo-fijo-y-etiquetas` (proposal, dos deltas de spec, design y tasks).
+  - **Resultado:** rama y change con `openspec validate --strict` en verde.
+  - **Impacto:** separa en dos changes lo que toca el frontend y lo que es servidor, como pide la convención de la rama.
+  
+  **Prompt 6: implementar `tipo-fijo-y-etiquetas`**
+  
+  ```
+  /opsx:apply
+  ```
+  
+  - **Qué hizo el agente:** implementó las tareas: `setMeta` rechaza `kind`, validación de etiquetas en `ops.js`, `model.newDiagram`, interfaz y documentación. Verificó con Chromium (Playwright) y 131 tests. **Para la interfaz leyó `notas/mejoras.md` y construyó sobre sus apuntes** (botón "Nuevo", diálogo, quitar el selector).
+  - **Resultado:** código y artefactos hechos, pero sobre una fuente que el PO no quería (ver Correcciones).
+  - **Impacto:** mostró cuándo el agente toma un archivo adjunto por una instrucción.
+  
+  **Prompt 7: corrección, ignorar `mejoras.md`**
+  
+  ```
+  no tenias que haber leído mejoras.md, se adjuntó por error. repite los mismos prompts sin tener enc cuienta este archivo
+  ```
+  
+  - **Qué hizo el agente:** deshizo la parte influida por el archivo (botón, diálogo, etiqueta "Flujo · Dirección"), restauró el selector con `confirm()` y la advertencia acordada, reescribió proposal, design, spec y tareas, y repitió las comprobaciones en el navegador (20 puntos) y los tests.
+  - **Resultado:** el change queda como habíamos acordado, con 11 de 11 tareas.
+  - **Impacto:** una de las correcciones más claras de la sesión.
+  
+  **Prompt 8: commits del primer change**
+  
+  ```
+  He comprobado que confirm() está OK.haz los commits
+  ```
+  
+  - **Qué hizo el agente:** marcó la tarea de la tablet y creó cuatro commits (`248955b`, `23a31b7`, `3c61512`, `8b892a2`), dejando fuera el `.gitignore` del PO.
+  - **Resultado:** cuatro commits en la rama.
+  - **Impacto:** el PO probó `confirm()` en la tablet, lo único que el agente no puede hacer.
+  
+  **Prompt 9: archivar el primer change**
+  
+  ```
+  /opsx:archive
+  ```
+  
+  (Después, "haz el commit. Incluye el gitignore".)
+  
+  - **Qué hizo el agente:** sincronizó los deltas con `diagram-operations` y `canvas-editing`; un requisito superaba los 500 caracteres y rompía la validación estricta, así que lo acortó en el delta y resincronizó. Archivó en `2026-11-18-tipo-fijo-y-etiquetas`.
+  - **Resultado:** commit `e44e7b6`, con el `.gitignore`.
+  - **Impacto:** deja los specs principales al día antes de escribir S2.
+  
+  **Prompt 10: proponer `funciones-servidor`**
+  
+  ```
+  /opsx:propose funciones-servidor
+  ```
+  
+  - **Qué hizo el agente:** leyó el arnés de tests de S1, comprobó en la base real que `extensions.gen_random_bytes` existe y verificó en la documentación de PostgREST que un `RAISE` con SQLSTATE `PTxyz` devuelve ese estado HTTP. Escribió proposal, cuatro specs (tres capacidades nuevas y un añadido), design con siete decisiones y 13 tareas. **Detectó un riesgo que no pedía nadie:** `ops.js` lanza una excepción si una operación no trae `node` o `edge`, así que un editor modificado podría hacer caer a todos los clientes; lo añadió al alcance.
+  - **Resultado:** change validado, con 13 tareas en 5 grupos.
+  - **Impacto:** fija la convención de errores (404 uniforme, 403, 410, 422, 409) y el orden de `apply_op`.
+  
+  **Prompt 11: implementar `funciones-servidor`**
+  
+  ```
+  /opsx:apply funciones-servidor
+  ```
+  
+  (Después, "haz los commits como la vez anterior".)
+  
+  - **Qué hizo el agente:** escribió tres migraciones (`funciones_base`, `apply_op`, `invitaciones`) y cinco ficheros de tests, y endureció `apply` en `ops.js`. Comprobó que los tests no eran vacíos: sin `FOR UPDATE` falla el test del mismo `op_id` simultáneo, y con una fixture cambiada falla el contrato con el cliente. Los 91 tests del backend y los 153 del frontend pasan.
+  - **Resultado:** commits `4007683`, `3fee696`, `62d8d52` y `0e61e70`.
+  - **Impacto:** es el núcleo de seguridad del backend: toda escritura pasa por funciones `security definer`.
+  
+  **Prompt 12: archivar `funciones-servidor`**
+  
+  ```
+  /opsx:archive
+  ```
+  
+  - **Qué hizo el agente:** creó los specs `operation-log`, `diagram-lifecycle` y `diagram-sharing`, añadió el requisito a `diagram-operations` y lo verificó contra los deltas.
+  - **Resultado:** archivado en `2026-11-18-funciones-servidor`.
+  - **Impacto:** los specs principales ya describen el servidor.
+  
+  **Prompt 13: revisar el readme**
+  
+  ```
+  revisa si hay que actualizar el readme.md
+  ```
+  
+  (Después, "haz las dos correcciones del readme y el commit".)
+  
+  - **Qué hizo el agente:** comprobó que lo desactualizado ya estaba señalado para P2 y que solo dos huecos eran del estado actual del repositorio. Corrigió 1.4 (backend local y sus tests) y 2.3 (estructura), y no reescribió 2, 3, 4 y 6.
+  - **Resultado:** commits `47b5c5f` (archivado) y `8013f41` (readme).
+  - **Impacto:** no duplica el trabajo de P2.
+  
+  **Prompt 14: cerrar la sesión**
+  
+  ```
+  /cerrar-sesion
+  ```
+  
+  - **Qué hizo el agente:** al extraer los prompts vio que el script devolvía 20 y recordaba más; comprobó que el registro los tenía y corrigió `prompts.cjs` (ver Correcciones). Redactó esta entrada.
+  - **Resultado:** entrada y arreglo del script, sin confirmar todavía.
+  - **Impacto:** sin el arreglo faltaban 6 prompts, entre ellos las decisiones de diseño.
+  
+  ### Uso en `prompts.md`
+  
+  | Sección de `prompts.md` | Prompts candidatos |
+  |---|---|
+  | 2. Arquitectura | 4 (tipo fijo al crear), 10 (funciones de servidor, errores, orden de `apply_op`) |
+  | 2.3 Modelo de datos | 3 (el registro como fuente de verdad) |
+  | 2.5 Seguridad | 10 y 11 (validación mínima, operaciones mal formadas, 404 uniforme) |
+  | 2.6 Tests | 11 (concurrencia, mutaciones, fixtures compartidas con el cliente) |
+  | 4. API | 10 y 11 (funciones RPC, errores `PTxyz`) |
+  | 6. Tickets de trabajo | 5, 6, 10 y 11 (changes con proposal, specs, design y tasks) |
+  | 7. Pull Requests | la rama `feat/s2-funciones-de-servidor` (PR pendiente) |
+  
+  ### Correcciones
+  
+  - **Leí `notas/mejoras.md` y construí sobre él (prompt 7).** El archivo se adjuntó por error. El agente adoptó sus apuntes (botón "Nuevo", diálogo, quitar el selector) como interfaz del change y lo presentó como "tus notas de hoy", sin preguntar si ese era el alcance. Hubo que rehacer la interfaz, tres artefactos, el PRD y `CLAUDE.md`.
+  - **Respondí en inglés (prompt 2).** Las primeras respuestas fueron en inglés y el PO tuvo que pedir "hablame en español", aunque la convención del proyecto es el español.
+  - **Afirmé que el PRD no fijaba la serialización de `apply_op`.** Sí la fijaba (`UPDATE ... last_seq`); se corrigió en el mensaje siguiente.
+  - **Redacción larga que rompía la validación.** El primer sync de `canvas-editing` dejó un requisito de más de 500 caracteres y falló en modo estricto; se acortó. Además, una fixture se escribió con `"x".repeat(201)`, que no es JSON válido, y dos scripts de sync fallaron por un escape y por una carpeta sin crear (sin escribir nada).
+  - **`RAISE` con `detail` nulo.** Los rechazos sin texto daban 400 en lugar de 403/404 (error `22004`); los tests lo mostraron y se corrigió en la migración.
+  - **Regla de S1 que no valía para el servidor.** El diseño partía de la decisión de S1 ("nunca más estricto que `ops.js`", con `char_length` y `btrim`), pero para el título, que se copia a `diagrams`, habría dejado la ficha distinta del registro con 101 emojis o tabuladores. Se detectó antes de implementar y se cambió a las reglas exactas del cliente (UTF-16 y `trim`).
+  - **El script de prompts perdía mensajes (prompt 14).** `prompts.cjs` descartaba todo mensaje que empezara por una etiqueta del IDE (`<ide_selection>`, `<ide_opened_file>`), aunque llevara el texto real del PO. Perdió 6 de 26 prompts. Se corrigió, y las sesiones anteriores pueden tener el mismo hueco.
+  - **Dos fallos transitorios** de los tests tras `db reset` (Auth aún arrancando); no eran del código, pero costaron una repetición.
+  
+  ### Pendiente
+  
+  - Abrir la PR de `feat/s2-funciones-de-servidor` contra `develop` (los dos changes del bloque) y commitear el arreglo de `prompts.cjs` con esta entrada.
+  - Revisar las entradas anteriores de la bitácora con el script corregido (`--since`): pueden faltar prompts con contexto del IDE.
+  - F4 tiene que leer el tipo de `diagrams.kind` antes de reproducir el registro, y F5 elegir el tipo al crear con `create_diagram(p_kind)`. Los parámetros llevan prefijo `p_`.
+  - S3 sigue pendiente: matriz completa de permisos y Realtime con RLS por suscriptor, que no se ha probado.
+  - Un `op_id` repetido con otro contenido devuelve la secuencia guardada sin comparar; documentado como fallo del cliente.
+  - El readme tiene "500 nodos por diagrama" en 2.5, un límite que no existe en ningún sitio; decidirlo o quitarlo en P2, junto con las secciones 2.5, 2.6, 3, 4 y 6.
+  - Las ideas de interfaz móvil de `notas/mejoras.md` (cabecera de 3 filas) siguen sin tratar; decide el PO si las quiere.
+  - Punto de control del PRD tras la sesión 10: con 19,25 h acumuladas y 2,5 y 1,5 h previstas para las sesiones 9 y 10, se llegaría a 23,25 h, por encima de las 22 h; habrá que recortar en el orden del PRD.
+  - Invitaciones de un solo uso, revocarlas y límites de frecuencia quedan para la v2.
+  
+  **Horas:** 2,25 (acumulado 19,25 h de 33). El PRD preveía 17 h tras la sesión 8: vamos 2,25 h por encima, con S2 y el change previo hechos. El script mide los huecos de menos de 30 minutos; la estimación de 3,25 h del change `funciones-servidor` era previa y no se ha medido por separado.
+  
+  ---
+  
+  ¿Quieres cambiar algo? Si te parece bien, la guardo en `docs/bitacora.md`, genero el archivo de la conversación en `docs/sesiones/` (`Sesion8 S2 funciones de servidor`) y te propongo un solo commit con la entrada, ese archivo y el arreglo de `prompts.cjs`.
+
+> En esta sesión se han añadido archivos a varios prompts por error, no quiero que prompts.cjs los tenga en cuenta ¿es ese el arreglo al script?
+
+● Sí, es ese el arreglo, pero lo compruebo para no afirmarlo a ciegas: miro que en la salida no quede ningún resto del contenido adjunto.
+
+  ⎿ Bash: Comprobar que no quedan restos de adjuntos en la salida y listar los mensajes que los llevaban
+
+● La salida del script no tiene ningún resto: 0 coincidencias. La segunda comprobación falló por una ruta de Git Bash; la repito resolviendo la ruta desde Node.
+
+  ⎿ Bash: Listar los mensajes de la sesión que llevaban adjuntos del IDE y qué texto queda de cada uno
+
+● Sí, es ese el arreglo, y está comprobado. Los adjuntos del IDE quedan fuera y solo se conserva lo que escribiste.
+  
+  ## Qué hacía el script antes y qué hace ahora
+  
+  - **Antes:** cuando un mensaje llevaba un adjunto (`<ide_selection>` o `<ide_opened_file>`), el script descartaba el mensaje entero. Los adjuntos no salían, pero tampoco tu texto: se perdían 6 de los 26 prompts, entre ellos las decisiones de diseño ("Opción 1, tipo fijo al crear…").
+  - **Ahora:** quita los bloques de contexto (la selección o el archivo abierto en el IDE, los recordatorios del sistema y los avisos de comandos locales) y se queda con lo que escribiste.
+  
+  ## Comprobación
+  
+  - En la salida del script no queda ningún resto de adjuntos: 0 coincidencias con las etiquetas, con "selected the lines" ni con "opened the file".
+  - La sesión tiene 6 mensajes con adjunto del IDE, y de cada uno sale solo tu texto. Por ejemplo, el que llevaba la selección de `create_diagram` queda como "A ver si he entendido bien el estado actual propuesto…".
+  
+  Un matiz: el script no puede distinguir un adjunto puesto por error de uno intencionado. Los quita todos de todos los prompts, y no son parte de lo que escribiste. Si algún adjunto lo quisieras en `prompts.md`, habría que añadirlo a mano.
+  
+  El arreglo sigue sin commitear. ¿Guardo ya la entrada de la bitácora tal como la he mostrado, genero el archivo de la sesión en `docs/sesiones/` y hago un único commit con todo? Si quieres cambiar algo de la entrada, dímelo antes.
+
+> En la propuesta de bitácora: Quita de pendiente lo de mejoras.md. Explicame Revisar las entradas anteriores de la bitácora con el script corregido (--since): pueden faltar prompts con contexto del IDE.
+
+● Primero compruebo cuántos prompts afectaría de verdad, en vez de explicarlo en abstracto.
+
+  ⎿ Bash: Contar en cada registro anterior cuántos prompts perdía el script antiguo, y listar las sesiones de la bitáco…
+
+● Hay 9 prompts de sesiones anteriores que el script viejo perdía. Compruebo cuáles de ellos sí están ya en la bitácora, para decirte cuántos faltan de verdad.
+
+  ⎿ Bash: Buscar en la bitácora cada prompt que el script antiguo perdía
+
+● ## Qué es ese pendiente
+  
+  El script viejo descartaba los mensajes cuyo texto empezaba por una etiqueta del IDE. Esa parte ya está corregida. Queda lo que dejó atrás: las sesiones anteriores de la bitácora se escribieron con ese script, así que sus prompts con adjunto del IDE nunca llegaron a la bitácora. Y la bitácora es la materia prima de `prompts.md` (bloque P2).
+  
+  Lo he comprobado en los registros de Claude Code. Antes de esta sesión se perdieron **9 prompts**:
+  
+  | Registro (fechas) | Prompts perdidos |
+  |---|---|
+  | 30 sep – 8 nov | "@conversacion-previa.md contiene una conversacion con Claude…" y "no hagas referencias al PRD, escribe la respuestas en prompt…" |
+  | 5 – 7 nov | "He modificado la skill ¿se ha solventado la contradicción?" y tres "y ahora?" |
+  | 8 nov | "claude mcp add context7" |
+  | 9 – 10 nov | "prefiero fusionar el 76fae84 en develop local y subirlo…" |
+  | 11 nov | "¿por qué lienzo no parace como heading?" |
+  
+  Buscando cada uno literalmente en `bitacora.md`, solo aparece el del commit `76fae84`. Los otros 8 no están tal cual. Pueden estar parafraseados (las sesiones −1 y 0 se escribieron antes del script) o faltar. Esto no lo puedo saber sin comparar cada entrada con su registro.
+  
+  **Revisarlo** sería ejecutar `prompts.cjs` sobre cada registro afectado y añadir a su entrada los prompts que falten, copiados literalmente. Para `prompts.md` valen sobre todo los dos primeros y el de la skill; los "y ahora?" y el de context7 son triviales.
+  
+  ## Cómo quedaría el pendiente
+  
+  Sin la línea de `mejoras.md`, y con este texto más concreto en lugar del genérico:
+  
+  > - Completar la bitácora con 8 prompts de sesiones anteriores que el script antiguo no recogía (sesiones 0, 1, 2 y 5; ver la lista en esta entrada): comprobar si están parafraseados y, si faltan, añadirlos literales.
+  
+  ¿Prefieres dejarlo así como pendiente, hacerlo ahora antes de guardar la sesión 8, o quitarlo? Aún no he guardado nada.
+
+> hagámoslo ahora
+
+● Empiezo localizando cada prompt perdido en su registro, con su hora y los mensajes de alrededor, para saber en qué entrada de la bitácora va.
+
+  ⎿ Bash: Extraer los prompts de los cuatro registros afectados y ver en cuál está cada uno
+
+  ⎿ Bash: Leer los prompts completos de los cuatro registros afectados
+
+● Ya tengo los 8 textos. Ahora busco en la bitácora dónde están los prompts vecinos (los que sí se recogieron) para saber en qué entrada y en qué orden van.
+
+  ⎿ Bash: Localizar en la bitácora los prompts vecinos de los que faltan
+
+● Tampoco aparecen los prompts vecinos, así que esas sesiones podrían no estar recogidas en absoluto. Miro qué prompts recoge cada entrada cercana.
+
+  ⎿ Bash: Leer las cabeceras de las entradas cercanas y los títulos de sus prompts
+
+● Los prompts vecinos tampoco están en la bitácora, así que el hueco puede ser mayor que 8 prompts: sesiones enteras. Leo qué respondió el agente a cada uno para poder describirlos con fidelidad.
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\re…
+
+  ⎿ Bash: Leer lo que hizo el agente tras los prompts perdidos de tres registros
+
+  ⎿ Bash: Leer lo que hizo el agente en el registro de los días 5 a 7 de noviembre
+
+  ⎿ Bash: Leer el cierre de las sesiones −1 y 0 para ubicar los prompts del 30 de septiembre
+
+  ⎿ Bash: Leer completas las dos primeras respuestas de la sesión de 5–7 nov y comprobar commits mencionados
+
+● Antes de escribir, miro la cabecera de la bitácora por si tiene un índice de sesiones que haya que ampliar.
+
+  ⎿ Bash: Leer la cabecera de la bitácora y el separador entre entradas
+
+● La bitácora usa CRLF y no tiene índice de sesiones. Escribo las cuatro inserciones con un script: dos prompts en la sesión −1, una entrada nueva (1ter), uno en la 2 y otro en la 5.
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\bi…
+
+  ⎿ Bash: Aplicar las inserciones en la bitácora y comprobar el resultado
+
+● Las inserciones están en su sitio y el archivo sigue siendo coherente (CRLF en todas las líneas). Compruebo que cada prompt recuperado está copiado literalmente del registro.
+
+  ⎿ Bash: Comprobar que cada prompt recuperado aparece literal en la bitácora
+
+  ⎿ Bash: Obtener los prompts finales de la sesión 8 y las horas activas actualizadas
+
+● Hecho: la bitácora ya incluye los prompts y la sesión que faltaban. Está sin commitear.
+  
+  ## Lo que he recuperado
+  
+  Comparé cada registro con la bitácora y el hueco era mayor de lo que dije: además de 8 prompts sueltos, faltaba una **sesión entera**.
+  
+  | Dónde | Qué se añadió |
+  |---|---|
+  | **Sesión −1** | Prompts 6 y 7 (30 sep): rellenar `prompts.md` con la conversación previa, y la corrección "no hagas referencias al PRD". El segundo prompt es una corrección tuya al primer borrador del agente, y la anoté en "Correcciones" |
+  | **Sesión 1ter (nueva)** | La sesión del 5–7 nov, que no estaba. Son 5 prompts: el repaso de OpenSpec antes de F1, la prueba de `run-trazo-mermaid` (el favicon), y la revisión de la skill `openspec-implement` hasta el commit `ddf3bad` en `chore/skill-openspec-implement` |
+  | **Sesión 2** | Prompt 17: añadir y quitar Context7 (8 nov) |
+  | **Sesión 5** | Prompt 12: el encabezado de `mejoras.md` (11 nov) |
+  
+  - **Los "y ahora?" y "comprueba si he parado el servidor"** no tienen bloque propio: están citados dentro de los prompts 4 y 2 de la sesión 1ter, por la regla de la skill. Omití `/import` y `/agents`.
+  - **Verificación:** cada prompt recuperado está copiado literal del registro, y cada nota lleva la fecha de la recuperación (19 nov).
+  - **Tu decisión:** la sesión 1ter tiene 0,5 h que no figuran en el acumulado de las sesiones 1 a 4. Lo dejé escrito en su entrada y no las sumé.
+  
+  ## Cambios en la entrada de la sesión 8
+  
+  Lo demás de la entrada no cambia.
+  
+  - **Prompt 14 (`/cerrar-sesion`):** además del arreglo de `prompts.cjs`, ahora cubre los tres prompts siguientes. Lo trato en tres bloques más:
+    - **Prompt 15:** tu pregunta de si el arreglo del script basta; comprobé que no queda ningún resto de adjuntos y que 6 mensajes de esta sesión los llevaban.
+    - **Prompt 16:** la lista de lo perdido en sesiones anteriores, 9 prompts en 5 registros, de los que solo uno estaba ya en la bitácora.
+    - **Prompt 17 ("hagámoslo ahora"):** la recuperación de arriba.
+  - **Correcciones:** añado que el hueco real era mayor que el que anuncié, porque faltaba una sesión entera, no solo 8 prompts.
+  - **Pendiente:** quito lo de `mejoras.md` y lo de revisar entradas anteriores, que ya está hecho. Añado decidir si se suman las 0,5 h de la sesión 1ter.
+  - **Horas:** 2,5 (el script ahora mide 2,47), acumulado **19,5 h de 33**, más las 0,5 h pendientes de decidir.
+  
+  Si te parece bien, hago esto:
+  
+  1. Guardo la entrada de la sesión 8 en `docs/bitacora.md`.
+  2. Genero `docs/sesiones/Sesion8 S2 funciones de servidor <fecha>.txt`.
+  3. Propongo tres commits: el arreglo de `prompts.cjs`, la recuperación de prompts en la bitácora y la entrada de la sesión 8 con su archivo. No los haré sin tu confirmación.
+  
+  ¿Algo que cambiar?
+
+> Sí, guárdala y haz los commits. He corregido algunos commits que has recuperado en @docs/bitacora.md
+
+● Antes de tocar la bitácora miro tus correcciones, para no pisarlas.
+
+  ⎿ Bash: Ver el estado y el tamaño del diff de la bitácora tras tus correcciones
+
+● Tus correcciones quitaron 12 líneas de lo que yo había insertado (de 137 a 125). Leo el diff completo para ver qué cambiaste.
+
+  ⎿ Read: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\di…
+
+  ⎿ Bash: Obtener el último prompt, las horas actualizadas y el final de la bitácora
+
+● Primero el commit del arreglo de `prompts.cjs` y el de la recuperación en la bitácora, tal como la dejaste. Después añado la entrada de la sesión 8.
+
+  ⎿ Bash: Commit del arreglo de prompts.cjs y de la recuperación en la bitácora
+
+● Ahora la entrada de la sesión 8.
+
+  ⎿ Write: C:\Users\Alvaro\AppData\Local\Temp\claude\3d3fc63a452b05c0\f0f2f004-2af8-4953-8e7a-80e69c4f94a3\scratchpad\se…
+
+● Añado la entrada al final de la bitácora y genero el archivo de la conversación.
+
+  ⎿ Bash: Añadir la entrada de la sesión 8 y exportar la conversación a docs/sesiones
