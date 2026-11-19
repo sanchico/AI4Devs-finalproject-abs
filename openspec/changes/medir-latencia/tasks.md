@@ -6,9 +6,9 @@ para la sesión 9 junto con el inicio de F4. Las tareas del grupo 1 las hace el 
 
 ## 1. Proyecto remoto (0,3 h)
 
-- [ ] 1.1 Crear el proyecto en el panel de Supabase (plan gratuito, región más cercana a la demo) y guardar la contraseña de la base de datos fuera del repositorio. Verificar: el panel muestra el proyecto activo y su `project ref`.
-- [ ] 1.2 Ejecutar `npx supabase login`, `npx supabase link --project-ref <ref>` y `npx supabase db push`. Si una migración falla en el remoto, corregirla con una migración nueva, probarla en local con `npx supabase db reset` y `npm run test:backend`, y repetir el `push`. Verificar: `npx supabase migration list` muestra las cinco migraciones aplicadas en local y en remoto, y `git status` no muestra ningún archivo con secretos.
-- [ ] 1.3 Ejecutar en el editor SQL del panel las consultas de `supabase/tests/realtime.test.js` sobre `pg_publication_tables` y `pg_publication`. Verificar: solo aparece `public.diagram_ops`, con `pubinsert` verdadero y el resto falso (requisito "El proyecto remoto publica lo mismo que el local").
+- [x] 1.1 Crear el proyecto en el panel de Supabase (plan gratuito, región más cercana a la demo) y guardar la contraseña de la base de datos fuera del repositorio. Verificar: el panel muestra el proyecto activo y su `project ref`.
+- [x] 1.2 Ejecutar `npx supabase login`, `npx supabase link --project-ref <ref>` y `npx supabase db push`. Si una migración falla en el remoto, corregirla con una migración nueva, probarla en local con `npx supabase db reset` y `npm run test:backend`, y repetir el `push`. Verificar: `npx supabase migration list` muestra las cinco migraciones aplicadas en local y en remoto, y `git status` no muestra ningún archivo con secretos.
+- [x] 1.3 Ejecutar en el editor SQL del panel las consultas de `supabase/tests/realtime.test.js` sobre `pg_publication_tables` y `pg_publication`. Verificar: solo aparece `public.diagram_ops`, con `pubinsert` verdadero y el resto falso (requisito "El proyecto remoto publica lo mismo que el local").
 - [ ] 1.4 Crear en el panel los usuarios A y B ("Add user", con "Auto confirm"). Verificar: los dos aparecen como confirmados en Authentication.
 
 ## 2. Script de medida (0,8 h)
