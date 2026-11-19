@@ -96,6 +96,28 @@ Vale, ¿cómo paso esto a Claude Code?
 - **Impacto:** el CLAUDE.md inicial es el contexto del que parten todas las sesiones de Claude Code, y su
   hoja de ruta es la base del PRD.
 
+**Prompt 6: rellenar `prompts.md` con la conversación previa** (30 sep, ya en Claude Code)
+
+```
+@conversacion-previa.md contiene una conversacion con Claude desktop que ha producido el PRD @"PRD — PrestoDraft v1.md" . Usando estos archivos rellena @prompts.md  Sólo puedes escribir en las líneas que empiezan por > .  Tienes un ejemplo en C:\dev\lidr\AI4Devs-finalproject-Example1
+```
+
+- **Qué hizo el agente:** leyó el `prompts.md` del proyecto de ejemplo y escribió el de este proyecto solo en las líneas que empiezan por `>`, y comprobó con `git diff` que no cambiaba ninguna línea existente. Copió los prompts literales de la conversación y les añadió una nota breve de contexto y de resultado, repartidos por las secciones de la plantilla (descripción general, arquitectura, componentes, estructura, seguridad…).
+- **Resultado:** `prompts.md` rellenado; entró en el commit `ab44bf6` (2 oct, "Renombra el producto a pen2mermaid y añade prompts.md").
+- **Impacto:** es el primer borrador de `prompts.md`, anterior a la bitácora.
+
+**Prompt 7: sin referencias al PRD**
+
+```
+no hagas referencias al PRD, escribe la respuestas en prompts.md
+```
+
+- **Qué hizo el agente:** reescribió `prompts.md` con la respuesta real de Claude tras cada prompt, tomada de la conversación, y quitó los enlaces al documento del PRD; se quedó el enlace a `conversacion-previa.md` en la cabecera. Donde la respuesta había sido un documento (la creación del PRD) escribió su contenido principal, y las respuestas "Sí" que solo decían "[PRD actualizado]" conservaron los cambios sin presentarse así.
+- **Resultado:** `prompts.md` reescrito.
+- **Impacto:** corrige el primer enfoque: el fichero debe recoger lo que respondió el agente, no remitir al PRD.
+
+*Los prompts 6 y 7 se añadieron el 19 nov 2026: el extractor de prompts los descartaba por llevar adjuntos del IDE.*
+
 ### Uso en `prompts.md`
 
 | Sección de `prompts.md` | Prompts candidatos |
@@ -105,11 +127,11 @@ Vale, ¿cómo paso esto a Claude Code?
 | 2.4 Infraestructura y despliegue, o nota sobre el proceso | Prompt 5 (paso a Claude Code con CLAUDE.md) |
 
 El prompt 4 cuenta la historia del prototipo, pero no encaja en ninguna sección de la plantilla. Puede ir
-en la introducción de `prompts.md`.
+en la introducción de `prompts.md`, igual que los prompts 6 y 7, que explican cómo se rellenó.
 
 ### Correcciones
 
-La conversación exportada no recoge correcciones al agente.
+La conversación exportada no recoge correcciones al agente. En Claude Code, el PO corrigió el primer borrador de `prompts.md`, que remitía al PRD en lugar de recoger las respuestas (prompt 7).
 
 **Horas:** fuera del presupuesto de 30 h (fase de idea y prototipo, anterior al MVP).
 
@@ -438,6 +460,91 @@ respecto al punto 2 he visto que la libreria automerge tiene una implementación
 
 **Horas:** 0 (acumulado 0,5 h de 33).
 
+## Sesión 1ter · 5–7 nov 2026 · OpenSpec: estado antes de F1, prueba de `run-trazo-mermaid` y la skill `openspec-implement`
+
+**Objetivo:** preparar F1: repasar con OpenSpec el estado del proyecto antes del primer change, comprobar que la skill `run-trazo-mermaid` sirve para verificar el refactor y evaluar una skill propia para implementar changes.
+
+**Fase del ciclo de vida:** proceso de trabajo con Claude Code (skills) y tickets.
+
+*Entrada añadida el 19 nov 2026: esta sesión no se había recogido en la bitácora. Se desarrolló en paralelo con las sesiones 1 y 1bis.*
+
+### Prompts
+
+**Prompt 1: explorar el estado antes de F1**
+
+```
+/openspec-explore
+```
+
+- **Qué hizo el agente:** revisó el estado de OpenSpec (ningún change ni spec, `config.yaml` sin commit), el PRD v0.5 (33 h), el código (`app.js` de 244 líneas) y la bitácora. Planteó cinco hilos antes de proponer nada:
+  - La skill `run-trazo-mermaid` no estaba en el repositorio y el criterio de F1 depende de ella.
+  - F1 debía ser un refactor puro, sin esqueletos de `ops.js`, `api.js` y `collab.js`, que son de F2, F4 y F5.
+  - El paso a `securityLevel: 'strict'` cambia el comportamiento y conviene un requisito propio.
+  - Cómo partir las capacidades en specs, y si F1 describe la línea base o es un change mínimo; recomendó decidir esto primero.
+  - Hacer un commit de `config.yaml` antes del primer change.
+- **Resultado:** ninguno (modo exploración, sin escribir).
+- **Impacto:** es el primer repaso de F1 y de la partición en specs.
+
+**Prompt 2: probar la skill `run-trazo-mermaid`**
+
+```
+Creo que he corregido la 1 ¿puedes probarla?
+```
+
+- **Qué hizo el agente:** comprobó que la skill ya estaba versionada, la leyó y la ejecutó (`playwright-core` en un directorio temporal y `npx http-server`). El dibujo salió bien y el Mermaid coincidía con "4 nodos · 3 conexiones", pero el driver terminaba en `FALLO`: el navegador pedía `/favicon.ico` (404) y el driver exige una consola sin errores. Propuso un favicon inline en `index.html` (recomendada) o ignorar ese 404 en el driver, y no tocó código por estar en modo exploración. Avisó de que el servidor seguía en el puerto 8000 porque los permisos no le dejaron `Stop-Process`; más tarde, a "comprueba si he parado el servidor", confirmó que el puerto ya no respondía.
+- **Resultado:** la skill funciona; solo falla por el favicon.
+- **Impacto:** el favicon pasa a ser una tarea de F1 (ver la sesión 2, "Decisión sobre la primera carga y el favicon").
+
+**Prompt 3: mensaje de commit para la skill `openspec-implement`**
+
+```
+genera un commit message para los cambios staged
+```
+
+- **Qué hizo el agente:** leyó el diff en staging (una skill nueva del PO, `openspec-implement`) y propuso `chore(claude): añade la skill openspec-implement`. Antes de confirmarlo avisó de una contradicción: el paso 2 pide marcar las tareas en `tasks.md`, dentro de `openspec/changes/`, y la última línea prohíbe modificar nada dentro de `openspec/`. Avisó también de que la skill hace casi lo mismo que `openspec-apply-change` y se activa con frases parecidas.
+- **Resultado:** mensaje propuesto, sin commit todavía.
+- **Impacto:** detecta el problema antes de versionar la skill.
+
+**Prompt 4: comprobar la corrección de la skill**
+
+```
+He modificado la skill ¿se ha solventado la contradicción?
+```
+
+(Siguieron tres "y ahora?" mientras el PO seguía editando el archivo.)
+
+- **Qué hizo el agente:** releyó la skill cada vez. La contradicción quedó resuelta con una excepción para `tasks.md`. Señaló tres detalles: un comentario de la línea 3 ya obsoleto, los símbolos ☐ y ☑ y un estado "en progreso" que no coinciden con el `- [ ]` y `- [x]` de OpenSpec, y el solapamiento con `openspec-apply-change`. En las siguientes lecturas vio que el comentario ya no estaba, que el paso 2 se había quedado a medias (le propuso una redacción con `- [ ]` y `- [x]`) y que había cambios sin añadir al staging; la última lectura ya no tenía contradicción.
+- **Resultado:** skill sin contradicciones; el solapamiento sigue.
+- **Impacto:** una revisión por el agente de una skill escrita por el PO.
+
+**Prompt 5: commit en una rama aparte**
+
+```
+Como no me convence demasiado la skill por lo que dices del solapamiento, haz el commit en una rama separada, sal de plan mode si lo necesitas
+```
+
+- **Qué hizo el agente:** creó la rama `chore/skill-openspec-implement` desde `develop`, hizo el commit `ddf3bad` y volvió a `develop`, que quedó sin la skill. No hizo push, y `docs/sesiones/` no entró en el commit. No hizo falta salir de ningún modo.
+- **Resultado:** commit `ddf3bad` en la rama local.
+- **Impacto:** la skill queda aparcada sin competir con `openspec-apply-change`.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 6. Tickets de trabajo | Prompt 1 (alcance de F1 antes de proponerlo) |
+| Nota sobre el proceso | Prompt 2 (probar una skill en un navegador real) y prompts 3 a 5 (revisar una skill propia) |
+
+### Correcciones
+
+- Una revisión por el agente, no un error suyo: la skill `openspec-implement` tenía una contradicción y símbolos de checkbox que OpenSpec no entiende; el PO la corrigió tras el aviso.
+- El PO decidió no integrar la skill por el solapamiento con `openspec-apply-change`.
+
+### Pendiente
+
+- Decidir si se fusiona `chore/skill-openspec-implement` o se borra: solapa con `openspec-apply-change`.
+
+**Horas:** 0,5 (el script mide 0,49). No figuran en el acumulado de las sesiones 1 a 4, que ya estaba cerrado; el PO decide si se suman.
+
 ## Sesión 2 · 8–9 nov 2026 · F1: modularizar el frontend y vista previa segura
 
 **Objetivo:** bloque F1 del PRD. Aplicar `modularizar-frontend` (módulos ES, tests con `node --test`) y
@@ -653,6 +760,22 @@ haz el commit y luego /opsx:apply
   cerrar con esta skill.
 - **Resultado:** esta entrada.
 - **Impacto:** traspaso limpio a la sesión 3.
+
+**Prompt 17: añadir Context7 a nivel de usuario**
+
+```
+claude mcp add context7
+```
+
+```
+claude mcp remove context7 -s local
+```
+
+- **Qué hizo el agente:** ejecutó `claude mcp add --transport http context7 https://mcp.context7.com/mcp` y comprobó que conectaba: alcance local, guardado en `~/.claude.json` y no en el repositorio, y avisó de que hacía falta reiniciar la sesión para cargar sus herramientas. Ofreció dejarlo para todos los proyectos o quitarlo. El PO escribió el segundo comando y el agente lo ejecutó, y propuso `-s user` si quería moverlo.
+- **Resultado:** Context7 añadido y quitado de este proyecto, sin cambios en el repositorio.
+- **Impacto:** ninguno en el código; fue añadido a nivel de usuario por PO con el parámetro `-s user` propuesto por el agente.
+
+*El prompt 17 se añadió el 19 nov 2026: el extractor de prompts lo descartaba. Es de una sesión corta (5 min) del 8 nov.*
 
 ### Uso en `prompts.md`
 
