@@ -52,14 +52,26 @@ async function rpc(cliente, funcion, args) {
 }
 
 /** Suscribe al canal del diagrama y resuelve en SUBSCRIBED; cada INSERT recibido se anota con su hora. */
+// SUBSCRIBED solo dice que el canal se ha unido: Postgres Changes empieza a entregar cuando Realtime manda el
+// mensaje `system` con `extension: 'postgres_changes'` y `status: 'ok'`. Lo enviado entre uno y otro se pierde.
+// Devuelve cuánto tardó cada uno desde la llamada, en ms.
 function suscribir(cliente, diagramaId, recepciones) {
+  const inicio = performance.now();
+  let unido = null;
   return new Promise((resolver, rechazar) => {
-    const canal = cliente.channel(`diagram:${diagramaId}`)
+    const plazo = setTimeout(() => rechazar(new Error('Realtime: Postgres Changes no confirmó la suscripción en 15 s')), 15000);
+    cliente.channel(`diagram:${diagramaId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'diagram_ops', filter: `diagram_id=eq.${diagramaId}` },
         cambio => recepciones.push({ opId: cambio.new.op_id, seq: cambio.new.seq, t1: performance.now() }))
+      .on('system', {}, mensaje => {
+        if (mensaje?.extension !== 'postgres_changes') return;
+        clearTimeout(plazo);
+        if (mensaje.status === 'ok') resolver({ unido: redondear(unido), listo: redondear(performance.now() - inicio) });
+        else rechazar(new Error(`Realtime: ${mensaje.message ?? 'error en Postgres Changes'}`));
+      })
       .subscribe((estado, err) => {
-        if (estado === 'SUBSCRIBED') resolver(canal);
-        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') rechazar(new Error(`Realtime: ${estado} ${err?.message ?? ''}`.trim()));
+        if (estado === 'SUBSCRIBED') unido = performance.now() - inicio;
+        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') { clearTimeout(plazo); rechazar(new Error(`Realtime: ${estado} ${err?.message ?? ''}`.trim())); }
       });
   });
 }
@@ -95,15 +107,15 @@ async function medir() {
     diagramaId = await rpc(a, 'create_diagram', { p_kind: 'flow' });
     const token = await rpc(a, 'create_invite', { p_diagram_id: diagramaId, p_role: 'viewer' });
     await rpc(b, 'accept_invite', { p_token: token });
-    await suscribir(b, diagramaId, recepciones);
+    const suscripcion = await suscribir(b, diagramaId, recepciones);
     if (!json) console.error(`Suscrito a ${origen}. Midiendo ${CALENTAMIENTO + SERIE} operaciones sueltas y una ráfaga de ${RAFAGA}…`);
 
-    const nodos = [], serie = [];
+    const nodos = [], calentamiento = [], serie = [];
     for (let i = 0; i < CALENTAMIENTO + SERIE; i++) {
       const id = randomUUID();
       nodos.push(id);
       const envio = await enviar(a, diagramaId, nodo(id));
-      if (i >= CALENTAMIENTO) serie.push(envio);
+      (i < CALENTAMIENTO ? calentamiento : serie).push(envio);
       await esperar(PAUSA_MS);
     }
     await esperarRecepciones(serie, recepciones);
@@ -114,10 +126,16 @@ async function medir() {
 
     const s = emparejar(serie, recepciones);
     const r = emparejar(rafaga, recepciones);
+    // Posición (1 = la primera que cuenta) de cada perdida y cuántas de calentamiento llegaron: distinguen una
+    // suscripción que tarda en estar activa (perdidas al principio) de pérdidas sueltas.
+    const posicionesPerdidas = s.perdidas.map(id => serie.findIndex(e => e.opId === id) + 1);
+    const calentamientoRecibidas = CALENTAMIENTO - emparejar(calentamiento, recepciones).perdidas.length;
     return {
       origen,
       fecha: new Date().toISOString(),
-      serie: { llamada: resumen(percentiles(s.tA)), reparto: resumen(percentiles(s.tB)), perdidas: s.perdidas.length, repetidas: s.repetidas },
+      suscripcion,
+      calentamiento: { enviadas: CALENTAMIENTO, recibidas: calentamientoRecibidas },
+      serie: { llamada: resumen(percentiles(s.tA)), reparto: resumen(percentiles(s.tB)), perdidas: s.perdidas.length, posicionesPerdidas, repetidas: s.repetidas },
       rafaga: { operaciones: RAFAGA, duracion: redondear(duracionRafaga(rafaga, recepciones)), llamada: resumen(percentiles(r.tA)), perdidas: r.perdidas.length },
       enOrden: emparejar([...serie, ...rafaga], recepciones).enOrden,
     };
@@ -136,7 +154,8 @@ function informe(m) {
     'Operaciones sueltas:',
     fila('llamada (T_a)', m.serie.llamada),
     fila('envío → B (T_b)', m.serie.reparto),
-    `  perdidas: ${m.serie.perdidas}   repetidas: ${m.serie.repetidas}`,
+    `  perdidas: ${m.serie.perdidas}${m.serie.perdidas ? ` (posiciones ${m.serie.posicionesPerdidas.join(', ')})` : ''}   repetidas: ${m.serie.repetidas}`,
+    `  calentamiento recibido: ${m.calentamiento.recibidas} de ${m.calentamiento.enviadas} (canal unido a los ${m.suscripcion.unido} ms; Postgres Changes listo a los ${m.suscripcion.listo} ms)`,
     `Ráfaga de ${m.rafaga.operaciones} en serie:`,
     `  primer envío → última recepción (T_ráfaga): ${m.rafaga.duracion ?? 'incompleta'} ms`,
     fila('llamada', m.rafaga.llamada),
