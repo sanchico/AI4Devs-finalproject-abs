@@ -70,7 +70,9 @@ en la bitácora.
 
 A crea el diagrama con `create_diagram('flow')` y una invitación de lector con `create_invite`, y B la acepta
 con `accept_invite`. B se suscribe al canal `diagram:{id}` con un filtro por `diagram_id`, y el script no
-envía nada hasta el estado `SUBSCRIBED`. Al terminar, A borra el diagrama con `delete_diagram`, que es un
+envía nada hasta que Realtime confirma Postgres Changes con un mensaje `system`
+(`extension: 'postgres_changes'`, `status: 'ok'`). No basta con el estado `SUBSCRIBED`, que solo indica que
+el canal se ha unido (ver Resultado). Al terminar, A borra el diagrama con `delete_diagram`, que es un
 borrado lógico.
 
 - *Descartado:* sembrar con la clave de servicio, como en los tests. Obligaría a tener esa clave en el PC
@@ -128,6 +130,44 @@ no sale del panel.
   de entregar se comprueba que está activo, como ya dice el PRD.
 - **Diagramas borrados acumulados en el remoto.** → Uno por ejecución, con borrado lógico y unas 130
   operaciones. Es despreciable, y se pueden purgar desde el panel antes de la demo si molesta.
+
+## Resultado
+
+Medido el 19 nov 2026 desde la red del PO (wifi de casa), contra el proyecto `pen2mermaid` en `eu-west-1`
+(Irlanda), Postgres 17, plan gratuito. Antes del remoto, el script se depuró contra el Supabase local.
+
+**Ejecuciones que cuentan** (la versión que espera la confirmación de Postgres Changes; todas sin perdidas,
+con el calentamiento entero y en orden de secuencia):
+
+| Ejecución | Postgres Changes listo | T_a p50 / p95 | T_b p50 / p95 / máx | T_ráfaga (30) |
+|---|---:|---:|---:|---:|
+| 6 | 423 ms (unido a los 183) | 63 / 85 ms | 326 / 538 / 712 ms | 2 517 ms |
+| 7 | 233 ms (unido a los 164) | 67 / 93 ms | 334 / 549 / 615 ms | 2 598 ms |
+| 8 | 190 ms (unido a los 174) | 74 / 88 ms | 340 / 579 / 604 ms | 2 586 ms |
+
+Las cinco ejecuciones anteriores, con la versión que solo esperaba `SUBSCRIBED`, dan las mismas cifras
+(p95 de T_b entre 528 y 582 ms; T_ráfaga entre 2 122 y 2 986 ms). La primera perdió 3 operaciones.
+
+**En local** la llamada tarda 5 ms, pero el reparto da p50 de unos 265 ms y máximo de unos 520 ms, con los
+tiempos repartidos casi por igual entre 0 y 500 ms. Eso apunta a que Realtime revisa el registro cada medio
+segundo, más o menos, en lugar de entregar cada cambio al momento; es una hipótesis, no está comprobada en
+su código. En remoto se suman unos 70 ms de red. Por eso la medida en local no era "siempre baja", como se
+suponía en el proposal; aun así, solo el remoto da la cifra que decide.
+
+**Hallazgo: `SUBSCRIBED` no basta.** En local, de las 5 operaciones de calentamiento enviadas justo después
+de `SUBSCRIBED` llegó 1, y en la primera ejecución remota se perdieron 3. Realtime confirma que Postgres
+Changes está activo con un mensaje `system` aparte, que en remoto llega hasta 250 ms después de
+`SUBSCRIBED`. Esperando ese mensaje: 3 de 3 ejecuciones en local (una tras 150 s sin actividad) y 3 de 3 en
+remoto sin ninguna perdida. Lo que se envía en ese intervalo no está en el registro cargado ni llega por el
+canal: F4 tiene que esperar el mismo mensaje antes de cargar el registro.
+
+**Decisión** (tabla de la decisión 6):
+
+- **Transporte:** p95 de T_b entre 538 y 579 ms, por debajo de 1 s → **se queda Postgres Changes**. Hay
+  margen, pero menos de lo esperado: más de la mitad del tiempo se va en el intervalo de revisión de Realtime.
+- **Ráfagas:** T_ráfaga entre 2,5 y 2,6 s, por encima de 1 s → **F4 añade `apply_ops`**, que envía cada gesto
+  en una llamada. Con unos 70 ms por llamada, una ráfaga de 30 operaciones son ~2,1 s de llamadas en serie;
+  en una sola llamada, lo dibujado después llega como una operación suelta.
 
 ## Migration Plan
 

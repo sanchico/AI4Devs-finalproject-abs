@@ -22,7 +22,7 @@ para la sesión 9 junto con el inicio de F4. Las tareas del grupo 1 las hace el 
 ## 3. Medida y decisión (0,4 h)
 
 - [x] 3.1 Ejecutar `npm run medir:latencia -- --json` al menos tres veces contra el remoto, desde la wifi de la demo si es posible. Verificar: se tienen tres resultados sin perdidas (si una tiene perdidas, se repite y se anota por qué).
-- [ ] 3.2 Añadir a `design.md` una sección "Resultado" con la región, la red, las cifras de cada ejecución y la decisión según la tabla de la decisión 6: transporte (Postgres Changes o Broadcast) y si F4 lleva `apply_ops`. Verificar: la sección cita p95 de T_b y T_ráfaga de cada ejecución y la decisión se deduce de la tabla sin interpretación.
+- [x] 3.2 Añadir a `design.md` una sección "Resultado" con la región, la red, las cifras de cada ejecución y la decisión según la tabla de la decisión 6: transporte (Postgres Changes o Broadcast) y si F4 lleva `apply_ops`. Verificar: la sección cita p95 de T_b y T_ráfaga de cada ejecución y la decisión se deduce de la tabla sin interpretación.
 - [ ] 3.3 Actualizar `docs/PRD-MVP.md`: fila del historial con las cifras y la decisión, el riesgo de latencia con el resultado y, si T_ráfaga ≥ 1 s, `apply_ops` como parte confirmada de F4 con su coste (1–1,5 h). Si p95 de T_b ≥ 1 s, anotar en el plan el change aparte de Broadcast. Verificar: la versión de la cabecera y la nueva fila existen y coinciden con la sección "Resultado".
 
 ## Workflow follow-up
