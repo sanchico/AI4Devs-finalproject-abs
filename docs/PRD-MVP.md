@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | Estado | Vigente: es el PRD de la entrega. Sustituye a la v0.6, que se conserva como mejora futura en [PRD-backend-java.md](PRD-backend-java.md) |
-| Versión | 0.7.4 · 18 nov 2026 (orden de comprobaciones y validación de `apply_op`, errores de las funciones, invitaciones reutilizables). La 0.7.3, del mismo día, fijó el tipo de diagrama al crear y puso tope a las etiquetas. La 0.7.2, del 17 nov, añadió el borrado lógico y el proyecto remoto en D1. La 0.7.1, del 16 nov, corrigió la regla de las operaciones pendientes. La 0.7, del 13 nov, adoptó la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov |
+| Versión | 0.7.5 · 19 nov 2026 (`set_member_role` en F5: el dueño cambia el rol de un miembro). La 0.7.4, del 18 nov, ordenó las comprobaciones y la validación de `apply_op`, los errores de las funciones y las invitaciones reutilizables. La 0.7.3, del mismo día, fijó el tipo de diagrama al crear y puso tope a las etiquetas. La 0.7.2, del 17 nov, añadió el borrado lógico y el proyecto remoto en D1. La 0.7.1, del 16 nov, corrigió la regla de las operaciones pendientes. La 0.7, del 13 nov, adoptó la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov |
 | Base | `develop` con F1 y F2 cerrados (sesión 4 de la [bitácora](bitacora.md), más F2) |
-| Presupuesto | 27,5 h en total: 8 h gastadas hasta la sesión 4, 3 h previstas de F2 (ya hecho) y 16,5 h por hacer |
+| Presupuesto | 28 h en total: 8 h gastadas hasta la sesión 4, 3 h previstas de F2 (ya hecho) y 17 h por hacer (16,5 h hasta la v0.7.4; `set_member_role` suma 0,5 h a F5) |
 | Motivo | F1 costó 5,25 h frente a 3 h previstas y la sesión 4 fue un arreglo no planificado de 2,25 h; al plan v0.6 ya no le caben sus 32 h |
 
 ## Historial de cambios
@@ -26,6 +26,7 @@ indicada. Hasta la v0.6 el documento es el que hoy se conserva como [PRD-backend
 | 0.7.2 | 17 nov 2026 | Arquitectura | Borrar un diagrama lo marca (`deleted_at`) en vez de eliminarlo y solo lo ve su dueño; borrar y restaurar son funciones (`delete_diagram`, `restore_diagram`) y no hay escrituras directas en ninguna tabla; el proyecto remoto de Supabase pasa de S1 a D1. Sin vista de papelera ni purgado en el MVP; horas sin cambios | Decisión del PO en la sesión 7: un borrado tiene que poder deshacerse; con borrado lógico, borrar es un `UPDATE` y una política por fila dejaría cambiar también `last_seq` o `title`; change `esquema-y-rls` (S1) |
 | 0.7.3 | 18 nov 2026 | Arquitectura | El tipo de diagrama se fija al crear (`create_diagram(kind)`, sin `title`) y `setMeta` solo cambia dirección y título; las etiquetas de nodos y conectores se limitan a 200 caracteres también en el cliente. Alcance y horas sin cambios | Con tipos de formas distintas, cambiar el tipo con el diagrama dibujado deja nodos sin significado, y como operación dejaba la fila de `diagrams` y el registro diciendo cosas distintas; sesión 8, change `tipo-fijo-y-etiquetas` |
 | 0.7.4 | 18 nov 2026 | Arquitectura | `apply_op` comprueba el rol y la forma de la operación antes de bloquear la fila y resuelve el reintento antes del tope; los errores son estados HTTP con una clave estable; una invitación se puede usar varias veces hasta que caduque; el servidor valida el título y las etiquetas con las mismas reglas que `ops.js` (UTF-16 y blancos de JavaScript). Alcance y plan sin cambios: el exceso de S2 sobre sus 2 h (unas 3,25 h reales, por las pruebas de cada función) se anota en la bitácora | Con el `UPDATE` primero un reintento gastaba una secuencia; con las reglas de longitud de PostgreSQL la ficha divergía del registro en títulos con emojis; sesión 8, change `funciones-servidor` |
+| 0.7.5 | 19 nov 2026 | Alcance | F5 añade `set_member_role`: el dueño pasa a un miembro de editor a lector o al revés; quien pierde el permiso de escribir pasa a solo lectura al recibir el 403. El recorte "invitaciones solo como editor" ya no quita los lectores. F5 sube a 3,5 h y el total a 28 h | Preocupación del PO por el desorden con muchos editores. Se descartaron los turnos de edición (un único editor que se pide o se concede): no reducen la latencia, contradicen los criterios 1 a 3 y necesitan Presence, que está fuera del MVP; sesión 9, análisis en `notas/ideas.md` |
 
 ## 1. Resumen
 
@@ -194,7 +195,7 @@ solo puede leer.
 | Tabla | Lectura | Escritura |
 |---|---|---|
 | `diagrams` | Miembros; si está borrado, solo el dueño | Crear: `create_diagram`. Borrar y restaurar: `delete_diagram` y `restore_diagram` (el dueño). Título y dirección: `apply_op` con `setMeta`; el tipo se fija en `create_diagram` y no cambia |
-| `diagram_members` | Miembros del mismo diagrama | Solo `create_diagram` y `accept_invite` |
+| `diagram_members` | Miembros del mismo diagrama | Solo `create_diagram`, `accept_invite` y `set_member_role` |
 | `diagram_invites` | El dueño | Solo `create_invite` |
 | `diagram_ops` | Miembros | Solo `apply_op` |
 
@@ -215,13 +216,14 @@ además un diagrama borrado.
 | `rpc/create_diagram(kind)` | Crea el diagrama vacío ("Diagrama sin título", del tipo indicado) y a su dueño como miembro |
 | `rpc/create_invite(diagram_id, role)` | Crea una invitación con token de 32 bytes y caducidad de 7 días |
 | `rpc/accept_invite(token)` | Añade al usuario como miembro si la invitación no ha caducado |
+| `rpc/set_member_role(diagram_id, user_id, role)` | Cambia el rol de un miembro a `editor` o `viewer` (solo el dueño; el rol del dueño no cambia) |
 | `rpc/apply_op(diagram_id, op_id, op)` | Autoriza, numera y guarda una operación; devuelve su secuencia |
 | Canal Realtime `diagram:{id}` | `INSERT` de `diagram_ops` filtrado por diagrama |
 
 El frontend las usa a través de supabase-js. Un diagrama del que no se es miembro devuelve cero filas.
 
 Los parámetros de las funciones llevan el prefijo `p_` (`p_diagram_id`, `p_op_id`, `p_op`, `p_role`, `p_token`,
-`p_kind`) para no chocar con los nombres de las columnas.
+`p_kind`, `p_user_id`) para no chocar con los nombres de las columnas.
 
 **Errores de las funciones.** Cada rechazo es un `RAISE` con SQLSTATE `PT<estado>`, que PostgREST devuelve como
 ese estado HTTP con `code`, `message` (una clave estable), `details` y `hint`. El cliente decide por el estado y
@@ -246,10 +248,10 @@ la clave; el texto es para depurar. Sin sesión, la clave pública recibe un err
 | S2 Funciones de servidor | 2 | B3, B4 y B5 (7) | S1 |
 | S3 Tests del backend | 2 | B6 (2,5) | S2, F2 |
 | F4 Cliente colaborativo | 2 | F4 (2) | F2, S2 |
-| F5 Login, diagramas e invitaciones | 3 | F5 (3) | S2, F4 |
+| F5 Login, diagramas e invitaciones | 3,5 | F5 (3) | S2, F4 |
 | D1 Despliegue | 0,5 | D1 (1,5) | F4 |
 | P2 Documentación de entrega | 3 | P2 (3) | repartido |
-| **Por hacer** | **16,5** | 25,5 | |
+| **Por hacer** | **17** | 25,5 | |
 
 P1, F1 y F2 están hechos. F2 no cambia con esta alternativa.
 
@@ -319,11 +321,21 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
 - Modo solo lectura para lectores.
 - **Aceptación:** criterios de terminado 1, 2 y 3.
 
-### F5 · Login, diagramas e invitaciones (3 h)
+### F5 · Login, diagramas e invitaciones (3,5 h)
 
 Igual que en la v0.6 (lista, nuevo, abrir por ruta `#/d/<id>`, renombrar, borrar e invitar), con las
-llamadas de la sección 5. Única diferencia: quien tiene abierto un diagrama que se borra ve el aviso al
-enviar su siguiente operación o al recargar, no al momento.
+llamadas de la sección 5. Diferencias:
+
+- Quien tiene abierto un diagrama que se borra ve el aviso al enviar su siguiente operación o al recargar,
+  no al momento.
+- **Cambiar el rol de un miembro (0,5 h).** `set_member_role(p_diagram_id, p_user_id, p_role)`, del mismo
+  estilo que las de S2: solo el dueño (403 a los demás, 410 si el diagrama está borrado), 404 si el usuario
+  no es miembro, 422 si el rol no es `editor` ni `viewer` o si se intenta cambiar el del dueño, e idempotente.
+  `apply_op` ya comprueba el rol en cada llamada, así que el cambio vale desde la siguiente operación. En la
+  lista de miembros, el dueño cambia el rol de cada uno.
+- Quien pasa a lector se entera al enviar su siguiente operación: el 403 `forbidden` lleva a solo lectura
+  con un aviso, y sus pendientes se descartan con la regla de siempre (un rechazo solo quita la pendiente).
+  Al recargar, abre directamente en solo lectura.
 
 ### D1 · Despliegue (0,5 h)
 
@@ -354,12 +366,13 @@ Como en la v0.6, con estos cambios en las secciones de la plantilla:
 | 8 | S2 funciones de servidor | 17 h |
 | 9 | F4 cliente colaborativo, con el login mínimo de F5 | 19,5 h |
 | 10 | D1 despliegue, prueba con dos dispositivos, y lista, nuevo y abrir de F5 | 21 h |
-| 11 | Resto de F5 (renombrar, borrar e invitaciones) y S3 tests del backend | 24,5 h |
-| 12 | P2 capturas, secciones, `prompts.md` y PR documentadas | 27,5 h |
+| 11 | Resto de F5 (renombrar, borrar, invitaciones y `set_member_role`) y S3 tests del backend | 25 h |
+| 12 | P2 capturas, secciones, `prompts.md` y PR documentadas | 28 h |
 
 **Punto de control tras la sesión 10.** Dos dispositivos ya colaboran a través de la URL pública. Si el
 acumulado supera 22 h, se recorta en este orden: invitaciones solo como editor (−0,5 h) y fixtures del
-reconocedor sin grabar nuevos (−1 h). La presencia ya está fuera del MVP.
+reconocedor sin grabar nuevos (−1 h). Con `set_member_role` el primer recorte no quita los lectores: se
+invita siempre como editor y el dueño pasa a lector a quien quiera. La presencia ya está fuera del MVP.
 
 ## 8. Riesgos
 
