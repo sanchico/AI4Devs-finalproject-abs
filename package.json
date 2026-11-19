@@ -1,7 +1,8 @@
 {
   "private": true,
   "scripts": {
-    "test:backend": "node --test \"supabase/tests/*.test.js\""
+    "test:backend": "node --test \"supabase/tests/*.test.js\"",
+    "medir:latencia": "node --env-file=supabase/.env.remoto supabase/scripts/medir-latencia.js"
   },
   "dependencies": {
     "openspec": "^0.0.0"

@@ -72,6 +72,11 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `diagram_role_or_fail`, `validate_op`…) no se exponen. `fixtures-ops.test.js` envía al servidor las fixtures de
   `frontend/test/fixtures/ops/` y exige que acepte lo que el cliente acepta o descarta por el grafo y rechace lo
   que el cliente rechaza por su forma. Borrar un diagrama lo marca con `deleted_at` y solo lo ve su dueño.
+  `scripts/medir-latencia.js` (change `medir-latencia`) mide cuánto tarda una operación de `apply_op` en llegar
+  por Realtime a otro miembro: dos usuarios en un proceso, 100 operaciones sueltas y una ráfaga de 30, con
+  p50, p95 y máximo (`--json` para la salida en JSON). Usa la clave pública y la sesión de cada usuario,
+  nunca la de servicio. Sus cálculos están en `scripts/medida.js` y los prueba `tests/medida.test.js`, sin Supabase.
+  Lee el entorno de `supabase/.env.local` o `supabase/.env.remoto` (fuera de git; plantilla en `supabase/.env.ejemplo`).
 - La vista previa se renderiza con `securityLevel: 'strict'` y el error de Mermaid se muestra con
   `textContent`: una etiqueta nunca debe poder inyectar HTML.
 
@@ -85,8 +90,17 @@ Prueba en el navegador real con la skill `run-trazo-mermaid`.
 
 Tests del backend (hace falta Docker en marcha; el frontend no instala nada, esto sí): `npm install`,
 `npx supabase start` (la primera vez descarga imágenes) y `npm run test:backend`. `npx supabase db reset`
-vuelve a aplicar las migraciones desde cero y `npx supabase stop` apaga el entorno. Solo local: el proyecto
-remoto llega en D1.
+vuelve a aplicar las migraciones desde cero y `npx supabase stop` apaga el entorno. Los tests apuntan solo al
+entorno local.
+
+Proyecto remoto (adelantado de D1 a la sesión 9): se enlaza con `npx supabase login` y
+`npx supabase link --project-ref <ref>`, y las migraciones se suben con `npx supabase db push`. La contraseña de la
+base de datos no se guarda en el repositorio.
+
+Medir la latencia: copiar `supabase/.env.ejemplo` como `supabase/.env.local` o `supabase/.env.remoto` y
+rellenarlo. En local, `node --env-file=supabase/.env.local supabase/scripts/medir-latencia.js` (registra los
+usuarios si no existen). En remoto, `npm run medir:latencia` (los dos usuarios se crean antes en el panel con
+"Auto confirm").
 
 ## Hoja de ruta (ideas, por orden aproximado)
 1. ~~Separar `app.js` en módulos ES~~ (hecho en el cambio `modularizar-frontend`).
