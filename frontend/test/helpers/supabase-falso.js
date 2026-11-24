@@ -21,18 +21,20 @@ class CanalFalso {
 
 // Una consulta se resuelve al hacerle await (es "thenable"), como la de postgrest-js
 class ConsultaFalsa {
-  constructor(cliente, tabla) { this.cliente = cliente; this.tabla = tabla; this.filtros = {}; this.orden = null; this.rango = null; this.una = false; }
-  select() { return this; }
+  constructor(cliente, tabla) { this.cliente = cliente; this.tabla = tabla; this.filtros = {}; this.nulos = {}; this.columnas = null; this.orden = null; this.rango = null; this.una = false; }
+  select(columnas) { this.columnas = columnas ?? null; return this; }
+  is(columna, valor) { this.nulos[columna] = valor; return this; }
   eq(columna, valor) { this.filtros[columna] = valor; return this; }
   order(columna, opciones = {}) { this.orden = { columna, ascendente: opciones.ascending !== false }; return this; }
   range(desde, hasta) { this.rango = [desde, hasta]; return this; }
   maybeSingle() { this.una = true; return this; }
   then(resolver, rechazar) { return Promise.resolve(this.ejecutar()).then(resolver, rechazar); }
   ejecutar() {
-    this.cliente.consultas.push({ tabla: this.tabla, filtros: { ...this.filtros }, rango: this.rango });
+    this.cliente.consultas.push({ tabla: this.tabla, columnas: this.columnas, filtros: { ...this.filtros }, nulos: { ...this.nulos }, orden: this.orden, rango: this.rango });
     const error = this.cliente.errores[this.tabla];
     if (error) return { data: null, error: { message: error.message }, status: error.status };
-    let filas = (this.cliente.tablas[this.tabla] ?? []).filter(f => Object.entries(this.filtros).every(([c, v]) => f[c] === v));
+    let filas = (this.cliente.tablas[this.tabla] ?? []).filter(f => Object.entries(this.filtros).every(([c, v]) => f[c] === v)
+      && Object.entries(this.nulos).every(([c, v]) => (f[c] ?? null) === v));
     if (this.orden) {
       const { columna, ascendente } = this.orden;
       filas = [...filas].sort((a, b) => (a[columna] < b[columna] ? -1 : a[columna] > b[columna] ? 1 : 0) * (ascendente ? 1 : -1));
