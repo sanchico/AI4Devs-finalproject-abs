@@ -113,8 +113,13 @@ nuevo y sigue el estilo de `apply-op.test.js` (con `equipo()`, `enviar()` y `lee
   el que `medir-latencia` no es un test.
   - **Medido el 24-11-2026 en local** (5 repeticiones, un diagrama nuevo cada una): 30 `apply_op` en serie
     tardaron 119-157 ms (mediana 129 ms, unos 4 ms por llamada) y un `apply_ops` con las 30, 5-7 ms (mediana
-    5 ms). En el remoto, con unos 70 ms por llamada de ida y vuelta, la serie fue de 2,5-2,6 s; un grupo
-    cuesta una sola ida y vuelta. La cifra del remoto queda por repetir cuando la migración esté allí (D1).
+    5 ms). En el remoto, con unos 70 ms por llamada de ida y vuelta, la serie fue de 2,5-2,6 s en la medida de
+    la sesión 9; un grupo cuesta una sola ida y vuelta.
+  - **Medido en el remoto el 24-11-2026** (una ejecución, usuario A de la medida, tras `db push --remote`):
+    30 `removeNode` en un `apply_ops` tardaron 188 ms y 30 `apply_op` en serie, 1 981 ms. Con el mismo
+    diagrama se comprobó el reintento del grupo (mismas secuencias), un grupo con una operación inválida (422
+    sin consumir secuencias), la llamada sin sesión (permiso denegado) y `write_ops` desde la API (403). No
+    es una serie estadística: la repetición con dos usuarios y Realtime queda para D1.
 
 ## Risks / Trade-offs
 

@@ -24,6 +24,6 @@ marcha (`npx supabase start`).
 
 ## Workflow follow-up
 
-- Subir la migración al proyecto remoto con `npx supabase db push` antes de probar el cliente colaborativo contra el remoto (con confirmación del PO).
+- Subir la migración al proyecto remoto con `npx supabase db push --remote` (con `--dry-run` antes): hecho por el PO el 24-11-2026 y comprobado con una llamada real a `apply_ops`.
 - Archivar el change (`/opsx:archive`) antes de proponer `cola-colaborativa`, porque el archivado reescribe `openspec/specs/operation-log`.
-- Repetir `npm run medir:latencia` con un grupo cuando la migración esté en el remoto (en D1).
+- Repetir `npm run medir:latencia` con la app desplegada y un grupo, en D1 (la cifra de 188 ms del 24-11-2026 es de una sola ejecución).
