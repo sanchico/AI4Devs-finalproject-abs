@@ -65,7 +65,12 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   hasta que caduque y aceptar no cambia el rol de un miembro) y `apply_op(p_diagram_id, p_op_id, p_op)`, que
   devuelve la secuencia. `apply_op` comprueba el rol y la forma de la operación, bloquea la fila del diagrama
   (`FOR UPDATE`), devuelve la secuencia ya guardada si el `op_id` se repite, aplica el tope de 5 000 y copia el
-  título y la dirección de `setMeta` a `diagrams`; no interpreta el grafo. `validate_op` usa las reglas de
+  título y la dirección de `setMeta` a `diagrams`; no interpreta el grafo.
+  `apply_ops(p_diagram_id, p_ops)` guarda un gesto entero (`[{op_id, op}, …]`, de 1 a 500 operaciones) en una llamada:
+  una transacción y un bloqueo, secuencias contiguas, una fila por operación y la respuesta es el array de secuencias.
+  Se rechaza entero si una operación no es válida, el reintento es por `op_id` (solo las operaciones nuevas copian
+  título y dirección y cuentan para el tope de 5 000). `apply_op` y `apply_ops` llaman a `write_ops`, interna y sin
+  grant (`tests/apply-ops.test.js`). `validate_op` usa las reglas de
   `ops.js` (longitud en UTF-16, blancos de `trim`). Cada rechazo es un `RAISE` con SQLSTATE `PT<estado>` y una clave
   en `message` (404 `not_found` o `invite_invalid`, 403 `forbidden`, 410 `diagram_deleted`, 422 `invalid_op`, 409
   `op_limit`), que PostgREST devuelve como ese estado HTTP; las auxiliares (`raise_api_error`,
