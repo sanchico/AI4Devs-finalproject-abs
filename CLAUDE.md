@@ -55,7 +55,17 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   llegue, carga y aplica el registro; `local(ops)` envía cada gesto como un grupo, en orden y de uno en uno (tramos de
   500), con `op_id` por operación. 422/409 descartan el grupo; 403/404/410 descartan todo y dejan solo lectura; sin
   respuesta se reintenta 3 veces con los mismos `op_id`; un hueco o un cierre del canal dejan sin conexión.
-  Aún no está enlazado a `main.js`: la app sigue abriendo con el ejemplo y sin colaboración.
+  `open()` devuelve también el error del transporte (con su `status`) si no se puede abrir.
+- App compartida (F4 y el login mínimo de F5): la dirección `#/d/<uuid>` abre un diagrama compartido; **sin ruta la app
+  es la de siempre** (ejemplo, un solo usuario, sin sesión ni red). `ruta.js` (puro) interpreta el hash (`solitario`,
+  `diagrama` o `invalida`; cambiarlo recarga la página); `avisos.js` (puro) reúne los textos de rechazos, modos y errores
+  de apertura; `transporte-supabase.js` (sin DOM, con el cliente de supabase-js inyectado) cumple el transporte de
+  `collab.js`: `subscribe` espera el mensaje `system` de Postgres Changes con estado `ok`, `load` lee el registro **de
+  1 000 en 1 000** (la API limita cada respuesta a 1 000 filas) y `send` llama a `apply_ops`; `colaboracion.js` (el único
+  con DOM) pide sesión con correo y contraseña, abre el diagrama, enlaza el modelo con la cola, pinta el indicador de modo
+  y bloquea la barra y el lienzo cuando no se puede editar. `config.js` lleva la URL y la clave pública del remoto (la
+  barrera es la RLS); supabase-js 2.119.0 va por CDN con integridad (la UMD, que define `window.supabase`).
+  `input.js` recibe `locked()`, comprueba el resultado de cada gesto y lee la posición final de un nodo arrastrado por su id.
 - `render.js` (lienzo, vista previa Mermaid, leyenda), `input.js` (Pointer Events: `pen` dibuja, `touch`
   mueve, ratón configurable; toque = editar etiqueta) y `main.js` (arranque, barra de herramientas, aviso).
 - `test/`: `baseline.test.js` fija el código Mermaid del ejemplo y la clasificación de trazos sintéticos;
@@ -65,7 +75,7 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `fixtures.test.js` ejecuta las secuencias de operaciones de `test/fixtures/ops/*.json` (cada operación con su resultado y el diagrama final);
   `convergencia.test.js` prueba con `helpers/red-simulada.js` (servidor que numera y clientes con operaciones pendientes, semilla fija) que todos acaban con el mismo grafo y Mermaid;
   `collab.test.js` prueba `collab.js` con `helpers/transporte-simulado.js` (servidor con la semántica de `apply_ops` y entregas y respuestas bajo el control del test; lo prueba `transporte-simulado.test.js`): apertura sin perder operaciones, conciliación, cola, rechazos, reintentos y la convergencia de tres clientes con gestos aleatorios (semillas 1 a 50);
-  `modelo-colaborativo.test.js` fija los ganchos del modelo y `enlace-modelo.test.js` el enlace del modelo real con la cola;
+  `modelo-colaborativo.test.js` fija los ganchos del modelo y `enlace-modelo.test.js` el enlace del modelo real con la cola; `ruta.test.js` y `avisos.test.js` las rutas y los textos; `transporte-supabase.test.js` el adaptador con un cliente falso (`helpers/supabase-falso.js`, que reproduce el tope de 1 000 filas por respuesta);
   `mermaid-tipos.test.js` fija el código completo de un diagrama de Flujo y uno de Estados;
   `grabacion.test.js` prueba el estado de la grabación y `reconocedor.test.js` exige ≥ 90 % por forma y tipo de diagrama con los trazos del S Pen, en cada archivo de `fixtures/trazos/` y en el conjunto; `abiertos.test.js` fija que una línea, una "L", una "U" y un arco siguen siendo trazos abiertos (conectores).
 - `supabase/` (backend, bloques S1 y S2): `config.toml`, `migrations/` y `tests/*.test.js` con `node --test` y
@@ -119,6 +129,12 @@ Medir la latencia: copiar `supabase/.env.ejemplo` como `supabase/.env.local` o `
 rellenarlo. En local, `node --env-file=supabase/.env.local supabase/scripts/medir-latencia.js` (registra los
 usuarios si no existen). En remoto, `npm run medir:latencia` (los dos usuarios se crean antes en el panel con
 "Auto confirm").
+
+Probar la colaboración (escribe en el proyecto remoto con los usuarios A y B de la medida): `npm run preparar:diagrama`
+crea un diagrama, lo comparte con B y escribe el enlace `http://localhost:8000/#/d/<id>` (`-- --rol viewer`, `-- --tipo state`,
+`-- --url http://<ip>:8000` para la tablet y `-- --borrar <id>` para borrarlo). Con `frontend/` servido, se abre ese enlace
+en dos navegadores (dos usuarios) o se ejecuta `driver-colaborativo.cjs` de la skill `run-trazo-mermaid`, que lo recorre
+con dos contextos de Playwright.
 
 ## Hoja de ruta (ideas, por orden aproximado)
 1. ~~Separar `app.js` en módulos ES~~ (hecho en el cambio `modularizar-frontend`).

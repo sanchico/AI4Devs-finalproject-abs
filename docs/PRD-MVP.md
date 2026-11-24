@@ -334,9 +334,12 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   `collab.js` con el diagrama confirmado más los grupos pendientes, la apertura (suscribir, cargar, aplicar lo
   guardado en espera), el envío por gestos en orden y de uno en uno, los rechazos, los reintentos de red, los
   huecos y el solo lectura; y en el modelo `onChange`, `undo()` que devuelve y envía sus inversas, `setDir` que se
-  envía, `setReadOnly` y `replaceState`. **Pendiente** (change `colaboracion-en-la-app`): el adaptador de
+  envía, `setReadOnly` y `replaceState`. **Hecha la app** (change `colaboracion-en-la-app`): el adaptador de
   supabase-js (con la espera al mensaje `system` de Postgres Changes), la sesión mínima, abrir un diagrama por id,
-  los avisos y el bloqueo visual, y la prueba en el navegador.
+  los avisos y el bloqueo visual (con `input.js` protegido) y la prueba en el navegador con dos usuarios contra el
+  remoto (311, 709 y 244 ms de A a B en tres ejecuciones). El diagrama se abre con `#/d/<id>`; sin ruta la app es la de
+  un solo usuario. **Pendiente:** el resto de F5 (lista, «Nuevo», renombrar, borrar, invitar y roles), D1 (despliegue
+  y prueba con dos dispositivos reales) y el test de Realtime de S3.
 - Al abrir: primero se suscribe y guarda en espera lo que llegue; después carga el registro y aplica lo
   que esté en espera con secuencia posterior. La suscripción se da por hecha cuando llega el mensaje
   `system` de Postgres Changes con estado `ok`, no con `SUBSCRIBED`: en la medida, lo enviado entre los

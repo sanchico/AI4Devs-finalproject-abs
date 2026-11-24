@@ -35,7 +35,7 @@ Node: cada tarea dice cómo se verifica.
 
 ## 6. Documentación (0,25 h)
 
-- [ ] 6.1 Actualizar `CLAUDE.md` (módulos nuevos, la ruta `#/d/<id>`, cómo probar con dos navegadores y el script), `docs/PRD-MVP.md` (F4 hecho y el login mínimo de F5 hecho; pendiente el resto de F5 y D1) y, si hace falta, el readme; verificar con `node --test "frontend/**/*.test.js"` y `npm run test:backend` en verde.
+- [x] 6.1 Actualizar `CLAUDE.md` (módulos nuevos, la ruta `#/d/<id>`, cómo probar con dos navegadores y el script), `docs/PRD-MVP.md` (F4 hecho y el login mínimo de F5 hecho; pendiente el resto de F5 y D1) y, si hace falta, el readme; verificar con `node --test "frontend/**/*.test.js"` y `npm run test:backend` en verde.
 
 ## Workflow follow-up
 

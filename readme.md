@@ -159,7 +159,11 @@ npm run test:backend     # node --test sobre supabase/tests
 ```
 
 `npx supabase db reset` vuelve a aplicar las migraciones desde cero y `npx supabase stop` apaga el entorno. Los
-tests apuntan solo al entorno local. El frontend todavía no usa el backend (llega en F4).
+tests apuntan solo al entorno local.
+
+La app abre un diagrama compartido del proyecto remoto con `http://localhost:8000/#/d/<id>` (pide entrar con correo y
+contraseña); sin ruta es la de un solo usuario, como antes. Mientras no haya botón de «Nuevo», `npm run preparar:diagrama`
+crea un diagrama con los usuarios A y B de la medida y escribe el enlace (necesita `supabase/.env.remoto`).
 
 El proyecto remoto ya existe (adelantado de D1). Se enlaza con `npx supabase link --project-ref <ref>` y las
 migraciones se suben con `npx supabase db push`. Para medir cuánto tarda una operación en llegar a otro
