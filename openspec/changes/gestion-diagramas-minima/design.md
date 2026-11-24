@@ -86,6 +86,21 @@ que no carga.
 - Consecuencia: la sesión del correo se pierde a propósito; el invitado entra con su correo y contraseña (el paso
   que ya hacía).
 
+**11. Renombrar y borrar en la lista, sin abrir el diagrama (escalón 2).** El título se guarda con una operación
+`setMeta` enviada con `apply_op` (el servidor copia el título a `diagrams`, que es lo que lee la lista), con un
+`op_id` de `newId()`; no hace falta abrir el diagrama ni la cola colaborativa para una sola operación. Se valida antes
+en el cliente (de 1 a 200 caracteres en UTF-16, no solo espacios, sin transformar el texto), con la misma regla del
+servidor, para no gastar una llamada; un rechazo del servidor llega como 422/403/410 y se traduce en `avisos.js`. El
+título se pide con `prompt()` y el borrado con `confirm()`: sin diálogo propio, como ya hace el cambio de tipo. Cada
+fila pasa de un solo botón a tres: abrir, «Renombrar» y «Borrar». «Borrar» llama a `delete_diagram` (borrado lógico) y
+quita la fila; no hay botón de restaurar.
+- *Alternativa descartada:* editar el título dentro del diagrama abierto. Obliga a mostrar el título en la barra, a
+  tocar el modelo colaborativo y a actualizar a los demás miembros; la lista es más barata y suficiente.
+- *Alternativa descartada:* mostrar «Borrar» solo al dueño. Pide conocer el rol en la lista (otra consulta a
+  `diagram_members`); se deja a la regla del servidor y a su 403, como «Compartir» (decisión 7).
+- *Riesgo:* un editor puede renombrar un diagrama ajeno y todos lo ven; es lo que dice la spec y coincide con el modelo
+  de roles (editor escribe `setMeta`).
+
 **9. Orden de trabajo y tope (decisión del consejo de la sesión 11).**
 
 | Orden | Pieza | Estimación | Regla |

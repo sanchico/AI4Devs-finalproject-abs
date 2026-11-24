@@ -1,6 +1,6 @@
 # Tasks
 
-Estimación del núcleo: 2 h (grupos 1 a 4 y 4b), más 0,5 h del grupo 0, que no cuenta para el tope. **Tope duro de
+Estimación: el núcleo, 2 h (grupos 1 a 4 y 4b), y 0,5 h más de renombrar y borrar (grupo 5), más 0,5 h del grupo 0, que no cuenta para el tope. **Tope duro de
 2,5 h para F5** (grupos 1 a 4, 4b y los extras del grupo 5); ver `design.md`, decisión 9. Al terminar cada grupo se
 apunta en esta lista el tiempo activo acumulado; si pasa de 2,5 h, se para y se documenta lo que falte. Los grupos 1
 y 2 siguen la política TDD del proyecto (primero los tests en rojo, después el código mínimo, sin editar los tests
@@ -41,9 +41,14 @@ grupos 0 y 4, Playwright (ver la skill `run-trazo-mermaid`).
 - [x] 4b.2 Implementar `llevaSesion` en `frontend/ruta.js` y usarla al principio de `frontend/main.js` con `history.replaceState(null, '', location.pathname + location.search)`; verificar con `node --test "frontend/**/*.test.js"` en verde y, sirviendo `frontend/`, abriendo `/#access_token=a&refresh_token=b&type=signup` en el navegador real: la dirección queda sin fragmento, abre el ejemplo, no hay peticiones a Supabase ni errores, y `#/lista` y `#/otra` no cambian.
 - [x] 4b.3 Anotar la regla en `CLAUDE.md` (módulo de rutas) y en `design.md` (Risks: el invitado entra con su contraseña tras confirmar); verificar releyéndolos.
 
-## 5. Extras, solo si queda tiempo bajo el tope (fuera de este change hasta que se decida)
+## 5. Renombrar y borrar desde la lista (0,5 h; escalón 2, decidido por el PO en la sesión 11)
 
-- [ ] 5.1 Decisión de corte: con el tiempo acumulado a la vista, decidir si entran renombrar y borrar (≈0,5 h) y, si entran, añadir su requisito con `/opsx:update` antes de escribir código; si el acumulado ya pasa de 2,5 h, no entran y se anota en el PRD y el readme como «backend listo, interfaz pendiente». `set_member_role` va en otro change y solo si tras esto quedan 0,5 h bajo el tope.
+- [x] 5.1 Decisión de corte: el PO decidió que renombrar y borrar entran; sus requisitos, su decisión de diseño (11) y estas tareas se añadieron antes de escribir código. `set_member_role` sigue fuera (otro change, solo si quedan 0,5 h bajo el tope); verificar con `openspec validate gestion-diagramas-minima --strict`.
+- [ ] 5.2 Añadir en rojo a `frontend/test/gestion-supabase.test.js`: `renombrarDiagrama` llama a `apply_op` con `p_diagram_id`, un `p_op_id` UUID y `p_op: {type: 'setMeta', set: {title}}`, deja el título sin transformar y rechaza con estado 422, sin llamar al servidor, un título vacío, solo de espacios, de 201 caracteres o que no sea texto (200 sí vale); un 403 y un 410 del servidor llegan con su estado; `borrarDiagrama` llama a `delete_diagram` con `p_diagram_id` y un 403 llega con su estado; la falta de respuesta no lleva estado; y a `frontend/test/avisos.test.js` los textos de `renombrar` (422, 403, 410 y otro) y `borrar` (403 y otro); verificar que fallan.
+- [ ] 5.3 Implementar `renombrarDiagrama` y `borrarDiagrama` en `frontend/gestion-supabase.js` (con `newId` de `frontend/ops.js`) y los textos en `frontend/avisos.js`; verificar con `node --test "frontend/**/*.test.js"` en verde.
+- [ ] 5.4 Cambiar `frontend/lista.js` y `frontend/styles.css`: cada fila con tres botones (abrir, «Renombrar» con `prompt()` y «Borrar» con `confirm()`), cancelar no hace nada, el título nuevo y las filas se pintan con `textContent`, un borrado quita la fila y un fallo avisa en el mensaje de la lista; verificar en el navegador real con el driver (tarea 5.5).
+- [ ] 5.5 Ampliar `.claude/skills/run-trazo-mermaid/driver-gestion.cjs` (con confirmación del PO ya dada para el remoto): A renombra un diagrama suyo y la fila cambia, un título de 201 caracteres avisa sin llamar al servidor, cancelar el `prompt` no cambia nada, B (editor) renombra el compartido y A lo ve al recargar la lista, B intenta borrar y recibe «Solo el dueño puede borrar el diagrama», A cancela un borrado (sigue) y lo confirma (desaparece de su lista y de la de B); verificar que termina en `OK`.
+- [ ] 5.6 Actualizar `CLAUDE.md`, `docs/PRD-MVP.md` (F5: queda solo `set_member_role` sin interfaz) y la skill (`SKILL.md`, párrafo del driver); verificar releyéndolos y con `node --test "frontend/**/*.test.js"` en verde.
 
 ## Workflow follow-up
 

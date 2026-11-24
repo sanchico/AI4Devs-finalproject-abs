@@ -17,6 +17,8 @@ colabora sin script»:
 - **Ruta de invitación** (`#/i/<token>`): pide sesión si falta, acepta la invitación y abre el diagrama. Sin esta
   ruta el enlace copiado no serviría de nada.
 - Entrada a la lista desde el modo solitario (botón «Mis diagramas») sin cambiar lo que hace la app sin ruta.
+- **Renombrar y borrar desde la lista** (escalón 2 del orden; los incorpora la decisión de corte 5.1): «Renombrar»
+  (título nuevo con `prompt()`, guardado como `setMeta`) y «Borrar» (con `confirm()`, borrado lógico), sin abrir el diagrama.
 - **Sesión fuera de la dirección:** al volver del enlace de confirmación del correo, Auth deja `access_token` y
   `refresh_token` en el fragmento de la URL; la app los ignora, pero se quedan en la barra y el historial. Se quitan al
   arrancar. Se añadió tras probar con un invitado nuevo (sesión 11).
@@ -24,10 +26,9 @@ colabora sin script»:
   renombrar y borrar si queda tiempo, y `set_member_role` solo si aún sobra. **Tope duro de 2,5 h para F5 (sin contar
   la PR ni la prueba del invitado)**; lo que no entre se documenta como «backend listo, interfaz pendiente».
 
-**Fuera de este change (sin spec hasta que entren):** renombrar, borrar y restaurar desde la interfaz,
-`set_member_role` y su lista de miembros, invitar como lector (el backend ya lo admite), revocar enlaces, y avisar al
-instante a quien tiene abierto un diagrama que se borra (ya está fuera del MVP). Si se llega a renombrar o borrar,
-se añade su requisito con `/opsx:update` antes de implementarlo.
+**Fuera de este change:** restaurar un diagrama borrado desde la interfaz, `set_member_role` y su lista de miembros,
+invitar como lector (el backend ya lo admite), revocar enlaces, y avisar al instante a quien tiene abierto un diagrama
+que se borra (ya está fuera del MVP). Renombrar y borrar entraron en la decisión de corte (tarea 5.1).
 
 No choca con el «fuera de alcance» del MVP: no añade tipos de diagrama, presencia ni cursores. No toca el servidor:
 usa `create_diagram`, `create_invite`, `accept_invite` y las lecturas con RLS que ya existen y están probadas.

@@ -123,3 +123,54 @@ ninguna petición por sí mismo: la sesión se pide al abrir la lista.
 #### Scenario: Desde un diagrama compartido
 - **WHEN** el usuario pulsa «Mis diagramas» dentro de un diagrama compartido
 - **THEN** la ruta pasa a `#/lista` y la lista se carga sin pedir entrar otra vez
+
+### Requirement: Renombrar un diagrama desde la lista
+El sistema SHALL ofrecer en cada fila de la lista un botón «Renombrar» que pida el título nuevo y lo guarde como una
+operación `setMeta` del diagrama, sin abrirlo. El título MUST tener entre 1 y 200 caracteres y no ser solo espacios, y
+se guarda tal como se escribió, sin transformarlo. Cancelar la petición del título no cambia nada. Un rechazo del
+servidor MUST explicarse con un aviso y dejar el título anterior.
+
+#### Scenario: Renombrar
+- **WHEN** el usuario pulsa «Renombrar» en un diagrama suyo y escribe «Pedidos»
+- **THEN** la fila muestra «Pedidos» y el diagrama se abre después con ese título
+
+#### Scenario: Cancelar
+- **WHEN** el usuario pulsa «Renombrar» y cancela la petición del título
+- **THEN** no se envía nada y la lista queda igual
+
+#### Scenario: Título no válido
+- **WHEN** el usuario escribe un título vacío, solo con espacios o de más de 200 caracteres
+- **THEN** un aviso dice que el título debe tener entre 1 y 200 caracteres, no se llama al servidor y el título no cambia
+
+#### Scenario: Un lector no puede renombrar
+- **WHEN** un miembro con rol de lector pulsa «Renombrar» y escribe un título
+- **THEN** un aviso dice que su rol no lo permite y el título no cambia
+
+#### Scenario: Un editor sí puede
+- **WHEN** un editor renombra un diagrama que no es suyo
+- **THEN** el título cambia para todos los miembros
+
+#### Scenario: Título con HTML
+- **WHEN** el usuario escribe `<b>x</b>` como título
+- **THEN** la lista lo muestra como texto y no se crea ningún elemento
+
+### Requirement: Borrar un diagrama desde la lista
+El sistema SHALL ofrecer en cada fila de la lista un botón «Borrar» que, tras pedir confirmación, borre el diagrama
+(borrado lógico: los datos se conservan) y lo quite de la lista. Solo el dueño puede: a quien no lo es, un aviso se lo
+dice y el diagrama sigue en su lista. Cancelar la confirmación no cambia nada.
+
+#### Scenario: Borrar un diagrama propio
+- **WHEN** el dueño pulsa «Borrar» y confirma
+- **THEN** el diagrama desaparece de su lista y de la de los demás miembros al recargarla
+
+#### Scenario: Cancelar el borrado
+- **WHEN** el dueño pulsa «Borrar» y cancela la confirmación
+- **THEN** no se envía nada y el diagrama sigue en la lista
+
+#### Scenario: Quien no es dueño
+- **WHEN** un editor pulsa «Borrar» y confirma
+- **THEN** un aviso dice «Solo el dueño puede borrar el diagrama» y el diagrama sigue en su lista
+
+#### Scenario: Fallo al borrar
+- **WHEN** el servidor no responde al borrar
+- **THEN** un aviso lo dice y el diagrama sigue en la lista
