@@ -7,6 +7,7 @@ import { $, canvas, stage, draw, update, setLive } from './render.js';
 
 const { state } = model;
 let toast = () => {};
+let locked = () => null; // shared diagram that cannot be edited right now: returns the reason to show, or null
 let mouseDraws = true;
 let recorder = null; // `?grabar` mode: gets (pts, pointerType) instead of the recognizer
 let live = null; // stroke in progress
@@ -20,12 +21,14 @@ export function setRecorder(fn){ recorder = fn; }
 const pos = ev => { const r=canvas.getBoundingClientRect(); return {x:ev.clientX-r.left, y:ev.clientY-r.top}; };
 
 function addShape(shape, bb){
-  const {node} = model.addNode(shape, bb);
-  toast(`${shapeName(shape)} → ${KINDS[state.kind].shapes[node.shape].label}`);
+  const r = model.addNode(shape, bb);
+  if(!r.ok) return;   // refused (read-only): nothing was drawn
+  toast(`${shapeName(shape)} → ${KINDS[state.kind].shapes[r.node.shape].label}`);
   update();
 }
 function addConnector(a, b){
   const r = model.addEdge(a.id, b.id);
+  if(r.reason === 'readonly') return;
   if(!r.ok){ toast('Ya existe esa conexión'); return; }
   toast('Conector → ' + (a.label||'[*]') + ' → ' + (b.label||'[*]')); update();
 }
@@ -47,7 +50,12 @@ function finish(ev){
     } else { toast('Trazo demasiado pequeño'); draw(); }
   } else {
     if(quick){ if(pt.node) model.previewMove(pt.node.id, pt.from.x, pt.from.y); tap(p); }   // a tap never moves the node
-    else if(pt.node){ model.moveNode(pt.node.id, pt.from, {x:pt.node.x, y:pt.node.y}); update(); }
+    else if(pt.node){
+      // The node can have been replaced while dragging (an operation from someone else rebuilds the diagram), so its
+      // position is read again by id; if the other user deleted it meanwhile there is nothing to move
+      const cur = state.nodes.find(n=>n.id===pt.node.id);
+      if(cur){ model.moveNode(cur.id, pt.from, {x:cur.x, y:cur.y}); update(); }
+    }
   }
 }
 
@@ -67,14 +75,22 @@ function openEditor(val, at, onOk, onDel){
   editInput.focus(); editInput.select();
 }
 function hideEditor(){ editor.style.display='none'; editCb=null; }
-function commitEditor(){ if(editCb){ editCb(editInput.value.trim()); } hideEditor(); update(); }
+function commitEditor(){ if(editCb && !locked()){ editCb(editInput.value.trim()); } hideEditor(); update(); }
 
-// `showToast` is passed in by main.js so this module does not depend on it
-export function initInput({toast: showToast}){
-  toast = showToast;
+// The mode changed while the user was in the middle of something (a 403 arrives): close the editor and drop the gesture
+export function cancelInteraction(){
+  hideEditor();
+  if(pointer?.node) model.previewMove(pointer.node.id, pointer.from.x, pointer.from.y);
+  pointer=null; live=null; setLive(null); draw();
+}
+
+// `showToast` is passed in by main.js so this module does not depend on it; `isLocked` says why editing is off, if it is
+export function initInput({toast: showToast, locked: isLocked = () => null}){
+  toast = showToast; locked = isLocked;
   canvas.addEventListener('pointerdown', ev => {
     if(ev.button && ev.button!==0) return;
     hideEditor();
+    const why = locked(); if(why){ toast(why); return; }
     const p=pos(ev), drawMode = ev.pointerType==='pen' || (ev.pointerType==='mouse' && mouseDraws);
     canvas.setPointerCapture(ev.pointerId);
     pointer = {mode: drawMode?'draw':'drag', type:ev.pointerType, start:p, t0:performance.now(), moved:false};

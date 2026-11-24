@@ -22,6 +22,8 @@
   </label>
   <button class="btn" id="mode" title="Solo afecta al ratón: con lápiz siempre se dibuja y con el dedo siempre se mueve">Ratón: dibuja</button>
   <span class="spacer"></span>
+  <span class="estado" id="estado" role="status" aria-live="polite" hidden></span>
+  <button class="btn" id="salir" hidden>Salir</button>
   <button class="btn" id="undo">Deshacer</button>
   <button class="btn" id="clear">Limpiar</button>
 </div>
@@ -59,6 +61,25 @@
   </div>
 </div>
 
+<div class="login" id="login" hidden>
+  <form class="login-card" id="loginForm" autocomplete="on">
+    <h2>Entrar para colaborar</h2>
+    <label>Correo <input id="loginCorreo" type="email" autocomplete="username" required></label>
+    <label>Contraseña <input id="loginClave" type="password" autocomplete="current-password" required minlength="6"></label>
+    <p class="login-msg" id="loginMsg" role="alert"></p>
+    <div class="login-btns">
+      <button class="btn on" id="loginEntrar" type="submit">Entrar</button>
+      <button class="btn" id="loginCrear" type="button">Crear cuenta</button>
+    </div>
+  </form>
+</div>
+
+<!-- Al cambiar de versión de supabase-js hay que cambiar también el hash `integrity`:
+     curl -sL https://cdn.jsdelivr.net/npm/@supabase/supabase-js@<versión>/dist/umd/supabase.js | openssl dgst -sha384 -binary | openssl base64 -A
+     (precedido de "sha384-"). Un `import` de módulo no admite `integrity`, por eso se usa la versión UMD, que define `window.supabase`. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"
+        integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O"
+        crossorigin="anonymous"></script>
 <!-- Al cambiar de versión de Mermaid hay que cambiar también el hash `integrity` (API de cdnjs: https://api.cdnjs.com/libraries/mermaid/<versión>?fields=sri) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.8/mermaid.min.js"
         integrity="sha512-W44v4BgrfdCXnfKNCPLIa8yzpMbB5761jGLoi9UKSkAP5rveS4LqWnnBQV4n7hArLoGHijukXIpCxxbzqAX/Vg=="
