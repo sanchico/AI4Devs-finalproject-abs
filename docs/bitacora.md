@@ -1805,3 +1805,384 @@ hagámoslo ahora
 - Invitaciones de un solo uso, revocarlas y límites de frecuencia quedan para la v2.
 
 **Horas:** 2,5 (acumulado 19,5 h de 33). El PRD preveía 17 h tras la sesión 8: vamos 2,5 h por encima, con S2 y el change previo hechos. El script mide los huecos de menos de 30 minutos; la estimación de 3,25 h del change `funciones-servidor` era previa y no se ha medido por separado.
+
+## Sesión 9 · 19 nov 2026 · Medir la latencia en el proyecto Supabase remoto (change `medir-latencia`, parte de D1)
+
+**Objetivo:** F4 (cliente colaborativo) con el login mínimo de F5. La sesión se fue en el paso previo: explorar con el PO las decisiones de F4 que dependían de la latencia (transporte, ráfagas), adelantar el proyecto remoto de D1 y medir contra él. F4 no se ha empezado.
+
+**Fase del ciclo de vida:** arquitectura, datos, tests, tickets de trabajo y despliegue.
+
+### Prompts
+
+**Prompt 1: explorar el punto 1, la latencia**
+
+```
+explora el punto 1
+```
+
+(Antes, `/rename sesion 9` y `/opsx:explore` sin tema; el agente listó el estado y cinco hilos de F4.)
+
+- **Qué hizo el agente:** leyó `apply_op`, la publicación de Realtime y el PRD. Separó la latencia en T_a (la llamada) y T_b (hasta que otro miembro recibe), explicó que el emisor no espera nada porque dibuja al momento, y comparó Postgres Changes (la RLS se evalúa por suscriptor y evento, en un solo hilo) con `realtime.send` (canal privado y política en `realtime.messages`). Recomendó medir antes de cambiar de transporte. Vio que `clear()` envía N `removeNode` en serie y que un solo envío por vez bloquea lo que se dibuja detrás.
+- **Resultado:** exploración sin escribir; propuso medir y pidió fijar el umbral.
+- **Impacto:** de aquí salen las dos decisiones que fija el resto de la sesión (transporte y ráfagas).
+
+**Prompt 2: medir en local no tiene sentido**
+
+```
+Me parece que no tiene mucho sentido medir latencia en local, va a ser siempre muy baja ¿qué opinas? ¿deberiamos adelantar el proyecto supabase?
+```
+
+- **Qué hizo el agente:** dio la razón en parte (en local no hay red) y propuso adelantar solo la parte de D1 que crea el proyecto remoto (crear, `link`, `db push`), dejando hosting y URLs de Auth para la sesión 10. Dio tres motivos: no añade horas, destapa antes las diferencias de las migraciones en el Supabase alojado y da el dato antes de escribir `collab.js`.
+- **Resultado:** decisión del PO de adelantar el proyecto remoto.
+- **Impacto:** cambia el plan de sesiones (PRD v0.7.6).
+
+**Prompt 3: ideas.md, un único editor**
+
+```
+Mira las ideas que te adjunto, creo que solventarian los problemas de latencia pero creo que cambian bastante la aplicación, incluyendo decisiones ya tomadas. Dime qué costo tendría implementarlas
+```
+
+(Adjunto: `notas/ideas.md`, abierto en el IDE.)
+
+- **Qué hizo el agente:** leyó `notas/ideas.md` (turnos de edición: el dueño decide, se pide permiso, etc.) y el esquema de roles. Respondió que no arreglan la latencia, porque con un solo editor el reparto tarda igual; solo quitan la edición simultánea, que ya está resuelta y probada (F2, F3, bloqueo de `apply_op`). Señaló que chocan con los criterios de terminado 1 a 3. Estimó 2–3 h la opción 2, 4–6 h la 3 y 3–4 h la 4, más reescribir PRD y specs, y que los turnos pedirían Presence (fuera del MVP). Propuso una alternativa casi gratis: `set_member_role`, solo para el dueño.
+- **Resultado:** ninguno por escrito; el PO precisó su preocupación en el prompt siguiente.
+- **Impacto:** evita reabrir el modelo de edición simultánea con 3 h de retraso.
+
+**Prompt 4: añadir `set_member_role` a F5**
+
+```
+Me preocupaba el desorden con mucha gente editando, no habia pensado que se puedan invitar a miembros sólo como lectores o que se pueda cambiar el rol. Ok, añade set_member_role a F5
+```
+
+- **Qué hizo el agente:** explicó que en explore solo podía escribir artefactos de un change y ofreció dos caminos (editar el PRD o dejarlo para el `propose` de F5), con una nota: el recorte "invitaciones solo como editor" deja de quitar los lectores.
+- **Resultado:** el PO pidió editar el PRD (prompt siguiente).
+- **Impacto:** el PO descubre que ya existen los roles de lector y editor.
+
+**Prompt 5: PRD v0.7.5 y las respuestas a ideas.md**
+
+```
+sí, sal del modo explore y haz la opción 1 con la nota del recorte. Guarda también tu respuesta a @notas/ideas.md  como "respuestas del agente"
+```
+
+- **Qué hizo el agente:** editó el PRD (v0.7.5): F5 pasa a 3,5 h, `set_member_role(p_diagram_id, p_user_id, p_role)` con sus errores y su reacción en el cliente (403 lleva a solo lectura), tabla de la API, plan de sesiones y nota del recorte. Añadió a `notas/ideas.md` la sección "Respuestas del agente" con el análisis y la decisión. Dejó sin tocar la comparación de horas de la sección 2, que recoge el momento de la decisión de la v0.7.
+- **Resultado:** `docs/PRD-MVP.md` v0.7.5 y `notas/ideas.md`.
+- **Impacto:** deja por escrito por qué se descartan los turnos de edición.
+
+**Prompt 6: subir solo el PRD**
+
+```
+Modifiqué el gitignore un momento para darte acceso a notas. Sube sólo El PRD
+```
+
+- **Qué hizo el agente:** hizo commit solo de `docs/PRD-MVP.md` y subió la rama; dejó fuera `.gitignore` y `notas/`.
+- **Resultado:** commit `f7f196c`, que luego se movió de rama (ver Correcciones).
+- **Impacto:** `notas/` sigue fuera del repositorio.
+
+**Prompt 7: explicar lo de agrupar las ráfagas**
+
+```
+vale, volvemos a /opsx:explore adelantamos el proyecto supabase remoto para medir. Explícame lo de agrupar las ráfagas en F4
+```
+
+- **Qué hizo el agente:** localizó las ráfagas en el código: `clear()` (N `removeNode`) y deshacerlo (N `addNode` + E `addEdge`), y que `undo()` aplica las inversas sin pasar por `perform`. Explicó el bloqueo en cabeza (lo que se dibuja detrás de una ráfaga llega segundos tarde) y comparó cuatro opciones. Descartó enviar varias llamadas a la vez, porque pueden numerarse en otro orden y un `addEdge` quedaría antes de su `addNode`. Descartó una operación compuesta `batch` por tocar el formato de F2, F3 y S2. Recomendó una llamada por gesto (`apply_ops`), pero condicionada a la medida, y una cola por gestos desde el principio.
+- **Resultado:** exploración; la decisión llega en el prompt 10.
+- **Impacto:** `apply_ops` no toca el formato del registro: una fila por operación.
+
+**Prompt 8: ¿el estado se guarda en algún sitio?**
+
+```
+¿el estado actual de un diagrama se consigue aplicando todas sus operaciones? ¿no se guarda un su estado actual en ningun momento?
+```
+
+- **Qué hizo el agente:** confirmó que el grafo no se guarda en ningún sitio: se reproduce el registro (`diagram_ops`). La ficha `diagrams` solo guarda tipo, título y dirección. Explicó por qué se decidió así (una sola implementación de `apply`, y los `DELETE` de tablas de nodos no pasan por la RLS de Realtime) y su coste (tope de 5 000 operaciones, del orden de 1 MB).
+- **Resultado:** ninguno por escrito.
+- **Impacto:** buen candidato para la sección de modelo de datos de `prompts.md`.
+
+**Prompt 9: un snapshot al limpiar**
+
+```
+Lo decia para que al limpiar en vez de ejecutar N `removenode` guarde un snapshot y borre todo. Así eliminaríamos las ráfagas
+```
+
+- **Qué hizo el agente:** tradujo la idea a una operación `clear` y vio que quita la mitad de la ráfaga: deshacer necesitaría otra operación `restore` con todo el contenido, es decir, una instantánea dentro del registro. Midió el coste (2 h, `validate_op` de arrays, formato de F2, F3 y S2) y un matiz de concurrencia: `clear` borra lo que otro añadió sin que quien vacía lo viera. Comparó con una llamada por gesto: `clear` + `restore` ahorra filas del registro (2 en lugar de 65), no latencia.
+- **Resultado:** el PO se quedó con la llamada por gesto.
+- **Impacto:** `clear`/`restore` queda como idea futura.
+
+**Prompt 10: quedarse con C y editar el PRD**
+
+```
+vale, quédate con C y apunta clear como idea futura
+```
+
+(Después, "sí, edita el PRD con los cuatro puntos" y "sí, súbelo".)
+
+- **Qué hizo el agente:** propuso editar el PRD con cuatro puntos y, tras el sí, lo pasó a v0.7.6: F4 con cola por gestos, `apply_ops` condicionado a la medida, fila de riesgo del bloqueo en cabeza, `clear`/`restore` fuera de alcance y la sesión 9 con el proyecto remoto y la medida primero. Hizo commit y subió.
+- **Resultado:** commit `9721bcc` (PRD v0.7.6).
+- **Impacto:** la decisión queda condicionada a un número y no a una opinión.
+
+**Prompt 11: proponer el change `medir-latencia`**
+
+```
+/opsx:propose
+```
+
+(Sin tema. El agente preguntó el alcance y la rama; el PO eligió "Solo medir latencia" y respondió: "La PR de S2 ya se completó. Borra los commits que hayas subido a esta rama, crea la rama de F4 desde develop y súbelos allí. No me importa reescribir la historia de origin".)
+
+- **Qué hizo el agente:** comprobó con `gh` que la PR #12 estaba fusionada, creó `feat/f4-cliente-colaborativo` desde `origin/develop`, pasó allí los dos commits del PRD con `cherry-pick` y devolvió `feat/s2-funciones-de-servidor` a `ed632aa` con `--force-with-lease`. Después creó el change con `openspec new change`, leyó la spec `diagram-storage` y escribió proposal, una spec delta (dos requisitos), design (siete decisiones) y tasks (12 tareas, 1,5 h). Pasa `validate --strict`.
+- **Resultado:** `openspec/changes/medir-latencia/` y commit `26f2122`.
+- **Impacto:** un change pequeño que mide y decide; F4 irá detrás con el resultado en la mano.
+
+**Prompt 12: crear el proyecto Supabase**
+
+```
+¿puedes ayudarme a crear el proyecto en supabase? ¿debo rellenar github?
+```
+
+(Adjunto: una captura del formulario de creación de proyecto.)
+
+- **Qué hizo el agente:** leyó las migraciones de S1 antes de aconsejar. Dijo que no hay que rellenar GitHub (la integración despliega migraciones sola y aquí se hace `db push` a mano), y que "Enable Data API" va marcado y las otras dos casillas (permisos y RLS automáticos) sin marcar, porque las migraciones ya quitan los permisos por defecto y activan la RLS tabla a tabla.
+- **Resultado:** el PO creó el proyecto `pen2mermaid` en `eu-west-1`.
+- **Impacto:** el remoto queda igual que el local en permisos.
+
+**Prompt 13: implementar, medir y decidir**
+
+```
+/opsx:apply
+```
+
+(Después: "sigue, Docker ya está en marcha", "el proyecto ya está creado, sigue con el link", dos veces "sigue" y "sube la rama".)
+
+- **Qué hizo el agente:** implementó las 12 tareas.
+  - Escribió `supabase/scripts/medida.js` (percentiles y emparejado por `op_id`, 9 tests sin Supabase) y `medir-latencia.js`, y probó el script en local.
+  - Enlazó el proyecto (`link` lo hizo el PO por la contraseña) y aplicó las cinco migraciones con `db push --remote`. Comprobó que la publicación remota es solo `diagram_ops` con inserciones.
+  - Midió 8 veces contra el remoto. Con solo `SUBSCRIBED` se perdían operaciones; arregló el script para esperar el mensaje `system` de Postgres Changes y repitió.
+  - Documentó el resultado en el design, pasó el PRD a v0.7.7 y actualizó `CLAUDE.md` y el readme.
+- **Resultado:** p95 del reparto de 538–579 ms (se queda Postgres Changes) y ráfaga de 30 en 2,5–2,6 s (F4 lleva `apply_ops`, +1,25 h). Commits `0ec8354` a `7ab5d1d`.
+- **Impacto:** datos reales para dos decisiones de arquitectura, y un hallazgo que F4 tiene que respetar.
+
+**Prompt 14: archivar**
+
+```
+/opsx:archive
+```
+
+- **Qué hizo el agente:** comprobó que los cuatro artefactos y las 12 tareas estaban completos, sincronizó los dos requisitos en `openspec/specs/diagram-storage/spec.md` (válida con `--strict`), movió el change a `archive/2026-11-19-medir-latencia` y corrigió una frase del readme que seguía diciendo que el remoto llegaba en D1.
+- **Resultado:** commits `fc1c212` y `7b05241`.
+- **Impacto:** las specs recogen ya el umbral de 1 s y la paridad del remoto.
+
+**Prompt 15: ¿está completo F4?**
+
+```
+¿está completo F4?
+```
+
+- **Qué hizo el agente:** comprobó que ningún módulo de `frontend/` usa supabase-js ni existe `collab.js` ni la migración de `apply_ops`, y contestó que no: lo hecho es el paso previo. Listó lo pendiente.
+- **Resultado:** ninguno.
+- **Impacto:** deja claro que la sesión no cerró el bloque.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2. Arquitectura | 1 (latencia y transporte), 7 (ráfagas) y 9 (snapshot frente a una llamada por gesto) |
+| 2.3 Modelo de datos | 8 (el estado es el registro, sin instantánea) |
+| 2.5 Seguridad | 3 y 4 (roles en lugar de turnos de edición) |
+| 2.6 Tests | 13 (script de medida y el hallazgo de `SUBSCRIBED`) |
+| 3. Historias de usuario | 3 y 4 (desorden con muchos editores) |
+| 6. Tickets de trabajo | 11 y 13 (change `medir-latencia`) |
+| 7. Pull Requests | la rama `feat/f4-cliente-colaborativo` (PR pendiente) |
+| Nota sobre el proceso | 2 (medir en remoto), 3 (rechazar una idea con su coste) y 11 (rehacer las ramas) |
+
+### Correcciones
+
+- **Di por buena una medida en local (prompt 2).** Había planteado probar primero en local y el PO observó que sería siempre baja. Tenía razón en el fondo (no hay red), pero también me equivoqué al revés: en local el reparto tarda ya 265 ms de mediana y hasta 520 ms, porque Realtime revisa el registro por intervalos. Lo que decía el PRD v0.7.6 ("en local sale siempre baja") era falso y se corrigió en la v0.7.7.
+- **Propuse un umbral que contradecía el PRD (prompt 3).** Sugerí p95 < 500 ms sin mirar los criterios de terminado, cuyo número 1 ya fija 1 s. Me corregí al leer los criterios de la v0.6.
+- **Subí commits a una rama ya fusionada (prompts 6 y 11).** Los dos commits del PRD fueron a `feat/s2-funciones-de-servidor`, aunque su PR (#12) ya estaba fusionada; me fié de "PR pendiente" en la bitácora sin comprobarlo con `gh`. El PO pidió moverlos a la rama de F4 y rehacer la de S2 (autorizó reescribir la historia). Usé `--force-with-lease`.
+- **Mi script ocultaba pérdidas (prompt 13).** El calentamiento no contaba, así que un `SUBSCRIBED` demasiado optimista se veía como "0 perdidas" en local. Lo detecté solo porque la primera ejecución remota perdió 3 operaciones; midiendo después vi que en local llegaba 1 de 5. Había marcado antes las tareas 2.3 y 2.4 como hechas y tuve que corregir el script y repetir 3 ejecuciones.
+- **El CLI de Supabase apunta por defecto al local.** Un primer `db push` dijo "up to date" sobre el local; hizo falta `--remote`. `db query --remote` pide `--read-only` en modo agente. Y Python no estaba instalado para analizar JSON; usé Node.
+- **Docker no estaba en marcha** al empezar el apply: las tareas que lo necesitan esperaron a que lo arrancara el PO.
+- **El extractor de prompts no mostraba los adjuntos (al cerrar la sesión).** `prompts.cjs` copiaba el texto pero no decía si llevaba una imagen, un archivo abierto o una selección del IDE, y un prompt con solo una imagen desaparecía. Lo pidió el PO antes de exportar. Ahora el texto sigue literal y los adjuntos van aparte ("Adjuntos: imagen", "archivo abierto en el IDE: notas/ideas.md"), también en el export. Los 286 prompts del historial siguen siendo 286; 18 llevan adjuntos.
+
+### Pendiente
+
+- Subir los commits que faltan de `feat/f4-cliente-colaborativo` (`fc1c212`, `7b05241` y esta entrada) y abrir la PR contra `develop` cuando F4 esté hecho.
+- **F4 no ha empezado.** Proponer el change (`collab.js`, cola por gestos, `undo()` que envía sus inversas, `apply_ops` con migración y tests, solo lectura, login mínimo). Tiene que esperar el mensaje `system` de Postgres Changes antes de cargar el registro, no solo `SUBSCRIBED`.
+- **Recortes.** Con 22,5 h acumuladas y 12,25 h por hacer según el PRD (S3 2, F4 3,25, F5 3,5, D1 0,5 y P2 3) la proyección es de unas 34,75 h, por encima de las 33 h y de las 29,25 h del PRD. Los recortes previstos (−0,5 h invitaciones solo como editor y −1 h fixtures) no bastan. Decidir qué más se quita antes de la sesión 10.
+- El PRD v0.7.7 calcula el acumulado con las horas previstas (22,25 h tras la sesión 10), no con las reales. Reconciliar el plan de sesiones con las horas medidas.
+- Repetir `npm run medir:latencia` con la app desplegada y desde la wifi de la demo; el p95 de 538–579 ms es desde casa a `eu-west-1`.
+- El proyecto remoto sigue con la confirmación de correo por defecto: crear usuarios con "Auto confirm" o desactivarla (D1). Los usuarios A y B de la medida existen en el remoto y sus datos están en `supabase/.env.remoto`, fuera de git.
+- `notas/` está fuera de git: `notas/ideas.md` con las "respuestas del agente" no está versionado.
+- La hipótesis de que Realtime revisa el registro por intervalos (de 0 a ~500 ms) no está comprobada en su código.
+- Idea futura (en el PRD como fuera de alcance): `clear` y `restore` para acortar el registro.
+
+**Horas:** 3,0 (acumulado 22,5 h de 33). El PRD preveía 19,5 h tras la sesión 9: vamos 3 h por encima, porque la sesión se fue en explorar, el proyecto remoto y la medida y F4 no se empezó. Ya se pasó el punto de control de 22 h del PRD, previsto para después de la sesión 10.
+
+## Sesión 10 · 20 y 24 nov 2026 · F4 completo: `apply_ops`, la cola del cliente y la app compartida (tres changes)
+
+**Objetivo:** cerrar F4 (cliente colaborativo) con el login mínimo de F5. Primero se decidió qué recortar con el plazo conocido (26-11-2026) y después se hicieron tres changes de OpenSpec seguidos: `apply-ops` (servidor), `cola-colaborativa` (cliente, probado en Node) y `colaboracion-en-la-app` (supabase-js, sesión, interfaz y prueba en el navegador).
+
+**Fase del ciclo de vida:** arquitectura, API, tests y tickets de trabajo.
+
+### Prompts
+
+**Prompt 1: explorar F4 antes de proponerlo**
+
+```
+/opsx:explore
+```
+
+(Antes, `/rename sesion 10`. Sin tema: el agente repasó el estado por su cuenta.)
+
+- **Qué hizo el agente:** leyó el PRD, la bitácora y el estado de OpenSpec (sin changes activos). Contó 22,5 h reales y 12,25 h pendientes, o sea unas 34,75 h frente a un techo de 33 h, y abrió cuatro hilos: qué recortar, cómo partir F4 en changes, el riesgo de que `undo()` no pase por `perform` y el orden de arranque del canal.
+- **Resultado:** exploración sin escribir.
+- **Impacto:** plantea que el plan no cabe y que F4 es demasiado grande para un solo change.
+
+**Prompt 2: instalar la skill del consejo de asesores**
+
+```
+Please install this Claude skill for me. The SKILL.md file lives in this GitHub repo: https://github.com/aiwithremy/claude-skills-llm-council
+
+Set it up so I can start using it. Walk me through anything you need from me.
+```
+
+(Antes, `/anthropic-skills:skill-creator` sin argumentos; el agente preguntó qué skill y el PO contestó con este prompt.)
+
+- **Qué hizo el agente:** leyó el repositorio con `gh` (solo un README y un `SKILL.md`, sin scripts) antes de instalar nada, la dejó en `~/.claude/skills/llm-council` y avisó del coste (11 subagentes por consulta) y de que lee `CLAUDE.md` y la memoria. Con el "sí" del PO la usó sobre los recortes: 5 asesores en paralelo (Contrarian, First Principles, Expansionist, Outsider y Executor), 5 revisiones anónimas y un veredicto que redactó el agente principal.
+- **Resultado:** veredicto: S3 casi duplicada (auditarla antes), aplazar `apply_ops`, F5 mínimo, no tocar P2, y preguntar la fecha límite.
+- **Impacto:** un método de decisión con varios puntos de vista, citable en la nota sobre el proceso.
+
+**Prompt 3: la fecha límite**
+
+```
+fecha límite de entrega: final del 26/11/2026
+```
+
+- **Qué hizo el agente:** recalculó: quedan hoy, mañana y el 26, justo las sesiones 10 a 12 del PRD. A 3 h por día el plan no cabía.
+- **Resultado:** pidió las horas disponibles.
+- **Impacto:** cambia la pregunta de "qué cabe en 33 h" a "qué cabe en tres días".
+
+**Prompt 4: las horas por día y la auditoría de S3**
+
+```
+Puedo ocupar hasta 6 horas por día. respecto a la auditoría de los tests de S1/S2 ¿a qué te refieres con la capacidad?
+```
+
+- **Qué hizo el agente:** aclaró que "capacidad" eran sus horas por día (lo había escrito mal) y lanzó la auditoría de los 13 archivos de `supabase/tests/` contra el criterio 7 (nadie accede sin ser miembro). REST y funciones estaban cubiertos; **Realtime no**: `realtime.test.js` solo mira qué tabla se publica y nadie comprueba que un ajeno no reciba nada.
+- **Resultado:** S3 pasa de 2 h a unas 0,75 h; con 18 h disponibles caben casi todos los bloques.
+- **Impacto:** un hueco real en el criterio de seguridad, y un plan por días con regla de corte.
+
+**Prompt 5: partir F4 y proponer `apply-ops`**
+
+```
+sí, propón apply-ops
+```
+
+(Antes, «sí, seguimos».)
+
+- **Qué hizo el agente:** leyó `model.js` y la migración de `apply_op`. Encontró que `perform` es el punto de enganche natural, que `undo()` aplica sin devolver nada y que `setDir` es un cambio propio que usa `applyRemote`. Propuso tres changes y `apply_ops` primero, para escribir la cola una sola vez. Creó el change con los cuatro artefactos: firma `apply_ops(p_diagram_id, p_ops jsonb) returns bigint[]` con `[{op_id, op}]`, función interna `write_ops`, tope de 500 por grupo, reintento por operación y solo las operaciones nuevas copian `setMeta` a la ficha.
+- **Resultado:** commit `73d3204`.
+- **Impacto:** primer change de F4 con decisiones y alternativas descartadas por escrito.
+
+**Prompt 6: cuándo subir la migración**
+
+```
+¿cuando tiene que subirse la migración al remoto?
+```
+
+- **Qué hizo el agente:** respondió que cuando algo llame a `apply_ops` en el remoto, y recomendó subirla al acabar el change 1, con `db push --dry-run` antes.
+- **Resultado:** respuesta sin escribir.
+- **Impacto:** ver la corrección del prompt 8.
+
+**Prompt 7: aplicar `apply-ops`**
+
+```
+/opsx:apply
+```
+
+- **Qué hizo el agente:** encontró en `CLAUDE.md` una política TDD nueva del PO (Red → Green → Refactor) y reordenó el trabajo: 46 tests en rojo, después la migración y por último reescribir `apply_op` sobre `write_ops`, con los 100 tests anteriores sin tocar. Midió 30 operaciones en local: 129 ms en serie y 5 ms en grupo.
+- **Resultado:** 146 tests de backend en verde; commits `3fdb586` y `c94de07`.
+- **Impacto:** `apply_ops` hecho con la batería de S2 como red de seguridad.
+
+**Prompt 8: el comando de subida**
+
+```
+1 Hecho 2 ¿ejecuto ese comando tal cual?
+```
+
+- **Qué hizo el agente:** comprobó `db push --help`: **apunta al local por defecto** y hace falta `--remote`. Dio `--remote --dry-run` y, si coincide, `--remote`.
+- **Resultado:** el PO subió la migración al remoto.
+- **Impacto:** una pregunta del PO atrapó un comando que habría dicho "up to date" sobre el local.
+
+**Prompt 9: comprobar `apply_ops` en el remoto**
+
+```
+Hechos los 2 pasos. Comprueba apply_ops
+```
+
+(Después, «sí, hazlas las dos».)
+
+- **Qué hizo el agente:** comprobó el catálogo remoto (solo lectura) y probó con el usuario A de la medida: grupo de 3, reintento sin duplicar, grupo inválido (422), sin sesión y `write_ops` desde la API. Borró el diagrama de prueba. Después anotó las cifras y archivó el change, sincronizando 6 requisitos nuevos en `operation-log`.
+- **Resultado:** 30 operaciones en 188 ms con un grupo frente a 1 981 ms en serie. Commits `d1984fe` y `06e8a22`.
+- **Impacto:** el riesgo de la ráfaga de la sesión 9 queda resuelto con datos del remoto.
+
+**Prompt 10: proponer y hacer la cola del cliente**
+
+```
+/opsx:propose cola-colaborativa
+```
+
+(Después, `/opsx:apply` y `/opsx:archive`.)
+
+- **Qué hizo el agente:** diseñó `collab.js` puro con el transporte inyectado (`subscribe`, `load`, `send`). Decisión clave: guardar el diagrama **confirmado** y los grupos **pendientes**, y mostrar siempre confirmado + pendiente; aplicar lo ajeno sobre lo que se ve rompe la convergencia. Implementó en TDD, en cuatro grupos: ganchos del modelo (`onChange`, `undo` que devuelve las inversas, `setReadOnly`, `replaceState`), servidor simulado con la semántica de `apply_ops`, cola con rechazos y reintentos, y convergencia de tres clientes con 50 semillas. Comprobó con mutaciones que el test de convergencia detecta fallos.
+- **Resultado:** 225 tests de frontend; commits `377f1ff` a `a8933b5` y `c9535a0` (spec `collaborative-editing`).
+- **Impacto:** la colaboración queda probada en Node, sin red.
+
+**Prompt 11: proponer y hacer la app compartida**
+
+```
+propón colaboracion-en-la-app
+```
+
+(Después, `/opsx:apply` y «sí, archívalo».)
+
+- **Qué hizo el agente:** descubrió que la API devuelve como máximo 1 000 filas y un registro puede tener 5 000 (el adaptador pagina), que la integridad solo se puede exigir con la versión UMD de supabase-js por `<script>` (calculó el hash) y que `input.js` leía la posición de un nodo arrastrado por referencia, que un cambio ajeno sustituye. Creó el change con dos capabilities nuevas y dos modificadas. Lo aplicó: adaptador probado con un cliente falso que reproduce el tope de 1 000 filas, sesión, apertura por `#/d/<id>`, indicador de modo y bloqueo. Antes de escribir en el remoto preguntó al PO («Sí, las dos cosas»): ejecutar el script que crea diagramas de prueba y teclear las credenciales de A y B. El driver abre dos contextos de Chromium y recorre 23 comprobaciones.
+- **Resultado:** 286 tests de frontend; de A a B, 311, 709 y 244 ms; commits `83ca9b1` a `c0cad8d`. El archivado creó `user-session` y `shared-diagram-session` y modificó `canvas-editing`.
+- **Impacto:** criterios 1, 3 y 6 demostrados en el navegador contra el proyecto remoto.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2. Arquitectura | 5 (partir F4 y `apply_ops` antes que la cola), 10 (confirmado + pendiente, transporte inyectable) y 11 (UMD con integridad, paginar de 1 000 en 1 000) |
+| 2.5 Seguridad | 4 (el hueco de Realtime en el criterio 7) y 11 (clave pública, textos con `textContent`, un 404 que no distingue) |
+| 2.6 Tests | 4 (auditoría), 7 (TDD y red de seguridad), 10 y 11 (mutaciones y driver de dos usuarios) |
+| 4. API | 5 y 9 (`apply_ops`) |
+| 6. Tickets de trabajo | 5, 10 y 11 (los tres changes con tareas y horas) |
+| 7. Pull Requests | la rama `feat/f4-cliente-colaborativo` (22 commits sin subir y sin PR) |
+| Nota sobre el proceso | 2 (consejo de asesores), 3 y 4 (el plazo y las horas cambian el plan), 8 (la pregunta del PO) y 11 (las mutaciones) |
+
+### Correcciones
+
+- **Di el comando de subida sin `--remote` (prompt 6).** El PO preguntó si lo ejecutaba tal cual. Comprobé la ayuda: en este CLI el destino por defecto es el local. La sesión 9 ya lo había anotado y no lo apliqué.
+- **Escribí mal "capacidad" (prompt 4).** El PO tuvo que preguntar qué quería decir.
+- **Supuse que `write_ops` daría 404 desde la API.** Da 403 con `42501` (permiso denegado). Corregí el test y `tasks.md`.
+- **Dos expectativas de test mías eran falsas:** la etiqueta por defecto de un rectángulo de Flujo es "Proceso 1", y el modelo rechaza siempre con el motivo "readonly", también durante la carga.
+- **El diseño decía que sin conexión se descartaban los pendientes.** Al escribir los tests vi que lo útil es conservar lo que se veía. Actualicé `design.md` y `tasks.md`, y moví `local` de la tarea 3.2 a la 2.3.
+- **El test de convergencia pasó a la primera y no detectaba una mutación** (que lo visible ignorase lo pendiente). Lo reforcé comparando lo que muestra la cola con lo que mostró el modelo tras cada gesto. Con el adaptador, dos mutaciones (no paginar, dar por lista la suscripción con `SUBSCRIBED`) rompen los tests, y rompiendo el filtro de Realtime falla el driver.
+- **Mi script de sincronización del último archivado no aplicó el primer requisito modificado de `canvas-editing`**, y la validación pasaba igual. Lo detecté porque el propio script contaba un solo requisito modificado. Lo corregí y añadí una verificación por programa con 20 comprobaciones.
+- **Dos heredocs de shell fallaron por las comillas** y tuve que repetirlos con la herramienta de edición.
+- **La aritmética del consejo no cuadraba** (la respuesta más citada restaba mal los recortes ya previstos). Lo corregí en el veredicto: 33,25 h antes de los cortes nuevos, y la holgura real era menor de la que decía.
+
+### Pendiente
+
+- **Subir la rama.** `feat/f4-cliente-colaborativo` lleva 22 commits locales sin subir y no tiene PR. Abrirla contra `develop`.
+- **D1:** hosting estático con HTTPS, URL del sitio y confirmación por correo en Auth, prueba con dos dispositivos reales (la tablet) y repetir `npm run medir:latencia` con la app desplegada.
+- **Resto de F5:** lista, «Nuevo», renombrar, borrar, invitar con enlace (solo como editor) y `set_member_role` (0,5 h).
+- **S3:** el test de Realtime con un usuario ajeno y con la clave pública sin sesión (unos 0,75 h). El resto ya está cubierto.
+- **P2:** documentación. El readme aún dibuja un "Servidor de colaboración WebSocket" y pide Java 21 y Maven (la v0.6); revisarlo.
+- **No se probó con el S Pen real** en la colaboración: el driver usa el ratón de Playwright.
+- Los gestos aún sin confirmar (menos de 1 s) se pierden al recargar; se aceptó.
+- Reconciliar el plan de sesiones del PRD con las horas reales.
+- **Proyección:** F5 (≈3 h) + D1 (0,5 h) + S3 (≈0,75 h) + P2 (3 h) son unas 7,25 h, o sea unas 32,25 h en total. Cabe en 33 h y en dos días a 6 h, pero sin margen: hay que proteger P2.
+
+**Horas:** 2,5 (acumulado 25,0 h de 33). El PRD preveía 22,25 h tras la sesión 10: vamos 2,75 h por encima, pero F4 entero (servidor, cola y app) quedó hecho en esta sesión.

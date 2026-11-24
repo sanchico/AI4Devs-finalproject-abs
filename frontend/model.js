@@ -14,8 +14,23 @@ export const state = { kind: 'flow', dir: 'TD', title: UNTITLED, nodes: [], edge
 const MAX_UNDO = 60;
 let history = [];
 
+// Collaboration hooks (both off by default, so a lone user sees no difference):
+//  - onChange(fn): fn(ops) gets the operations of each gesture that were applied, to send them to the others
+//  - setReadOnly(reason): while set, gestures are refused ({ok:false, reason:'readonly'}) and nothing changes
+let sink = null;
+let readOnly = null;
+export function onChange(fn){ sink = fn || null; }
+export function setReadOnly(reason){ readOnly = reason || null; }
+const denied = () => ({ ok: false, reason: 'readonly' });
+
 // Back to an empty, untitled flow diagram with no undo history
 export function reset(){ state.kind='flow'; state.dir='TD'; state.title=UNTITLED; state.nodes=[]; state.edges=[]; history=[]; }
+// Put a whole diagram in `state` (the same object the canvas reads) without touching the undo history: used to show
+// the confirmed diagram plus the pending gestures. It copies, so the caller keeps its own snapshot.
+export function replaceState(snapshot){
+  const s = structuredClone(snapshot);
+  state.kind=s.kind; state.dir=s.dir; state.title=s.title; state.nodes=s.nodes; state.edges=s.edges;
+}
 
 // ---------- Queries ----------
 export function nodeAt(p, m=0){ for(let i=state.nodes.length-1;i>=0;i--) if(inNode(state.nodes[i],p,m)) return state.nodes[i]; return null; }
@@ -23,15 +38,18 @@ export function edgeEnds(e){ const a=state.nodes.find(n=>n.id===e.from), b=state
 export function edgeAt(p){ for(const e of state.edges){ const [a,b]=edgeEnds(e); if(segDist(p,a,b)<14) return e; } return null; }
 
 // ---------- Applying operations ----------
-// Apply the user's operations as one undo step. Rejected ones are skipped; returns the results in order.
-export function perform(ops){
-  const group = [], results = [];
+// Apply the user's operations as one undo step (or none, with {undoable:false}). Rejected ones are skipped;
+// returns the results in order. What was applied goes to onChange once, as one gesture.
+export function perform(ops, {undoable = true} = {}){
+  if(readOnly) return ops.map(denied);
+  const group = [], results = [], applied = [];
   for(const op of ops){
     const undo = inverse(state, op), r = apply(state, op);
     results.push(r);
-    if(r.ok) group.push(undo);
+    if(r.ok){ group.push(undo); applied.push(op); }
   }
-  if(group.length){ history.push(group); if(history.length > MAX_UNDO) history.shift(); }
+  if(undoable && group.length){ history.push(group); if(history.length > MAX_UNDO) history.shift(); }
+  if(applied.length && sink) sink(applied);
   return results;
 }
 // Apply an operation from another user: it changes the diagram but is not undoable here
@@ -67,17 +85,20 @@ export function moveNode(id, from, to){
   return perform([{type:'updateNode', id, set:{x:to.x, y:to.y}}])[0];
 }
 export function clear(){
+  if(readOnly) return denied();
   if(!state.nodes.length) return {ok: false, reason: 'empty'};
   perform(state.nodes.map(n=>({type:'removeNode', id:n.id})));
   return {ok: true};
 }
-// Undo the last gesture that still has something to undo; inverses whose element is gone are skipped
+// Undo the last gesture that still has something to undo; inverses whose element is gone are skipped.
+// Returns the inverses that were applied, which also go to onChange as one gesture (undoing is a change to share).
 export function undo(){
+  if(readOnly) return denied();
   while(history.length){
     const group = history.pop();
-    let applied = 0;
-    for(const undoOps of group.reverse()) for(const op of undoOps) if(apply(state, op).ok) applied++;
-    if(applied) return {ok: true};
+    const ops = [];
+    for(const undoOps of group.reverse()) for(const op of undoOps) if(apply(state, op).ok) ops.push(op);
+    if(ops.length){ if(sink) sink(ops); return {ok: true, ops}; }
   }
   return {ok: false, reason: 'empty'};
 }
@@ -88,8 +109,8 @@ export function newDiagram(kind){
   state.kind=kind; state.title=UNTITLED; state.nodes=[]; state.edges=[]; history=[];
   return {ok: true};
 }
-// The direction is a change of the diagram but not an undoable step
-export function setDir(dir){ return applyRemote({type:'setMeta', set:{dir}}); }
+// The direction is a change of the diagram (shared with the others) but not an undoable step
+export function setDir(dir){ return perform([{type:'setMeta', set:{dir}}], {undoable: false})[0]; }
 
 // ---------- Example so the page opens working ----------
 export function loadExample(){

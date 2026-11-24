@@ -158,8 +158,17 @@ npx supabase start       # la primera vez descarga las imágenes
 npm run test:backend     # node --test sobre supabase/tests
 ```
 
-`npx supabase db reset` vuelve a aplicar las migraciones desde cero y `npx supabase stop` apaga el entorno. Es
-solo local: el proyecto remoto llega en D1, y el frontend todavía no usa el backend (llega en F4).
+`npx supabase db reset` vuelve a aplicar las migraciones desde cero y `npx supabase stop` apaga el entorno. Los
+tests apuntan solo al entorno local.
+
+La app abre un diagrama compartido del proyecto remoto con `http://localhost:8000/#/d/<id>` (pide entrar con correo y
+contraseña); sin ruta es la de un solo usuario, como antes. Mientras no haya botón de «Nuevo», `npm run preparar:diagrama`
+crea un diagrama con los usuarios A y B de la medida y escribe el enlace (necesita `supabase/.env.remoto`).
+
+El proyecto remoto ya existe (adelantado de D1). Se enlaza con `npx supabase link --project-ref <ref>` y las
+migraciones se suben con `npx supabase db push`. Para medir cuánto tarda una operación en llegar a otro
+miembro, copia `supabase/.env.ejemplo` como `supabase/.env.remoto`, rellénalo y ejecuta `npm run medir:latencia`.
+La medida de la sesión 9 dio un p95 de unos 560 ms.
 
 **MVP (previsto).** *Pendiente de confirmar al implementarlo.* Requisitos: Java 21, Maven 3.9,
 Docker y una cuenta de Supabase.

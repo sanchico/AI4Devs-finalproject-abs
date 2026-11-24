@@ -15,7 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { projectDir, textOf, promptText, isHumanPrompt, readSession } = require('./prompts.cjs');
+const { projectDir, textOf, promptText, adjuntos, isHumanPrompt, readSession } = require('./prompts.cjs');
 
 const MAX_DETALLE = 110;
 
@@ -39,7 +39,9 @@ function render(events) {
   for (const e of events) {
     if (e.isSidechain) continue;
     if (isHumanPrompt(e)) {
-      out.push(indentar(promptText(e.message.content), '> '));
+      const a = adjuntos(e.message.content);
+      const texto = promptText(e.message.content) || '(sin texto)';
+      out.push(indentar(texto + (a.length ? `\n[Adjuntos: ${a.join('; ')}]` : ''), '> '));
     } else if (e.type === 'assistant' && e.message && Array.isArray(e.message.content)) {
       for (const b of e.message.content) {
         if (b.type === 'text' && b.text.trim()) out.push(indentar(b.text.trim(), '● '));

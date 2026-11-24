@@ -4,6 +4,7 @@ import * as model from './model.js';
 import { $, canvas, resize, update, renderLegend } from './render.js';
 import { initInput, toggleMouseDraws, setRecorder } from './input.js';
 import * as grab from './grabacion.js';
+import * as colaboracion from './colaboracion.js';
 
 const { state } = model;
 
@@ -11,7 +12,9 @@ const { state } = model;
 const toastEl = $('toast'); let toastT;
 const toast = m => { toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>toastEl.classList.remove('show'), 1800); };
 
-initInput({toast});
+initInput({toast, locked: colaboracion.bloqueo});
+// Changing the address (another diagram, or back to single-user mode) restarts the app: nothing of the previous diagram survives
+window.addEventListener('hashchange', () => location.reload());
 
 // ---------- Toolbar ----------
 // The type is fixed when a diagram is created: choosing another one starts a new diagram. With nodes on the
@@ -55,6 +58,11 @@ if(new URLSearchParams(location.search).has('grabar')){
   panel.hidden = false; pintar(); resize();
 }
 
-// ---------- Start with the example so the page opens working ----------
-model.loadExample(); renderLegend(); resize(); update();
-toast('Ejemplo cargado: dibuja encima con el lápiz o pulsa Limpiar');
+// ---------- Start: the example, or a shared diagram when the address is one (#/d/<id>) ----------
+if(colaboracion.ruta.tipo === 'solitario'){
+  model.loadExample(); renderLegend(); resize(); update();
+  toast('Ejemplo cargado: dibuja encima con el lápiz o pulsa Limpiar');
+} else {
+  model.reset(); renderLegend(); resize(); update();
+  colaboracion.iniciar({toast});
+}

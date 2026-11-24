@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | Estado | Vigente: es el PRD de la entrega. Sustituye a la v0.6, que se conserva como mejora futura en [PRD-backend-java.md](PRD-backend-java.md) |
-| Versión | 0.7.4 · 18 nov 2026 (orden de comprobaciones y validación de `apply_op`, errores de las funciones, invitaciones reutilizables). La 0.7.3, del mismo día, fijó el tipo de diagrama al crear y puso tope a las etiquetas. La 0.7.2, del 17 nov, añadió el borrado lógico y el proyecto remoto en D1. La 0.7.1, del 16 nov, corrigió la regla de las operaciones pendientes. La 0.7, del 13 nov, adoptó la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov |
+| Versión | 0.7.7 · 19 nov 2026 (resultado de la medida de latencia: se queda Postgres Changes, F4 lleva `apply_ops` y espera la confirmación de Postgres Changes al abrir). La 0.7.6, del mismo día, puso la cola de F4 por gestos y adelantó el proyecto remoto a la sesión 9. La 0.7.5, del mismo día, añadió `set_member_role` a F5. La 0.7.4, del 18 nov, ordenó las comprobaciones y la validación de `apply_op`, los errores de las funciones y las invitaciones reutilizables. La 0.7.3, del mismo día, fijó el tipo de diagrama al crear y puso tope a las etiquetas. La 0.7.2, del 17 nov, añadió el borrado lógico y el proyecto remoto en D1. La 0.7.1, del 16 nov, corrigió la regla de las operaciones pendientes. La 0.7, del 13 nov, adoptó la alternativa con todo el backend en Supabase; antes "Alternativa A, revisión 2", del 11 nov |
 | Base | `develop` con F1 y F2 cerrados (sesión 4 de la [bitácora](bitacora.md), más F2) |
-| Presupuesto | 27,5 h en total: 8 h gastadas hasta la sesión 4, 3 h previstas de F2 (ya hecho) y 16,5 h por hacer |
+| Presupuesto | 29,25 h en total: 8 h gastadas hasta la sesión 4, 3 h previstas de F2 (ya hecho) y 18,25 h por hacer (16,5 h hasta la v0.7.4; `set_member_role` suma 0,5 h a F5 y `apply_ops` 1,25 h a F4) |
 | Motivo | F1 costó 5,25 h frente a 3 h previstas y la sesión 4 fue un arreglo no planificado de 2,25 h; al plan v0.6 ya no le caben sus 32 h |
 
 ## Historial de cambios
@@ -26,6 +26,9 @@ indicada. Hasta la v0.6 el documento es el que hoy se conserva como [PRD-backend
 | 0.7.2 | 17 nov 2026 | Arquitectura | Borrar un diagrama lo marca (`deleted_at`) en vez de eliminarlo y solo lo ve su dueño; borrar y restaurar son funciones (`delete_diagram`, `restore_diagram`) y no hay escrituras directas en ninguna tabla; el proyecto remoto de Supabase pasa de S1 a D1. Sin vista de papelera ni purgado en el MVP; horas sin cambios | Decisión del PO en la sesión 7: un borrado tiene que poder deshacerse; con borrado lógico, borrar es un `UPDATE` y una política por fila dejaría cambiar también `last_seq` o `title`; change `esquema-y-rls` (S1) |
 | 0.7.3 | 18 nov 2026 | Arquitectura | El tipo de diagrama se fija al crear (`create_diagram(kind)`, sin `title`) y `setMeta` solo cambia dirección y título; las etiquetas de nodos y conectores se limitan a 200 caracteres también en el cliente. Alcance y horas sin cambios | Con tipos de formas distintas, cambiar el tipo con el diagrama dibujado deja nodos sin significado, y como operación dejaba la fila de `diagrams` y el registro diciendo cosas distintas; sesión 8, change `tipo-fijo-y-etiquetas` |
 | 0.7.4 | 18 nov 2026 | Arquitectura | `apply_op` comprueba el rol y la forma de la operación antes de bloquear la fila y resuelve el reintento antes del tope; los errores son estados HTTP con una clave estable; una invitación se puede usar varias veces hasta que caduque; el servidor valida el título y las etiquetas con las mismas reglas que `ops.js` (UTF-16 y blancos de JavaScript). Alcance y plan sin cambios: el exceso de S2 sobre sus 2 h (unas 3,25 h reales, por las pruebas de cada función) se anota en la bitácora | Con el `UPDATE` primero un reintento gastaba una secuencia; con las reglas de longitud de PostgreSQL la ficha divergía del registro en títulos con emojis; sesión 8, change `funciones-servidor` |
+| 0.7.5 | 19 nov 2026 | Alcance | F5 añade `set_member_role`: el dueño pasa a un miembro de editor a lector o al revés; quien pierde el permiso de escribir pasa a solo lectura al recibir el 403. El recorte "invitaciones solo como editor" ya no quita los lectores. F5 sube a 3,5 h y el total a 28 h | Preocupación del PO por el desorden con muchos editores. Se descartaron los turnos de edición (un único editor que se pide o se concede): no reducen la latencia, contradicen los criterios 1 a 3 y necesitan Presence, que está fuera del MVP; sesión 9, análisis en `notas/ideas.md` |
+| 0.7.6 | 19 nov 2026 | Plan | La cola de pendientes de F4 guarda un grupo por gesto y deshacer también envía sus operaciones; si la latencia medida lo pide, `apply_ops` envía cada grupo en una llamada. La creación del proyecto remoto (parte de D1) pasa a la sesión 9 para medir la latencia antes de F4. Las operaciones `clear` y `restore` quedan fuera de alcance. Horas sin cambios: `apply_ops` es condicional | Vaciar un diagrama de 20 nodos son 20 llamadas en serie y deshacerlo 45; lo que se dibuja detrás llega a los demás con segundos de retraso y rompe el criterio 1. Medir en local no sirve: la latencia que cuenta es la de la red. `clear` y `restore` quitan la ráfaga de vaciar pero no la de borrar un nodo con conectores, y cambian el formato de operaciones de F2, F3 y S2; sesión 9 |
+| 0.7.7 | 19 nov 2026 | Plan | Resultado de la medida contra el proyecto remoto (`eu-west-1`): p95 del reparto de 538 a 579 ms, así que se queda Postgres Changes; una ráfaga de 30 operaciones tarda 2,5–2,6 s, así que F4 lleva `apply_ops` (+1,25 h, F4 pasa a 3,25 h y el total a 29,25 h). Al abrir, F4 espera el mensaje `system` de Postgres Changes y no solo `SUBSCRIBED` | Tres ejecuciones sin perdidas de `supabase/scripts/medir-latencia.js`, tras cinco previas. Con solo `SUBSCRIBED` se perdían operaciones (4 de 5 en local, 3 en una ejecución remota). En local el reparto ya tarda de 0 a ~500 ms: más de la mitad de la latencia es de Realtime, no de la red; sesión 9, change `medir-latencia` |
 
 ## 1. Resumen
 
@@ -119,6 +122,9 @@ versión (aquí serían Realtime Presence y pedir las operaciones que faltan al 
 
 - Avisar al momento a quien tiene abierto un diagrama que se borra.
 - Compactar el registro de operaciones o guardar instantáneas.
+- Operaciones `clear` y `restore` (vaciar y volver a poner el contenido en una sola fila) para acortar el
+  registro, y reproducirlo desde el último `clear`. Con `clear` se borra también lo que otro añadió sin que
+  quien vacía lo viera, y eso habría que fijarlo en la spec.
 - Validar en el servidor la coherencia del grafo (existencia de nodos, máximo de nodos).
 - Edge Functions.
 
@@ -194,7 +200,7 @@ solo puede leer.
 | Tabla | Lectura | Escritura |
 |---|---|---|
 | `diagrams` | Miembros; si está borrado, solo el dueño | Crear: `create_diagram`. Borrar y restaurar: `delete_diagram` y `restore_diagram` (el dueño). Título y dirección: `apply_op` con `setMeta`; el tipo se fija en `create_diagram` y no cambia |
-| `diagram_members` | Miembros del mismo diagrama | Solo `create_diagram` y `accept_invite` |
+| `diagram_members` | Miembros del mismo diagrama | Solo `create_diagram`, `accept_invite` y `set_member_role` |
 | `diagram_invites` | El dueño | Solo `create_invite` |
 | `diagram_ops` | Miembros | Solo `apply_op` |
 
@@ -215,13 +221,14 @@ además un diagrama borrado.
 | `rpc/create_diagram(kind)` | Crea el diagrama vacío ("Diagrama sin título", del tipo indicado) y a su dueño como miembro |
 | `rpc/create_invite(diagram_id, role)` | Crea una invitación con token de 32 bytes y caducidad de 7 días |
 | `rpc/accept_invite(token)` | Añade al usuario como miembro si la invitación no ha caducado |
+| `rpc/set_member_role(diagram_id, user_id, role)` | Cambia el rol de un miembro a `editor` o `viewer` (solo el dueño; el rol del dueño no cambia) |
 | `rpc/apply_op(diagram_id, op_id, op)` | Autoriza, numera y guarda una operación; devuelve su secuencia |
 | Canal Realtime `diagram:{id}` | `INSERT` de `diagram_ops` filtrado por diagrama |
 
 El frontend las usa a través de supabase-js. Un diagrama del que no se es miembro devuelve cero filas.
 
 Los parámetros de las funciones llevan el prefijo `p_` (`p_diagram_id`, `p_op_id`, `p_op`, `p_role`, `p_token`,
-`p_kind`) para no chocar con los nombres de las columnas.
+`p_kind`, `p_user_id`) para no chocar con los nombres de las columnas.
 
 **Errores de las funciones.** Cada rechazo es un `RAISE` con SQLSTATE `PT<estado>`, que PostgREST devuelve como
 ese estado HTTP con `code`, `message` (una clave estable), `details` y `hint`. El cliente decide por el estado y
@@ -245,11 +252,11 @@ la clave; el texto es para depurar. Sin sesión, la clave pública recibe un err
 | S1 Proyecto Supabase, esquema y RLS | 2,5 | B1 y B2 (4,5) | — |
 | S2 Funciones de servidor | 2 | B3, B4 y B5 (7) | S1 |
 | S3 Tests del backend | 2 | B6 (2,5) | S2, F2 |
-| F4 Cliente colaborativo | 2 | F4 (2) | F2, S2 |
-| F5 Login, diagramas e invitaciones | 3 | F5 (3) | S2, F4 |
+| F4 Cliente colaborativo | 3,25 | F4 (2) | F2, S2 |
+| F5 Login, diagramas e invitaciones | 3,5 | F5 (3) | S2, F4 |
 | D1 Despliegue | 0,5 | D1 (1,5) | F4 |
 | P2 Documentación de entrega | 3 | P2 (3) | repartido |
-| **Por hacer** | **16,5** | 25,5 | |
+| **Por hacer** | **18,25** | 25,5 | |
 
 P1, F1 y F2 están hechos. F2 no cambia con esta alternativa.
 
@@ -308,29 +315,62 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   oculta el diagrama a los miembros y restaurarlo lo devuelve intacto, con sus operaciones.
 - **Aceptación:** `node --test` en verde con el entorno local arrancado.
 
-### F4 · Cliente colaborativo (2 h)
+### F4 · Cliente colaborativo (3,25 h)
 
-- `collab.js`: suscripción al canal, carga del registro, cola de operaciones pendientes (se envían de
-  una en una), aplicación de las remotas y reconciliación por `op_id`.
+- `collab.js`: suscripción al canal, carga del registro, cola de operaciones pendientes, aplicación de
+  las remotas y reconciliación por `op_id`.
+- La cola guarda un grupo por gesto (las operaciones de un `perform`) y los envía en orden, sin empezar
+  uno hasta que el anterior responde. Deshacer también es un gesto: hoy `undo()` aplica las inversas sin
+  pasar por `perform`, y en colaboración tiene que enviarlas.
+- **`apply_ops(p_diagram_id, p_ops)` (1,25 h, con sus tests).** La medida de la sesión 9 dio que una ráfaga
+  de 30 operaciones en serie tarda 2,5–2,6 s en llegar entera (unos 70 ms por llamada), por encima de 1 s.
+  Cada grupo va en una llamada, una transacción y un bloqueo, con secuencias consecutivas y una fila por
+  operación en `diagram_ops` (el formato no cambia). El grupo se rechaza entero si una operación no es
+  válida, cada `op_id` repetido devuelve su secuencia guardada y el tope de 5 000 cuenta el grupo entero. **Hecho** (change `apply-ops`): `p_ops` es `[{op_id, op}, …]` de 1 a
+  500 operaciones, la respuesta es el array de secuencias y `apply_op` pasa a ser un grupo de uno sobre la función
+  interna `write_ops`. En local, 30 operaciones tardan 129 ms en serie y 5 ms en un grupo; en el remoto (24-11-2026, una
+  ejecución), 1 981 ms en serie y 188 ms en un grupo, y la migración ya está en el proyecto remoto.
+- **Hecha la cola del cliente** (change `cola-colaborativa`, probada en Node con un transporte simulado):
+  `collab.js` con el diagrama confirmado más los grupos pendientes, la apertura (suscribir, cargar, aplicar lo
+  guardado en espera), el envío por gestos en orden y de uno en uno, los rechazos, los reintentos de red, los
+  huecos y el solo lectura; y en el modelo `onChange`, `undo()` que devuelve y envía sus inversas, `setDir` que se
+  envía, `setReadOnly` y `replaceState`. **Hecha la app** (change `colaboracion-en-la-app`): el adaptador de
+  supabase-js (con la espera al mensaje `system` de Postgres Changes), la sesión mínima, abrir un diagrama por id,
+  los avisos y el bloqueo visual (con `input.js` protegido) y la prueba en el navegador con dos usuarios contra el
+  remoto (311, 709 y 244 ms de A a B en tres ejecuciones). El diagrama se abre con `#/d/<id>`; sin ruta la app es la de
+  un solo usuario. **Pendiente:** el resto de F5 (lista, «Nuevo», renombrar, borrar, invitar y roles), D1 (despliegue
+  y prueba con dos dispositivos reales) y el test de Realtime de S3.
 - Al abrir: primero se suscribe y guarda en espera lo que llegue; después carga el registro y aplica lo
-  que esté en espera con secuencia posterior.
+  que esté en espera con secuencia posterior. La suscripción se da por hecha cuando llega el mensaje
+  `system` de Postgres Changes con estado `ok`, no con `SUBSCRIBED`: en la medida, lo enviado entre los
+  dos (hasta 250 ms en remoto) se perdía, y no estaría ni en el registro cargado ni en el canal.
 - Si el canal se cierra o se detecta un hueco: solo lectura con el aviso "Sin conexión: recarga la
   página".
 - Modo solo lectura para lectores.
 - **Aceptación:** criterios de terminado 1, 2 y 3.
 
-### F5 · Login, diagramas e invitaciones (3 h)
+### F5 · Login, diagramas e invitaciones (3,5 h)
 
 Igual que en la v0.6 (lista, nuevo, abrir por ruta `#/d/<id>`, renombrar, borrar e invitar), con las
-llamadas de la sección 5. Única diferencia: quien tiene abierto un diagrama que se borra ve el aviso al
-enviar su siguiente operación o al recargar, no al momento.
+llamadas de la sección 5. Diferencias:
+
+- Quien tiene abierto un diagrama que se borra ve el aviso al enviar su siguiente operación o al recargar,
+  no al momento.
+- **Cambiar el rol de un miembro (0,5 h).** `set_member_role(p_diagram_id, p_user_id, p_role)`, del mismo
+  estilo que las de S2: solo el dueño (403 a los demás, 410 si el diagrama está borrado), 404 si el usuario
+  no es miembro, 422 si el rol no es `editor` ni `viewer` o si se intenta cambiar el del dueño, e idempotente.
+  `apply_op` ya comprueba el rol en cada llamada, así que el cambio vale desde la siguiente operación. En la
+  lista de miembros, el dueño cambia el rol de cada uno.
+- Quien pasa a lector se entera al enviar su siguiente operación: el 403 `forbidden` lleva a solo lectura
+  con un aviso, y sus pendientes se descartan con la regla de siempre (un rechazo solo quita la pendiente).
+  Al recargar, abre directamente en solo lectura.
 
 ### D1 · Despliegue (0,5 h)
 
 - Publicar `frontend/` en un hosting estático con HTTPS (GitHub Pages, Cloudflare Pages o Netlify, a
   decidir en la sesión).
 - Crear el proyecto remoto de Supabase, enlazarlo (`supabase link`) y aplicar las migraciones con
-  `supabase db push`; la contraseña de la base de datos y las claves de servicio no entran en el repositorio.
+  `supabase db push` (se adelanta a la sesión 9 para medir la latencia); la contraseña de la base de datos y las claves de servicio no entran en el repositorio.
 - Configurar en Supabase Auth la URL del sitio y las de redirección.
 - **Aceptación:** dos dispositivos colaboran a través de la URL pública.
 
@@ -352,14 +392,15 @@ Como en la v0.6, con estos cambios en las secciones de la plantilla:
 | 6 | F3 tests del frontend y convergencia sin red | 12,5 h |
 | 7 | S1 proyecto Supabase, esquema y RLS | 15 h |
 | 8 | S2 funciones de servidor | 17 h |
-| 9 | F4 cliente colaborativo, con el login mínimo de F5 | 19,5 h |
-| 10 | D1 despliegue, prueba con dos dispositivos, y lista, nuevo y abrir de F5 | 21 h |
-| 11 | Resto de F5 (renombrar, borrar e invitaciones) y S3 tests del backend | 24,5 h |
-| 12 | P2 capturas, secciones, `prompts.md` y PR documentadas | 27,5 h |
+| 9 | Proyecto remoto (parte de D1: crear, enlazar y `db push`) y medida de latencia; después F4 cliente colaborativo, con el login mínimo de F5 | 19,5 h |
+| 10 | `apply_ops` (resto de F4), D1 despliegue, prueba con dos dispositivos, y lista, nuevo y abrir de F5 | 22,25 h |
+| 11 | Resto de F5 (renombrar, borrar, invitaciones y `set_member_role`) y S3 tests del backend | 26,25 h |
+| 12 | P2 capturas, secciones, `prompts.md` y PR documentadas | 29,25 h |
 
 **Punto de control tras la sesión 10.** Dos dispositivos ya colaboran a través de la URL pública. Si el
 acumulado supera 22 h, se recorta en este orden: invitaciones solo como editor (−0,5 h) y fixtures del
-reconocedor sin grabar nuevos (−1 h). La presencia ya está fuera del MVP.
+reconocedor sin grabar nuevos (−1 h). Con `set_member_role` el primer recorte no quita los lectores: se
+invita siempre como editor y el dueño pasa a lector a quien quiera. La presencia ya está fuera del MVP.
 
 ## 8. Riesgos
 
@@ -369,7 +410,9 @@ reconocedor sin grabar nuevos (−1 h). La presencia ya está fuera del MVP.
 | Un error en una política RLS expone diagramas ajenos; la RLS es la única barrera | Tests de permisos en S3 con usuario ajeno y sin sesión; ninguna escritura directa en las tablas |
 | Recursión entre políticas de `diagrams` y `diagram_members` | Función auxiliar `member_role` con `security definer` |
 | Lógica en PL/pgSQL, más incómoda de depurar que Java | Funciones cortas, sin interpretar el grafo; tests de integración contra el entorno local |
-| La latencia de Postgres Changes se acerca a 1 s | Medirla en la sesión 9; si no basta, `apply_op` emite la operación con `realtime.send` (Broadcast) |
+| La latencia de Postgres Changes se acerca a 1 s | Medida en la sesión 9 contra el proyecto remoto (`eu-west-1`): p95 de 538–579 ms, así que se queda Postgres Changes. Más de la mitad es el intervalo de revisión de Realtime (también en local, de 0 a ~500 ms); si con la app desplegada se acerca a 1 s, el plan B sigue siendo que `apply_op` emita con `realtime.send` (Broadcast). Se repite la medida con `npm run medir:latencia` antes de la demo |
+| Bloqueo en cabeza tras una ráfaga: vaciar o deshacer el vaciado envía decenas de operaciones en serie y lo que se dibuja después llega tarde a los demás | Medido: 30 operaciones en serie tardan 2,5–2,6 s. La cola de F4 va por gestos y `apply_ops` envía cada gesto en una llamada |
+| Operaciones perdidas al abrir: lo enviado entre `SUBSCRIBED` y la confirmación de Postgres Changes no llega por el canal | F4 espera el mensaje `system` de Postgres Changes con estado `ok` antes de cargar el registro; comprobado en la medida (sin perdidas en 6 de 6 ejecuciones) |
 | Límites del plan gratuito de Realtime (conexiones y mensajes) | Comprobarlos en S1; el uso de una demo queda muy por debajo |
 | El plan gratuito pausa el proyecto tras una semana sin actividad, y ahora se lleva toda la app | Reactivarlo y comprobar la URL justo antes de entregar |
 | El correo de confirmación de Supabase tiene un cupo bajo por hora | Desactivar la confirmación por correo en el proyecto de la demo |

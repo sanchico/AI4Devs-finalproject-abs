@@ -44,6 +44,36 @@ function sinContexto(t) {
   return t.replace(/<(ide_[a-z_]+|system-reminder|local-command-caveat)>[\s\S]*?<\/\1>/g, '').trim();
 }
 
+// Ruta relativa al proyecto si está dentro de él (el registro mezcla "c:\" y "C:\"), con barras normales.
+function rutaCorta(p) {
+  const cwd = process.cwd();
+  const rel = p.toLowerCase().startsWith(cwd.toLowerCase()) ? p.slice(cwd.length).replace(/^[\\/]+/, '') : p;
+  return rel.replace(/\\/g, '/');
+}
+
+// Lo que acompaña al texto del prompt: imágenes y documentos pegados, y el archivo abierto o la selección del
+// IDE. El texto del prompt va literal; los adjuntos se describen aparte, para no mezclarlos con él.
+function adjuntos(content) {
+  if (!Array.isArray(content)) content = [{ type: 'text', text: String(content || '') }];
+  const lista = [];
+  for (const b of content) {
+    if (b.type === 'image') lista.push('imagen');
+    else if (b.type === 'document') lista.push('documento');
+    else if (b.type === 'text') {
+      for (const m of b.text.matchAll(/<ide_opened_file>The user opened the file (.+?) in the IDE\./g)) {
+        lista.push(`archivo abierto en el IDE: ${rutaCorta(m[1])}`);
+      }
+      for (const m of b.text.matchAll(/<ide_selection>The user selected the lines (\d+) to (\d+) from (.+?):\n/g)) {
+        lista.push(`selección del IDE: ${rutaCorta(m[3])} (líneas ${m[1]}–${m[2]})`);
+      }
+    }
+  }
+  return lista;
+}
+
+// Un prompt solo con una imagen o un documento, sin texto, también es del usuario
+const conAdjuntoPropio = (c) => Array.isArray(c) && c.some((b) => b.type === 'image' || b.type === 'document');
+
 // Una skill o comando invocado con /nombre llega como etiquetas XML; se muestra como "/nombre args".
 function promptText(content) {
   const t = sinContexto(textOf(content));
@@ -61,7 +91,7 @@ function isHumanPrompt(e) {
   const c = e.message && e.message.content;
   if (Array.isArray(c) && c.some((b) => b.type === 'tool_result')) return false;
   const t = sinContexto(textOf(c));
-  if (!t) return false;
+  if (!t) return conAdjuntoPropio(c);
   if (/^<(system-reminder|ide_|local-command-stdout)/.test(t)) return false;
   return true;
 }
@@ -131,9 +161,11 @@ function main() {
       console.log(`### Prompt ${n} · ${fmt(new Date(e.timestamp))}`);
       console.log('');
       console.log('```');
-      console.log(promptText(e.message.content));
+      console.log(promptText(e.message.content) || '(sin texto)');
       console.log('```');
       console.log('');
+      const a = adjuntos(e.message.content);
+      if (a.length) { console.log(`Adjuntos: ${a.join('; ')}.`); console.log(''); }
     }
   }
   console.log(`**Total:** ${n} prompts · ${(totalMs / 3600000).toFixed(2)} h activas en ${files.length} registro(s).`);
@@ -141,4 +173,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { projectDir, textOf, promptText, isHumanPrompt, readSession, fmt };
+module.exports = { projectDir, textOf, promptText, adjuntos, isHumanPrompt, readSession, fmt };
