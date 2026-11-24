@@ -61,6 +61,10 @@ export const meta = set => ({ type: 'setMeta', set });
 export const enviar = (usuario, diagramaId, op, opId = randomUUID()) =>
   usuario.cliente.rpc('apply_op', { p_diagram_id: diagramaId, p_op_id: opId, p_op: op });
 
+/** Envía un grupo de operaciones (un gesto) con apply_ops, con un op_id nuevo por operación o los dados; devuelve la respuesta de supabase-js. */
+export const enviarGrupo = (usuario, diagramaId, ops, opIds = ops.map(() => randomUUID())) =>
+  usuario.cliente.rpc('apply_ops', { p_diagram_id: diagramaId, p_ops: ops.map((op, i) => ({ op_id: opIds[i], op })) });
+
 /** Envía una operación y exige que se guarde; devuelve su secuencia. */
 export async function guardar(usuario, diagramaId, op, opId) {
   const { data, error } = await enviar(usuario, diagramaId, op, opId);
