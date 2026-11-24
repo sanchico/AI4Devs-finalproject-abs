@@ -22,9 +22,9 @@ después el código mínimo, y los tests anteriores no se editan.
 
 ## 4. Convergencia, enlace con el modelo y documentación (0,25 h)
 
-- [ ] 4.1 Añadir a `collab.test.js` un test de convergencia con 3 clientes y semillas fijas (de 1 a 50): gestos aleatorios con ráfagas, entregas y respuestas en orden barajado y deshacer; al final todos tienen el mismo confirmado, el visible es igual al registro reproducido y el código Mermaid coincide; verificar que pasa para todas las semillas.
-- [ ] 4.2 Crear `frontend/test/enlace-modelo.test.js`: con el modelo real enlazado (`onChange(collab.local)`, `onVisible` → `replaceState`), un gesto llega a otro cliente simulado, `undo` y `setDir` también, y un lector con `setReadOnly` no cambia el diagrama; verificar con `node --test frontend/test/enlace-modelo.test.js`.
-- [ ] 4.3 Actualizar `CLAUDE.md` (estado actual: `collab.js`, ganchos del modelo y tests nuevos) y `docs/PRD-MVP.md` (F4: cola hecha; pendientes el adaptador de supabase-js y la app); verificar con `node --test "frontend/**/*.test.js"` y `npm run test:backend` en verde.
+- [x] 4.1 Añadir a `collab.test.js` un test de convergencia con 3 clientes y semillas fijas (de 1 a 50): gestos aleatorios con ráfagas, entregas y respuestas en orden barajado y deshacer; al final todos tienen el mismo confirmado, el visible es igual al registro reproducido y el código Mermaid coincide; verificar que pasa para todas las semillas.
+- [x] 4.2 Crear `frontend/test/enlace-modelo.test.js`: con el modelo real enlazado (`onChange(collab.local)`, `onVisible` → `replaceState`), un gesto llega a otro cliente simulado, `undo` y `setDir` también, y un lector con `setReadOnly` no cambia el diagrama; verificar con `node --test frontend/test/enlace-modelo.test.js`.
+- [x] 4.3 Actualizar `CLAUDE.md` (estado actual: `collab.js`, ganchos del modelo y tests nuevos) y `docs/PRD-MVP.md` (F4: cola hecha; pendientes el adaptador de supabase-js y la app); verificar con `node --test "frontend/**/*.test.js"` y `npm run test:backend` en verde.
 
 ## Workflow follow-up
 

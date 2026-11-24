@@ -3,7 +3,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createCollab } from '../collab.js';
+import { apply, inverse } from '../ops.js';
+import { mermaidCode } from '../kinds/index.js';
 import { ServidorSimulado, TransporteSimulado, asentar, turno } from './helpers/transporte-simulado.js';
+import { mulberry32, reproducir, vacio } from './helpers/red-simulada.js';
 
 const nodo = (id, extra = {}) => ({ id, shape: 'rect', x: 0, y: 0, w: 80, h: 40, label: id, ...extra });
 const addNode = (id, extra) => ({ type: 'addNode', node: nodo(id, extra) });
@@ -429,4 +432,115 @@ test('si el canal se cierra mientras se reintenta, no se sigue enviando', async 
   await asentar([a.transport]);
   assert.equal(a.transport.envios.length, 1);
   assert.deepEqual(a.ultimoModo(), { mode: 'offline', reason: 'closed' });
+});
+
+// ---------- Convergencia de varios clientes (criterio de terminado 2) ----------
+// Tres clientes con gestos aleatorios (ráfagas, deshacer, vaciar, cambios de dirección y de título), respuestas y
+// entregas en orden barajado, algún rechazo y algún fallo de red, y uno que se une a mitad. Cada cliente de prueba
+// hace lo que el modelo: aplica el gesto a su diagrama, apila las inversas y se lo pasa a collab.local. Al final
+// los tres tienen el mismo diagrama que resulta de reproducir el registro, y el mismo código Mermaid.
+function clienteDePrueba(nombre, servidor) {
+  const transport = new TransporteSimulado(servidor);
+  transport.retener = true;
+  const h = { nombre, transport, state: null, historia: [], avisos: [], modo: null, n: 0 };
+  h.colab = createCollab({
+    transport,
+    onVisible: s => { h.state = s; },
+    onMode: m => { h.modo = m; },
+    onNotice: k => h.avisos.push(k),
+    wait: async () => {},
+  });
+  h.hacer = ops => {
+    const grupo = [], aplicadas = [];
+    for (const op of ops) {
+      const inv = inverse(h.state, op), r = apply(h.state, op);
+      if (r.ok) { grupo.push(inv); aplicadas.push(op); }
+    }
+    if (grupo.length) h.historia.push(grupo);
+    h.enviar(aplicadas);
+  };
+  h.deshacer = () => {
+    while (h.historia.length) {
+      const g = h.historia.pop(), ops = [];
+      for (const u of g.reverse()) for (const op of u) if (apply(h.state, op).ok) ops.push(op);
+      if (ops.length) { h.enviar(ops); return; }
+    }
+  };
+  // Lo que la cola muestra tras un gesto (confirmado + pendiente) tiene que ser lo que el modelo ya mostraba
+  h.enviar = ops => {
+    if (!ops.length) return;
+    const mostrado = structuredClone(h.state);
+    h.colab.local(ops);
+    assert.deepEqual(h.state, mostrado, `${nombre}: tras un gesto, confirmado + pendiente no es lo que mostraba el modelo`);
+  };
+  return h;
+}
+
+function gestoAleatorio(h, rng) {
+  const n = h.state.nodes, e = h.state.edges;
+  const entero = tope => Math.floor(rng() * tope);
+  const uno = lista => lista[entero(lista.length)];
+  const r = rng();
+  if (r < 0.30 || n.length === 0) {
+    const at = rng() < 0.5 ? { at: entero(n.length + 1) } : {};
+    h.hacer([{ type: 'addNode', node: { id: `${h.nombre}-${++h.n}`, shape: 'rect', x: entero(400), y: entero(300), w: 80, h: 40, label: `n${entero(100)}` }, ...at }]);
+  } else if (r < 0.45 && n.length >= 2) {
+    const [a, b] = [uno(n), uno(n)];
+    h.hacer([{ type: 'addEdge', edge: { id: `${h.nombre}-e${++h.n}`, from: a.id, to: b.id, label: '' } }]);
+  } else if (r < 0.62) {
+    h.hacer([{ type: 'updateNode', id: uno(n).id, set: rng() < 0.5 ? { label: `L${entero(100)}` } : { x: entero(400), y: entero(300) } }]);
+  } else if (r < 0.69) {
+    h.hacer([{ type: 'removeNode', id: uno(n).id }]);
+  } else if (r < 0.71) {
+    h.hacer(n.map(x => ({ type: 'removeNode', id: x.id })));
+  } else if (r < 0.77) {
+    h.hacer([{ type: 'setMeta', set: rng() < 0.5 ? { dir: rng() < 0.5 ? 'TD' : 'LR' } : { title: `T${entero(100)}` } }]);
+  } else if (r < 0.83 && e.length) {
+    h.hacer([{ type: 'updateEdge', id: uno(e).id, set: { label: `e${entero(100)}` } }]);
+  } else if (r < 0.88 && e.length) {
+    h.hacer([{ type: 'removeEdge', id: uno(e).id }]);
+  } else {
+    h.deshacer();
+  }
+}
+
+async function simular(semilla) {
+  const rng = mulberry32(semilla);
+  const servidor = new ServidorSimulado();
+  const clientes = ['A', 'B', 'C'].map(n => clienteDePrueba(n, servidor));
+  await clientes[0].colab.open();
+  await clientes[1].colab.open();
+  const UNIRSE = 40, PASOS = 140;
+  for (let paso = 0; paso < PASOS; paso++) {
+    if (paso === UNIRSE) await clientes[2].colab.open();
+    const activos = clientes.filter(c => c.state);
+    const c = activos[Math.floor(rng() * activos.length)];
+    const r = rng();
+    if (r < 0.45) { for (let i = rng() < 0.15 ? 3 + Math.floor(rng() * 4) : 1; i > 0; i--) gestoAleatorio(c, rng); }
+    else if (r < 0.70) c.transport.responder();
+    else c.transport.entregar();
+    if (rng() < 0.03 && !c.transport.fallos.length) {
+      c.transport.fallos.push(rng() < 0.5 ? { status: 422, key: 'invalid_op' } : { status: null, guardado: rng() < 0.5 });
+    }
+    await turno();
+    for (const x of activos) assert.deepEqual(x.state, x.colab.visible(), `semilla ${semilla}, paso ${paso}: ${x.nombre} ve algo distinto de confirmado + pendiente`);
+  }
+  await asentar(clientes.map(c => c.transport));
+  const esperado = reproducir(servidor.registro, vacio());
+  assert.ok(servidor.registro.length >= 15, `semilla ${semilla}: casi no hubo operaciones (${servidor.registro.length})`);
+  for (const c of clientes) {
+    assert.deepEqual(c.colab.confirmed(), esperado, `semilla ${semilla}: ${c.nombre} confirmado ≠ registro reproducido`);
+    assert.deepEqual(c.colab.visible(), esperado, `semilla ${semilla}: ${c.nombre} visible ≠ registro reproducido`);
+    assert.deepEqual(c.state, esperado, `semilla ${semilla}: ${c.nombre} lo que muestra ≠ registro reproducido`);
+    assert.equal(mermaidCode(c.state, c.state.kind, c.state.dir), mermaidCode(esperado, esperado.kind, esperado.dir), `semilla ${semilla}: ${c.nombre} Mermaid distinto`);
+    assert.deepEqual(c.modo, { mode: 'edit', reason: null }, `semilla ${semilla}: ${c.nombre} no quedó en edición`);
+    assert.ok(c.avisos.every(k => k === 'invalid_op'), `semilla ${semilla}: ${c.nombre} avisos inesperados ${c.avisos}`);
+  }
+  return servidor.registro.length;
+}
+
+test('tres clientes con gestos aleatorios, rechazos y fallos de red convergen (semillas 1 a 50)', async () => {
+  let total = 0;
+  for (let semilla = 1; semilla <= 50; semilla++) total += await simular(semilla);
+  assert.ok(total > 1500, `pocas operaciones en total: ${total}`);
 });

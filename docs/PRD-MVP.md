@@ -330,6 +330,13 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   500 operaciones, la respuesta es el array de secuencias y `apply_op` pasa a ser un grupo de uno sobre la función
   interna `write_ops`. En local, 30 operaciones tardan 129 ms en serie y 5 ms en un grupo; en el remoto (24-11-2026, una
   ejecución), 1 981 ms en serie y 188 ms en un grupo, y la migración ya está en el proyecto remoto.
+- **Hecha la cola del cliente** (change `cola-colaborativa`, probada en Node con un transporte simulado):
+  `collab.js` con el diagrama confirmado más los grupos pendientes, la apertura (suscribir, cargar, aplicar lo
+  guardado en espera), el envío por gestos en orden y de uno en uno, los rechazos, los reintentos de red, los
+  huecos y el solo lectura; y en el modelo `onChange`, `undo()` que devuelve y envía sus inversas, `setDir` que se
+  envía, `setReadOnly` y `replaceState`. **Pendiente** (change `colaboracion-en-la-app`): el adaptador de
+  supabase-js (con la espera al mensaje `system` de Postgres Changes), la sesión mínima, abrir un diagrama por id,
+  los avisos y el bloqueo visual, y la prueba en el navegador.
 - Al abrir: primero se suscribe y guarda en espera lo que llegue; después carga el registro y aplica lo
   que esté en espera con secuencia posterior. La suscripción se da por hecha cuando llega el mensaje
   `system` de Postgres Changes con estado `ok`, no con `SUBSCRIBED`: en la medida, lo enviado entre los

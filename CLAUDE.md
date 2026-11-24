@@ -43,8 +43,19 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `nodes`, `edges`) y sus gestos (`addNode`, `addEdge`, `setLabel`, `moveNode`,
   `clear`…), que construyen operaciones y las pasan por `perform`. `newDiagram(kind)` empieza un diagrama
   vacío del tipo dado (lo que hace el selector de tipo, que pide confirmación si hay nodos) y vacía el historial. Deshacer saca de una pila de 60 grupos
-  de inversas, solo con los cambios propios; `applyRemote(op)` aplica una ajena sin apilarla. Devuelve
+  de inversas, solo con los cambios propios; `applyRemote(op)` aplica una ajena sin apilarla. Ganchos de la colaboración (apagados por defecto: en solitario
+  no cambia nada): `onChange(fn)` pasa a la cola lo que aplica cada gesto, `undo()` devuelve las inversas aplicadas y las
+  envía como un gesto, `setDir` se envía sin entrar en la pila, `setReadOnly(motivo)` rechaza los gestos con
+  `{ok: false, reason: 'readonly'}` y `replaceState(estado)` vuelca el diagrama visible sin tocar la pila. Devuelve
   resultados en vez de mostrar avisos.
+- `collab.js` (puro, F4): `createCollab({transport, onVisible, onMode, onNotice, wait})` mantiene el diagrama
+  **confirmado** (el registro aplicado en orden de secuencia) y los grupos **pendientes**, y lo que se ve es siempre
+  confirmado + pendiente (gana el último del orden del servidor). El transporte se inyecta con tres funciones
+  (`subscribe`, `load`, `send`): el adaptador de supabase-js es del change siguiente. `open()` suscribe, guarda lo que
+  llegue, carga y aplica el registro; `local(ops)` envía cada gesto como un grupo, en orden y de uno en uno (tramos de
+  500), con `op_id` por operación. 422/409 descartan el grupo; 403/404/410 descartan todo y dejan solo lectura; sin
+  respuesta se reintenta 3 veces con los mismos `op_id`; un hueco o un cierre del canal dejan sin conexión.
+  Aún no está enlazado a `main.js`: la app sigue abriendo con el ejemplo y sin colaboración.
 - `render.js` (lienzo, vista previa Mermaid, leyenda), `input.js` (Pointer Events: `pen` dibuja, `touch`
   mueve, ratón configurable; toque = editar etiqueta) y `main.js` (arranque, barra de herramientas, aviso).
 - `test/`: `baseline.test.js` fija el código Mermaid del ejemplo y la clasificación de trazos sintéticos;
@@ -53,6 +64,8 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `ops.test.js` cubre las operaciones (rechazos, serialización, determinismo), deshacer y los ids del código.
   `fixtures.test.js` ejecuta las secuencias de operaciones de `test/fixtures/ops/*.json` (cada operación con su resultado y el diagrama final);
   `convergencia.test.js` prueba con `helpers/red-simulada.js` (servidor que numera y clientes con operaciones pendientes, semilla fija) que todos acaban con el mismo grafo y Mermaid;
+  `collab.test.js` prueba `collab.js` con `helpers/transporte-simulado.js` (servidor con la semántica de `apply_ops` y entregas y respuestas bajo el control del test; lo prueba `transporte-simulado.test.js`): apertura sin perder operaciones, conciliación, cola, rechazos, reintentos y la convergencia de tres clientes con gestos aleatorios (semillas 1 a 50);
+  `modelo-colaborativo.test.js` fija los ganchos del modelo y `enlace-modelo.test.js` el enlace del modelo real con la cola;
   `mermaid-tipos.test.js` fija el código completo de un diagrama de Flujo y uno de Estados;
   `grabacion.test.js` prueba el estado de la grabación y `reconocedor.test.js` exige ≥ 90 % por forma y tipo de diagrama con los trazos del S Pen, en cada archivo de `fixtures/trazos/` y en el conjunto; `abiertos.test.js` fija que una línea, una "L", una "U" y un arco siguen siendo trazos abiertos (conectores).
 - `supabase/` (backend, bloques S1 y S2): `config.toml`, `migrations/` y `tests/*.test.js` con `node --test` y
