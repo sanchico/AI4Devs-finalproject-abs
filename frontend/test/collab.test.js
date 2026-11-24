@@ -14,15 +14,15 @@ const grupo = (...ops) => ops.map((op, i) => ({ op_id: `op-${Math.random().toStr
 // Un cliente: su transporte, su cola y lo que la cola le ha ido contando
 function cliente(servidor, opciones = {}) {
   const transport = new TransporteSimulado(servidor, opciones);
-  const vistas = [], modos = [], avisos = [];
+  const vistas = [], modos = [], avisos = [], esperas = [];
   const colab = createCollab({
     transport,
     onVisible: s => vistas.push(s),
     onMode: m => modos.push(m),
     onNotice: k => avisos.push(k),
-    wait: async () => {},
+    wait: async ms => { esperas.push(ms); },
   });
-  return { transport, colab, vistas, modos, avisos, ultimoModo: () => modos.at(-1) };
+  return { transport, colab, vistas, modos, avisos, esperas, ultimoModo: () => modos.at(-1) };
 }
 
 // ---------- Apertura ----------
@@ -241,4 +241,192 @@ test('la respuesta llega antes que el registro: lo propio sigue pendiente hasta 
   assert.deepEqual(ids(a.colab.visible()), ['p']);
   a.transport.entregarTodo();
   assert.deepEqual(ids(a.colab.confirmed()), ['p']);
+});
+
+// ---------- Cola: un grupo por gesto, en orden y de uno en uno ----------
+const idsEnviados = c => c.transport.envios.map(g => g.map(it => it.op.node?.id ?? it.op.id));
+
+test('dos gestos seguidos salen en orden y de uno en uno', async () => {
+  const a = cliente(new ServidorSimulado());
+  await a.colab.open();
+  a.transport.retener = true;
+  a.colab.local([addNode('a')]);
+  a.colab.local([addNode('b')]);
+  assert.deepEqual(idsEnviados(a), [['a']]);          // el segundo espera a la respuesta del primero
+  a.transport.responder();
+  await turno();
+  assert.deepEqual(idsEnviados(a), [['a'], ['b']]);
+});
+
+test('cada operación lleva un op_id distinto, también entre gestos', async () => {
+  const a = cliente(new ServidorSimulado());
+  await a.colab.open();
+  a.colab.local([addNode('a'), addNode('b')]);
+  a.colab.local([addNode('c')]);
+  await asentar([a.transport]);
+  const opIds = a.transport.envios.flat().map(it => it.op_id);
+  assert.equal(opIds.length, 3);
+  assert.equal(new Set(opIds).size, 3);
+  assert.ok(opIds.every(id => typeof id === 'string' && id.length >= 32));
+});
+
+test('un gesto vacío no envía nada', async () => {
+  const a = cliente(new ServidorSimulado());
+  await a.colab.open();
+  assert.deepEqual(a.colab.local([]), { ok: true });
+  await turno();
+  assert.equal(a.transport.envios.length, 0);
+});
+
+test('un gesto de 1 200 operaciones sale en tramos de 500, 500 y 200, en orden', async () => {
+  const s = new ServidorSimulado();
+  const a = cliente(s);
+  await a.colab.open();
+  const ops = Array.from({ length: 1200 }, (_, i) => ({ type: 'removeNode', id: `n${i}` }));
+  a.colab.local(ops);
+  await asentar([a.transport]);
+  assert.deepEqual(a.transport.envios.map(g => g.length), [500, 500, 200]);
+  assert.deepEqual(a.transport.envios.flat().map(it => it.op.id), ops.map(o => o.id));
+  assert.equal(s.registro.length, 1200);
+});
+
+// ---------- Rechazos del servidor ----------
+for (const [status, key] of [[422, 'invalid_op'], [409, 'op_limit']]) {
+  test(`${status} descarta ese grupo, avisa y envía el siguiente`, async () => {
+    const s = new ServidorSimulado();
+    const a = cliente(s);
+    await a.colab.open();
+    a.transport.fallos.push({ status, key });
+    a.colab.local([addNode('a')]);
+    a.colab.local([addNode('b')]);
+    assert.deepEqual(ids(a.colab.visible()), ['a', 'b']);
+    await asentar([a.transport]);
+    assert.deepEqual(ids(a.colab.visible()), ['b']);
+    assert.deepEqual(ids(a.colab.confirmed()), ['b']);
+    assert.deepEqual(a.avisos, [key]);
+    assert.equal(a.ultimoModo().mode, 'edit');
+    assert.equal(a.transport.envios.length, 2);
+  });
+}
+
+for (const [status, key, motivo] of [[403, 'forbidden', 'role'], [404, 'not_found', 'no-access'], [410, 'diagram_deleted', 'deleted']]) {
+  test(`${status} descarta todos los grupos pendientes, avisa y deja solo lectura por "${motivo}"`, async () => {
+    const s = new ServidorSimulado();
+    const a = cliente(s);
+    await a.colab.open();
+    a.transport.fallos.push({ status, key });
+    a.colab.local([addNode('a')]);
+    a.colab.local([addNode('b')]);
+    a.colab.local([addNode('c')]);
+    await asentar([a.transport]);
+    assert.deepEqual(a.colab.visible().nodes, []);
+    assert.deepEqual(a.ultimoModo(), { mode: 'readonly', reason: motivo });
+    assert.deepEqual(a.avisos, [key]);
+    assert.equal(a.transport.envios.length, 1);                      // los otros dos ya no se envían
+    assert.deepEqual(a.colab.local([addNode('d')]), { ok: false, reason: 'readonly' });
+  });
+}
+
+test('en solo lectura tras un rechazo sigue aplicándose lo que escriben los demás', async () => {
+  const s = new ServidorSimulado();
+  const a = cliente(s);
+  await a.colab.open();
+  a.transport.fallos.push({ status: 403, key: 'forbidden' });
+  a.colab.local([addNode('a')]);
+  await asentar([a.transport]);
+  s.guardar(grupo(addNode('z')));
+  a.transport.entregarTodo();
+  assert.deepEqual(ids(a.colab.visible()), ['z']);
+});
+
+// ---------- Fallos de red ----------
+test('un fallo de red y un acierto guardan el grupo una sola vez, con los mismos op_id', async () => {
+  const s = new ServidorSimulado();
+  const a = cliente(s);
+  await a.colab.open();
+  a.transport.fallos.push({ status: null });
+  a.colab.local([addNode('a'), addNode('b')]);
+  await asentar([a.transport]);
+  assert.equal(a.transport.envios.length, 2);
+  assert.deepEqual(a.transport.envios[1], a.transport.envios[0]);
+  assert.equal(s.registro.length, 2);
+  assert.deepEqual(a.esperas, [500]);
+  assert.equal(a.ultimoModo().mode, 'edit');
+  assert.deepEqual(ids(a.colab.confirmed()), ['a', 'b']);
+});
+
+test('si se perdió la respuesta pero el servidor guardó el grupo, el reintento no lo duplica', async () => {
+  const s = new ServidorSimulado();
+  const a = cliente(s);
+  await a.colab.open();
+  a.transport.fallos.push({ status: null, guardado: true });
+  a.colab.local([addNode('a')]);
+  await asentar([a.transport]);
+  assert.equal(s.registro.length, 1);
+  assert.deepEqual(ids(a.colab.confirmed()), ['a']);
+  assert.deepEqual(a.colab.visible(), a.colab.confirmed());
+});
+
+test('cuatro fallos seguidos dejan el diagrama sin conexión, con lo que se veía', async () => {
+  const s = new ServidorSimulado();
+  const a = cliente(s);
+  await a.colab.open();
+  a.transport.fallos.push({ status: null }, { status: null }, { status: null }, { status: null });
+  a.colab.local([addNode('a')]);
+  a.colab.local([addNode('b')]);
+  await asentar([a.transport]);
+  assert.equal(a.transport.envios.length, 4);                       // la primera y tres reintentos; b no llega a salir
+  assert.deepEqual(a.esperas, [500, 1000, 2000]);
+  assert.deepEqual(a.ultimoModo(), { mode: 'offline', reason: 'network' });
+  assert.deepEqual(a.avisos, ['network']);
+  assert.deepEqual(ids(a.colab.visible()), ['a', 'b']);
+  assert.deepEqual(a.colab.local([addNode('c')]), { ok: false, reason: 'offline' });
+  assert.equal(s.registro.length, 0);
+});
+
+test('una llamada que lanza una excepción se trata como un fallo de red', async () => {
+  const s = new ServidorSimulado();
+  const a = cliente(s);
+  await a.colab.open();
+  const enviar = a.transport.send.bind(a.transport);
+  let primera = true;
+  a.transport.send = g => { if (primera) { primera = false; return Promise.reject(new Error('sin red')); } return enviar(g); };
+  a.colab.local([addNode('a')]);
+  await asentar([a.transport]);
+  assert.deepEqual(ids(a.colab.confirmed()), ['a']);
+  assert.deepEqual(a.esperas, [500]);
+});
+
+test('otro estado inesperado del servidor deja el diagrama sin conexión', async () => {
+  const a = cliente(new ServidorSimulado());
+  await a.colab.open();
+  a.transport.fallos.push({ status: 500, key: 'boom' });
+  a.colab.local([addNode('a')]);
+  await asentar([a.transport]);
+  assert.deepEqual(a.ultimoModo(), { mode: 'offline', reason: 'network' });
+});
+
+// ---------- Sin editar ----------
+test('sin conexión o en solo lectura por rol, local no envía nada', async () => {
+  const s = new ServidorSimulado();
+  const [lector, caido] = [cliente(s, { rol: 'viewer' }), cliente(s)];
+  await lector.colab.open();
+  await caido.colab.open();
+  caido.transport.cerrarCanal();
+  assert.deepEqual(lector.colab.local([addNode('a')]), { ok: false, reason: 'readonly' });
+  assert.deepEqual(caido.colab.local([addNode('a')]), { ok: false, reason: 'offline' });
+  await turno();
+  assert.equal(lector.transport.envios.length + caido.transport.envios.length, 0);
+});
+
+test('si el canal se cierra mientras se reintenta, no se sigue enviando', async () => {
+  const s = new ServidorSimulado();
+  const a = cliente(s);
+  await a.colab.open();
+  a.transport.fallos.push({ status: null }, { status: null });
+  assert.equal(a.colab.local([addNode('a')]).ok, true);
+  a.transport.cerrarCanal();
+  await asentar([a.transport]);
+  assert.equal(a.transport.envios.length, 1);
+  assert.deepEqual(a.ultimoModo(), { mode: 'offline', reason: 'closed' });
 });

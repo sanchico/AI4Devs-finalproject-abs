@@ -13,6 +13,11 @@
 import { apply, newId } from './ops.js';
 import { UNTITLED } from './model.js';
 
+const MAX_GROUP = 500;                      // operations per call the server accepts
+const RETRY_WAITS = [500, 1000, 2000];      // ms before each retry of a call that got no answer
+const KEYS = { 422: 'invalid_op', 409: 'op_limit', 403: 'forbidden', 404: 'not_found', 410: 'diagram_deleted' };
+const STOP_REASONS = { 403: 'role', 404: 'no-access', 410: 'deleted' };
+
 // Modes: 'loading' (opening), 'edit', 'readonly' (reason: role | deleted | no-access) and
 // 'offline' (reason: gap | closed | network | load). Only 'edit' accepts gestures.
 export function createCollab({ transport, onVisible = () => {}, onMode = () => {}, onNotice = () => {}, wait = ms => new Promise(r => setTimeout(r, ms)) }) {
@@ -83,6 +88,36 @@ export function createCollab({ transport, onVisible = () => {}, onMode = () => {
     return { ok: true };
   }
 
+  // One call, retried when the server never answered: the same op_ids go again, so a group that did get stored
+  // is not stored twice. After the last retry the failure is returned as it is.
+  async function sendWithRetries(payload) {
+    for (let attempt = 0; ; attempt++) {
+      let res;
+      try { res = await transport.send(payload); } catch { res = { ok: false, status: null }; }
+      if (res.ok || res.status !== null || attempt === RETRY_WAITS.length) return res;
+      await wait(RETRY_WAITS[attempt]);
+      if (mode !== 'edit') return { ok: false, status: 'stopped' };   // the channel closed while waiting
+    }
+  }
+
+  // The server refused a group: drop it (422, 409) or drop everything and stop editing (403, 404, 410)
+  function refused(group, res) {
+    const key = res.key ?? KEYS[res.status];
+    if (res.status === 422 || res.status === 409) {
+      pending = pending.filter(g => g !== group);
+      emitVisible();
+      onNotice(key);
+      pump();
+    } else if (res.status in STOP_REASONS) {
+      pending = [];
+      emitVisible();
+      setMode('readonly', STOP_REASONS[res.status]);
+      onNotice(key);
+    } else {
+      fail('network');   // no answer after the retries, or a status that is neither a refusal nor an answer
+    }
+  }
+
   // Send my groups in order, one call at a time
   async function pump() {
     if (inFlight || mode !== 'edit') return;
@@ -90,18 +125,20 @@ export function createCollab({ transport, onVisible = () => {}, onMode = () => {
     if (!group) return;
     inFlight = group;
     group.sent = true;
-    const res = await transport.send(group.ops.map(({ op_id, op }) => ({ op_id, op })));
+    const res = await sendWithRetries(group.ops.map(({ op_id, op }) => ({ op_id, op })));
     inFlight = null;
-    if (!res.ok) return;
-    pending = pending.filter(g => g.ops.length);
-    pump();
+    if (res.ok) { pending = pending.filter(g => g.ops.length); pump(); }
+    else if (res.status !== 'stopped') refused(group, res);
   }
 
-  // A gesture of mine, already applied by the model: the operations it applied
+  // A gesture of mine, already applied by the model: the operations it applied. The server takes at most
+  // MAX_GROUP per call, so a bigger gesture goes in consecutive pieces.
   function local(ops) {
     if (mode !== 'edit') return { ok: false, reason: mode === 'loading' ? 'loading' : mode === 'readonly' ? 'readonly' : 'offline' };
     if (!ops.length) return { ok: true };
-    pending.push({ ops: ops.map(op => ({ op_id: newId(), op: structuredClone(op) })), sent: false });
+    for (let i = 0; i < ops.length; i += MAX_GROUP) {
+      pending.push({ ops: ops.slice(i, i + MAX_GROUP).map(op => ({ op_id: newId(), op: structuredClone(op) })), sent: false });
+    }
     emitVisible();
     pump();
     return { ok: true };

@@ -17,8 +17,8 @@ después el código mínimo, y los tests anteriores no se editan.
 
 ## 3. Cola, rechazos y reintentos (0,5 h)
 
-- [ ] 3.1 Añadir a `frontend/test/collab.test.js` (en rojo) los casos de envío: dos gestos seguidos salen en orden y de uno en uno; un `op_id` distinto por operación; un gesto de 1 200 operaciones sale en tramos de 500, 500 y 200; un gesto vacío no envía; 422 y 409 descartan ese grupo, avisan y envían el siguiente; 403, 404 y 410 descartan todos los grupos, avisan del motivo y dejan solo lectura; un fallo de red y un acierto guardan el grupo una vez; cuatro fallos dejan sin conexión; sin conexión o en solo lectura `local` no envía; verificar que falla por falta de `local`.
-- [ ] 3.2 Completar `local` con los tramos de 500, y añadir el tratamiento de los rechazos del servidor y los reintentos de red con `wait`; verificar que `collab.test.js` entero pasa.
+- [x] 3.1 Añadir a `frontend/test/collab.test.js` (en rojo) los casos de envío: dos gestos seguidos salen en orden y de uno en uno; un `op_id` distinto por operación; un gesto de 1 200 operaciones sale en tramos de 500, 500 y 200; un gesto vacío no envía; 422 y 409 descartan ese grupo, avisan y envían el siguiente; 403, 404 y 410 descartan todos los grupos, avisan del motivo y dejan solo lectura; un fallo de red y un acierto guardan el grupo una vez; cuatro fallos dejan sin conexión; sin conexión o en solo lectura `local` no envía; verificar que falla por falta de `local`.
+- [x] 3.2 Completar `local` con los tramos de 500, y añadir el tratamiento de los rechazos del servidor y los reintentos de red con `wait`; verificar que `collab.test.js` entero pasa.
 
 ## 4. Convergencia, enlace con el modelo y documentación (0,25 h)
 
