@@ -19,8 +19,8 @@ marcha (`npx supabase start`).
 ## 3. Contrato con las fixtures, tiempos y documentación (0,25 h)
 
 - [x] 3.1 En `supabase/tests/apply-ops.test.js`, recorrer `frontend/test/fixtures/ops/*.json`: el grupo con las operaciones que el cliente acepta o descarta por el grafo se guarda entero con las secuencias 1…n y deja el mismo registro que el envío en serie; si la fixture trae operaciones que el cliente rechaza, el grupo completo da 422 y el registro queda vacío; verificar con `node --test supabase/tests/apply-ops.test.js`.
-- [ ] 3.2 Medir una vez en local la ráfaga de 30 `removeNode` en serie con `apply_op` y en un grupo con `apply_ops` (script suelto, sin aserciones), y anotar las dos cifras en `design.md` (Decisions, punto 6); verificar que las cifras están escritas.
-- [ ] 3.3 Actualizar `CLAUDE.md` (apartado `supabase/`: `apply_ops`, `write_ops` interna y el tope de 500) y `docs/PRD-MVP.md` (F4: `apply_ops` hecho, firma y tope de 500); verificar con `npm run test:backend` y `node --test "frontend/**/*.test.js"` en verde.
+- [x] 3.2 Medir una vez en local la ráfaga de 30 `removeNode` en serie con `apply_op` y en un grupo con `apply_ops` (script suelto, sin aserciones), y anotar las dos cifras en `design.md` (Decisions, punto 6); verificar que las cifras están escritas.
+- [x] 3.3 Actualizar `CLAUDE.md` (apartado `supabase/`: `apply_ops`, `write_ops` interna y el tope de 500) y `docs/PRD-MVP.md` (F4: `apply_ops` hecho, firma y tope de 500); verificar con `npm run test:backend` y `node --test "frontend/**/*.test.js"` en verde.
 
 ## Workflow follow-up
 

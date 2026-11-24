@@ -326,7 +326,9 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   de 30 operaciones en serie tarda 2,5–2,6 s en llegar entera (unos 70 ms por llamada), por encima de 1 s.
   Cada grupo va en una llamada, una transacción y un bloqueo, con secuencias consecutivas y una fila por
   operación en `diagram_ops` (el formato no cambia). El grupo se rechaza entero si una operación no es
-  válida, cada `op_id` repetido devuelve su secuencia guardada y el tope de 5 000 cuenta el grupo entero.
+  válida, cada `op_id` repetido devuelve su secuencia guardada y el tope de 5 000 cuenta el grupo entero. **Hecho** (change `apply-ops`): `p_ops` es `[{op_id, op}, …]` de 1 a
+  500 operaciones, la respuesta es el array de secuencias y `apply_op` pasa a ser un grupo de uno sobre la función
+  interna `write_ops`. En local, 30 operaciones tardan 129 ms en serie y 5 ms en un grupo.
 - Al abrir: primero se suscribe y guarda en espera lo que llegue; después carga el registro y aplica lo
   que esté en espera con secuencia posterior. La suscripción se da por hecha cuando llega el mensaje
   `system` de Postgres Changes con estado `ok`, no con `SUBSCRIBED`: en la medida, lo enviado entre los

@@ -111,6 +111,10 @@ nuevo y sigue el estilo de `apply-op.test.js` (con `equipo()`, `enviar()` y `lee
 - **Tiempos.** Se compara una vez en local la ráfaga de 30 `removeNode` en serie y en un grupo, y las cifras se
   anotan aquí. No es una aserción: la latencia depende de la máquina y fallaría al azar, el mismo motivo por
   el que `medir-latencia` no es un test.
+  - **Medido el 24-11-2026 en local** (5 repeticiones, un diagrama nuevo cada una): 30 `apply_op` en serie
+    tardaron 119-157 ms (mediana 129 ms, unos 4 ms por llamada) y un `apply_ops` con las 30, 5-7 ms (mediana
+    5 ms). En el remoto, con unos 70 ms por llamada de ida y vuelta, la serie fue de 2,5-2,6 s; un grupo
+    cuesta una sola ida y vuelta. La cifra del remoto queda por repetir cuando la migración esté allí (D1).
 
 ## Risks / Trade-offs
 
