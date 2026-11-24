@@ -144,7 +144,11 @@ A creates a diagram whose title is `<img src=x onerror=alert(1)>` (the list must
 to sign in first), makes a State diagram with «Nuevo», draws, clicks «Compartir» (the link lands in the clipboard) and makes
 a second diagram that it does not share. B counts its list, opens the link, ends up inside A's diagram as an editor and sees
 what A drew; B's list gains exactly one diagram, repeating the link adds nothing, A's private diagram does not open for B,
-B's «Compartir» says only the owner can, and `#/i/xyz` warns without calling the server. It deletes everything it created.
+B's «Compartir» says only the owner can, and `#/i/xyz` warns without calling the server. Then, on the list: cancelling the
+rename prompt sends nothing, a 201-character or blank title warns without calling the server, A renames a diagram of hers,
+B (an editor) renames A's one with an HTML title (shown as text) and A sees it after reloading, B's «Borrar» says only the
+owner can, A cancels and then confirms the delete, and the diagram leaves both lists. Prompts and confirms are answered
+from a queue per user (`u.cola`); an alert counts as a bug. It deletes everything it created.
 Prints `OK` or `FALLO` and exits 0 / 1. It does **not** cover a brand-new account (that needs a real mailbox: the remote
 requires confirming the email).
 

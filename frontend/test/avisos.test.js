@@ -85,3 +85,17 @@ test('una acción desconocida no devuelve undefined', () => {
   assert.equal(typeof textoGestion('rarísima', { status: 500 }), 'string');
   assert.ok(textoGestion(undefined).length > 0);
 });
+
+test('renombrar: título no válido, rol sin permiso, diagrama borrado y cualquier otro fallo', () => {
+  assert.equal(textoGestion('renombrar', { status: 422 }), 'El título debe tener entre 1 y 200 caracteres');
+  assert.equal(textoGestion('renombrar', { status: 403 }), 'Tu rol no permite renombrar este diagrama');
+  assert.equal(textoGestion('renombrar', { status: 410 }), 'Este diagrama se ha borrado');
+  assert.equal(textoGestion('renombrar', { status: 500 }), 'No se pudo renombrar el diagrama');
+  assert.equal(textoGestion('renombrar', new Error('x')), 'No se pudo renombrar el diagrama');
+});
+
+test('borrar: solo el dueño y cualquier otro fallo', () => {
+  assert.equal(textoGestion('borrar', { status: 403 }), 'Solo el dueño puede borrar el diagrama');
+  assert.equal(textoGestion('borrar', { status: 500 }), 'No se pudo borrar el diagrama');
+  assert.equal(textoGestion('borrar', new Error('x')), 'No se pudo borrar el diagrama');
+});

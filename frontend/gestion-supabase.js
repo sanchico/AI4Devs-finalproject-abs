@@ -2,6 +2,8 @@
 // The same split as transporte-supabase.js: this is the only place that knows which table or function each action uses, so it is
 // testable in Node with a fake client. Every failure is an Error; `status` is the HTTP status when the server answered (403, 404, 410...)
 // and is absent when it never did, which is what avisos.js uses to tell a refusal from a lost connection.
+import { newId } from './ops.js';
+
 const TIPOS = ['flow', 'state'];
 
 const error = (mensaje, status) => Object.assign(new Error(mensaje), status > 0 ? { status } : {});
@@ -34,4 +36,16 @@ export function crearInvitacion(client, diagramId) {
 // Accepts an invitation and returns the id of its diagram. An unknown and an expired token are both a 404.
 export function aceptarInvitacion(client, token) {
   return llamar(() => client.rpc('accept_invite', { p_token: token }));
+}
+
+// A new title, saved as a `setMeta` operation of the diagram (the server copies it to `diagrams.title`, which the list reads).
+// Same rule as the server: 1 to 200 UTF-16 units, not just blanks, and kept as typed. A bad title is a 422 without calling it.
+export function renombrarDiagrama(client, diagramId, titulo) {
+  if (typeof titulo !== 'string' || titulo.trim() === '' || titulo.length > 200) return Promise.reject(error('Título no válido', 422));
+  return llamar(() => client.rpc('apply_op', { p_diagram_id: diagramId, p_op_id: newId(), p_op: { type: 'setMeta', set: { title: titulo } } }));
+}
+
+// Soft delete (nothing is lost). Only the owner can: anyone else gets a 403.
+export function borrarDiagrama(client, diagramId) {
+  return llamar(() => client.rpc('delete_diagram', { p_diagram_id: diagramId }));
 }

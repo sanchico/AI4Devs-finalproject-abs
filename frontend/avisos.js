@@ -52,6 +52,14 @@ export function textoGestion(accion, error) {
       if (status === 403) return 'Solo el dueño puede invitar';
       if (status === 410) return AVISOS.diagram_deleted;
       return 'No se pudo crear el enlace de invitación';
+    case 'renombrar':
+      if (status === 422) return 'El título debe tener entre 1 y 200 caracteres';
+      if (status === 403) return 'Tu rol no permite renombrar este diagrama';
+      if (status === 410) return AVISOS.diagram_deleted;
+      return 'No se pudo renombrar el diagrama';
+    case 'borrar':
+      if (status === 403) return 'Solo el dueño puede borrar el diagrama';
+      return 'No se pudo borrar el diagrama';
     case 'aceptar':
       if (status === 404) return 'El enlace de invitación no es válido o caducó';
       if (status === 410) return AVISOS.diagram_deleted;

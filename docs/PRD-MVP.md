@@ -339,9 +339,9 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   los avisos y el bloqueo visual (con `input.js` protegido) y la prueba en el navegador con dos usuarios contra el
   remoto (311, 709 y 244 ms de A a B en tres ejecuciones). El diagrama se abre con `#/d/<id>`; sin ruta la app es la de
   un solo usuario. **Hecho después** (change `gestion-diagramas-minima`, con tope de 2,5 h para F5): la lista de
-  diagramas (`#/lista`), «Nuevo», «Compartir» (enlace de editor) y la aceptación por `#/i/<token>`, probados en el
-  navegador con dos usuarios. **Recortado de F5:** renombrar, borrar y `set_member_role` con su lista de miembros no
-  tienen interfaz (el backend los soporta y está probado); entrarán solo si queda tiempo bajo el tope. **Pendiente:** D1
+  diagramas (`#/lista`), «Nuevo», «Compartir» (enlace de editor), la aceptación por `#/i/<token>`, y renombrar y borrar desde la lista (la decisión de
+  corte los dejó entrar), probados en el navegador con dos usuarios. **Recortado de F5:** `set_member_role` con su
+  lista de miembros no tiene interfaz (el backend lo soporta y está probado), ni hay botón de restaurar. **Pendiente:** D1
   (despliegue, «Site URL» de Auth para la confirmación del correo y prueba con dos dispositivos reales) y el test de
   Realtime de S3.
 - Al abrir: primero se suscribe y guarda en espera lo que llegue; después carga el registro y aplica lo

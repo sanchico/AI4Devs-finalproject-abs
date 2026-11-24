@@ -77,9 +77,11 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `aceptarInvitacion`; sus errores llevan `status` y el que no lo lleva es una conexión perdida. `lista.js` (con DOM) pinta
   la lista con `textContent` y el botón «Nuevo» (desactivado mientras crea); «Compartir» copia el enlace
   `<origen>#/i/<token>` (si no hay portapapeles, lo muestra) y solo el dueño puede (403 → «Solo el dueño puede invitar»);
-  aceptar entra con `location.replace` a `#/d/<id>`. Los textos están en `avisos.js` (`textoGestion`). **Recortado con
-  tope de 2,5 h (decisión de la sesión 11):** renombrar, borrar y `set_member_role` no tienen interfaz; el backend los
-  soporta y está probado. En el remoto Auth exige confirmar el correo: la «Site URL» de Auth debe ser la de la app
+  aceptar entra con `location.replace` a `#/d/<id>`. Los textos están en `avisos.js` (`textoGestion`). Cada fila de la lista abre, «Renombrar»
+  (`prompt()`; se guarda como `setMeta` con `apply_op`, el cliente valida 1 a 200 unidades UTF-16 y no solo blancos, y un
+  editor también puede) y «Borrar» (`confirm()`; `delete_diagram`, borrado lógico, solo el dueño). **Recortado con
+  tope de 2,5 h (decisión de la sesión 11):** `set_member_role` y la lista de miembros no tienen interfaz; el backend
+  los soporta y está probado, y tampoco hay botón de restaurar. En el remoto Auth exige confirmar el correo: la «Site URL» de Auth debe ser la de la app
   desplegada (D1).
 - `render.js` (lienzo, vista previa Mermaid, leyenda), `input.js` (Pointer Events: `pen` dibuja, `touch`
   mueve, ratón configurable; toque = editar etiqueta) y `main.js` (arranque, barra de herramientas, aviso).

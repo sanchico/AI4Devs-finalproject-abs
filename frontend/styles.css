@@ -84,6 +84,8 @@ pre{margin:0;font-family:var(--mono);font-size:12.5px;line-height:1.5;background
 .lista-card{width:min(420px,100%);max-height:80vh}
 .lista-card select{font:inherit;color:var(--ink);padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
 .lista-items{list-style:none;margin:0;padding:0;overflow:auto;display:flex;flex-direction:column;gap:6px}
-.lista-items button{width:100%;display:flex;justify-content:space-between;gap:10px;text-align:left}
+.lista-items li{display:flex;gap:6px}
+.lista-items .lista-abrir{flex:1;min-width:0;display:flex;justify-content:space-between;gap:10px;text-align:left}
+.lista-items .lista-abrir span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lista-items small{color:var(--ink-2);white-space:nowrap}
 #enlaceTexto{font:inherit;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink);padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--paper)}

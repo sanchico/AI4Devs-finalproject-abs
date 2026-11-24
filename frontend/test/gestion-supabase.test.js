@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SupabaseFalso } from './helpers/supabase-falso.js';
-import { listarDiagramas, crearDiagrama, crearInvitacion, aceptarInvitacion } from '../gestion-supabase.js';
+import { listarDiagramas, crearDiagrama, crearInvitacion, aceptarInvitacion, renombrarDiagrama, borrarDiagrama } from '../gestion-supabase.js';
 
 const ID = '3f2b8a1c-9d4e-4b7a-8c11-0a1b2c3d4e5f';
 const TOKEN = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
@@ -94,4 +94,68 @@ test('si el servidor no responde, el error no lleva estado (ni se confunde con u
   const f = new SupabaseFalso();
   f.rpcRespuestas.push(fallo(0, 'network'));    // supabase-js da status 0 cuando no hubo respuesta
   await assert.rejects(crearDiagrama(f, 'flow'), e => e.status === undefined);
+});
+
+// ---------- renombrarDiagrama ----------
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+test('renombrar guarda el título con una operación setMeta, sin transformarlo', async () => {
+  const f = new SupabaseFalso();
+  f.rpcRespuestas.push(ok(7));
+  await renombrarDiagrama(f, ID, '  Pedidos <b>y</b> ñ  ');
+  assert.equal(f.llamadasRpc.length, 1);
+  const { nombre, args } = f.llamadasRpc[0];
+  assert.equal(nombre, 'apply_op');
+  assert.equal(args.p_diagram_id, ID);
+  assert.match(args.p_op_id, UUID_V4);
+  assert.deepEqual(args.p_op, { type: 'setMeta', set: { title: '  Pedidos <b>y</b> ñ  ' } });
+});
+
+test('cada renombrado usa un op_id distinto', async () => {
+  const f = new SupabaseFalso();
+  await renombrarDiagrama(f, ID, 'Uno'); await renombrarDiagrama(f, ID, 'Dos');
+  assert.notEqual(f.llamadasRpc[0].args.p_op_id, f.llamadasRpc[1].args.p_op_id);
+});
+
+test('un título de 200 caracteres vale; de 201, vacío, solo espacios o que no es texto se rechaza con 422 sin llamar al servidor', async () => {
+  const f = new SupabaseFalso();
+  await renombrarDiagrama(f, ID, 'x'.repeat(200));
+  assert.equal(f.llamadasRpc.length, 1);
+  for (const titulo of ['x'.repeat(201), '', '   ', '\t\n', undefined, null, 42, {}]) {
+    await assert.rejects(renombrarDiagrama(f, ID, titulo), e => e.status === 422, JSON.stringify(titulo));
+  }
+  assert.equal(f.llamadasRpc.length, 1);
+});
+
+test('el límite cuenta en UTF-16, como el servidor: 100 emojis son 200 unidades y 101 son 202', async () => {
+  const f = new SupabaseFalso();
+  await renombrarDiagrama(f, ID, '😀'.repeat(100));
+  await assert.rejects(renombrarDiagrama(f, ID, '😀'.repeat(101)), e => e.status === 422);
+});
+
+test('renombrar: un lector (403) y un diagrama borrado (410) llegan con su estado', async () => {
+  for (const status of [403, 410]) {
+    const f = new SupabaseFalso();
+    f.rpcRespuestas.push(fallo(status, 'x'));
+    await assert.rejects(renombrarDiagrama(f, ID, 'Nuevo'), e => e.status === status, String(status));
+  }
+});
+
+// ---------- borrarDiagrama ----------
+test('borrar llama a delete_diagram con el id', async () => {
+  const f = new SupabaseFalso();
+  await borrarDiagrama(f, ID);
+  assert.deepEqual(f.llamadasRpc, [{ nombre: 'delete_diagram', args: { p_diagram_id: ID } }]);
+});
+
+test('borrar: quien no es dueño (403) llega con su estado', async () => {
+  const f = new SupabaseFalso();
+  f.rpcRespuestas.push(fallo(403, 'forbidden'));
+  await assert.rejects(borrarDiagrama(f, ID), e => e.status === 403);
+});
+
+test('renombrar y borrar sin respuesta del servidor: error sin estado', async () => {
+  const lanza = { rpc: async () => { throw new TypeError('Failed to fetch'); } };
+  await assert.rejects(renombrarDiagrama(lanza, ID, 'x'), e => e instanceof Error && e.status === undefined);
+  await assert.rejects(borrarDiagrama(lanza, ID), e => e instanceof Error && e.status === undefined);
 });

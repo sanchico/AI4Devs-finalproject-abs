@@ -40,9 +40,17 @@ async function usuario(browser, nombre, correo, clave) {
   await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: url });
   const page = await ctx.newPage();
   const errores = [];
+  const u = { nombre, ctx, page, correo, clave, errores, alertas: 0, cola: [], escrituras: 0 };
   page.on('pageerror', e => errores.push(e.message));
   page.on('console', m => m.type() === 'error' && errores.push(m.text()));
-  return { nombre, ctx, page, correo, clave, errores };
+  page.on('request', r => { if (/\/rpc\/(apply_op|delete_diagram)/.test(r.url())) u.escrituras++; });
+  // An alert is a bug (a title became HTML). A prompt or a confirm is answered from the queue the scenario fills; no answer = cancel.
+  page.on('dialog', d => {
+    if (d.type() === 'alert') { u.alertas++; d.dismiss(); return; }
+    const r = u.cola.shift() ?? { aceptar: false };
+    return r.aceptar ? d.accept(r.texto) : d.dismiss();
+  });
+  return u;
 }
 // A full load of an address (a hash-only change reloads the app anyway, but this also works from another page)
 async function ir(u, hash) {
@@ -77,7 +85,6 @@ const rect = (page, x, y, w, h) => trazo(page, [[x, y], [x + w, y], [x + w, y + 
 
     const HTML = '<img src=x onerror=alert(1)>';
     creados.push(await crearConTitulo(HTML));
-    let dialogos = 0; A.page.on('dialog', d => { dialogos++; d.dismiss(); });
 
     // ---- 1. A abre la lista (pide entrar) y crea un diagrama de Estados con «Nuevo»
     await ir(A, '#/lista');
@@ -89,7 +96,7 @@ const rect = (page, x, y, w, h) => trazo(page, [[x, y], [x + w, y], [x + w, y + 
     const antesA = await filasLista(A.page);
     check('la lista de A se muestra sin errores', (await A.page.textContent('#listaMsg')) === '' || antesA === 0, `${antesA} diagramas`);
     check('un título con HTML sale como texto: ni elementos nuevos ni diálogos', (await A.page.$$eval('#listaItems span', ss => ss.map(x => x.textContent))).includes(HTML)
-      && (await A.page.$$('#listaItems img')).length === 0 && dialogos === 0);
+      && (await A.page.$$('#listaItems img')).length === 0 && A.alertas === 0);
     await A.page.selectOption('#listaTipo', 'state');
     await A.page.click('#listaNuevo');
     await esperar(A.page, () => /#\/d\//.test(location.hash));
@@ -157,6 +164,36 @@ const rect = (page, x, y, w, h) => trazo(page, [[x, y], [x + w, y], [x + w, y + 
     // ---- 7. Un enlace con basura no llama al servidor
     await ir(B, '#/i/xyz');
     check('#/i/xyz avisa de dirección no válida', (await B.page.textContent('#estado')) === 'La dirección del diagrama no es válida');
+
+    // ---- 8. Renombrar y borrar desde la lista
+    const abrirLista = async u => { await ir(u, '#/lista'); await entrarSiPide(u); await u.page.waitForSelector('#lista:not([hidden])', { timeout: 12000 }); await esperar(u.page, () => document.getElementById('listaMsg').textContent !== 'Cargando…'); };
+    const fila = (u, id) => u.page.locator(`#listaItems li[data-id="${id}"]`);
+    const tituloDe = async (u, id) => (await fila(u, id).locator('.lista-abrir span').textContent());
+    const msgLista = u => u.page.textContent('#listaMsg');
+    const pulsar = async (u, id, boton, respuesta) => { u.cola.push(respuesta); const antes = u.escrituras; await fila(u, id).getByRole('button', { name: boton, exact: true }).click(); await u.page.waitForTimeout(1500); return u.escrituras - antes; };
+
+    await abrirLista(A);
+    const antesDeRenombrar = await tituloDe(A, privado);
+    check('renombrar: cancelar el prompt no envía nada ni cambia el título', (await pulsar(A, privado, 'Renombrar', { aceptar: false })) === 0 && (await tituloDe(A, privado)) === antesDeRenombrar);
+    check('renombrar: un título de 201 caracteres avisa y no llama al servidor', (await pulsar(A, privado, 'Renombrar', { aceptar: true, texto: 'x'.repeat(201) })) === 0
+      && (await msgLista(A)) === 'El título debe tener entre 1 y 200 caracteres' && (await tituloDe(A, privado)) === antesDeRenombrar);
+    check('renombrar: un título solo con espacios tampoco', (await pulsar(A, privado, 'Renombrar', { aceptar: true, texto: '   ' })) === 0 && (await tituloDe(A, privado)) === antesDeRenombrar);
+    check('renombrar: A cambia el título de su diagrama y la fila lo muestra', (await pulsar(A, privado, 'Renombrar', { aceptar: true, texto: 'Privado de A' })) === 1 && (await tituloDe(A, privado)) === 'Privado de A');
+
+    await abrirLista(B);
+    const marca = 'Compartido <b>de B</b>';
+    check('renombrar: B (editor) cambia el título de un diagrama que no es suyo', (await pulsar(B, compartido, 'Renombrar', { aceptar: true, texto: marca })) === 1 && (await tituloDe(B, compartido)) === marca);
+    check('renombrar: el título con HTML sale como texto (sin <b>)', (await B.page.$$('#listaItems b')).length === 0 && B.alertas === 0);
+    await abrirLista(A);
+    check('renombrar: A ve el título que puso B al recargar la lista', (await tituloDe(A, compartido)) === marca);
+
+    check('borrar: B (editor) pulsa «Borrar» y confirma: «Solo el dueño puede borrar el diagrama»', (await pulsar(B, compartido, 'Borrar', { aceptar: true })) === 1
+      && (await msgLista(B)) === 'Solo el dueño puede borrar el diagrama' && (await fila(B, compartido).count()) === 1);
+    const filasA = await filasLista(A.page);
+    check('borrar: A cancela la confirmación y todo sigue igual', (await pulsar(A, compartido, 'Borrar', { aceptar: false })) === 0 && (await filasLista(A.page)) === filasA);
+    check('borrar: A confirma y el diagrama sale de su lista', (await pulsar(A, compartido, 'Borrar', { aceptar: true })) === 1 && (await fila(A, compartido).count()) === 0 && (await filasLista(A.page)) === filasA - 1);
+    await abrirLista(B);
+    check('borrar: tampoco está en la lista de B al recargarla', (await fila(B, compartido).count()) === 0);
 
     check('A: sin errores de consola', A.errores.length === 0, A.errores.join(' | '));
     check('B: sin errores de consola (salvo el 404 esperado del diagrama ajeno)', B.errores.every(e => /40[1346]|Failed to load resource/.test(e)), B.errores.join(' | '));
