@@ -29,6 +29,7 @@ $('dir').addEventListener('change', e => { model.setDir(e.target.value); update(
 $('mode').addEventListener('click', e => { const draws=toggleMouseDraws(); e.target.textContent = draws?'Ratón: dibuja':'Ratón: mueve'; canvas.style.cursor = draws?'crosshair':'grab'; });
 $('undo').addEventListener('click', () => { if(!model.undo().ok){ toast('Nada que deshacer'); return; } update(); });
 $('clear').addEventListener('click', () => { if(model.clear().ok) update(); });
+$('misDiagramas').addEventListener('click', () => { location.hash = '#/lista'; });   // asks for a session there, not here
 $('tabPrev').addEventListener('click', ()=>setTab(true)); $('tabCode').addEventListener('click', ()=>setTab(false));
 function setTab(prev){ $('preview').hidden=!prev; $('codePane').hidden=prev; $('tabPrev').classList.toggle('on',prev); $('tabCode').classList.toggle('on',!prev); }
 $('copy').addEventListener('click', async () => {
