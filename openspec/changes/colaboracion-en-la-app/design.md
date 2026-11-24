@@ -162,6 +162,16 @@ invitación (`--rol editor|viewer`) y B la acepta; escribe el id y el enlace `#/
 (`delete_diagram`). Usa el entorno de `supabase/.env.remoto` y no imprime credenciales. Sustituye al botón "Nuevo"
 y a las invitaciones, que son del resto de F5.
 
+**Resultado de la prueba en el navegador (24-11-2026).** `driver-colaborativo.cjs` abre dos contextos de Chromium (A y
+B) contra el proyecto remoto, con la app servida por `http-server` en local, y comprueba 23 puntos: entrar y abrir el
+mismo diagrama, el tipo fijado, dibujar y verlo en el otro, renombrar, cambiar la dirección, recargar sin volver a
+entrar, deshacer, un lector que no dibuja pero ve, un diagrama sin acceso, "Salir" y consola sin errores. Pasó las tres
+veces que se ejecutó. El tiempo de A a B, medido desde que A suelta el trazo hasta que el contador de B marca el nodo
+(incluye el repintado de B), fue de **311, 709 y 244 ms**. Es una medida de navegador a navegador desde casa, tres
+muestras y no un percentil: el p95 de 100 operaciones con la app desplegada sigue siendo el de D1. Se comprobó que el
+driver detecta fallos rompiendo a propósito el filtro de Realtime del adaptador (B no vio el nodo y el escenario falló).
+Los diagramas de prueba se borran solos al terminar: no queda ninguno vivo en el remoto.
+
 ### 12. Impacto en `ops.js` y en `apply_op`
 
 `ops.js` no cambia. `apply_op` y `apply_ops` no cambian: el cliente solo llama a `apply_ops`.

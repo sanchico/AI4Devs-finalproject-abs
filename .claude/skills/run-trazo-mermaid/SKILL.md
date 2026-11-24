@@ -107,3 +107,29 @@ on the same network. Pen draws, finger moves, mouse follows the "Ratón" toggle.
   screenshotting, and the first load needs internet.
 - Playwright's `mouse` produces `pointerType: 'mouse'`, not `'pen'`. That is fine because the mouse
   draws by default; if you click `#mode` first, the mouse moves nodes instead.
+
+## Two users on a shared diagram (`driver-colaborativo.cjs`)
+
+The app opens a shared diagram when the address is `#/d/<id>` (no route = the single-user app above). The second driver
+tests the collaboration with **two browser contexts**, so two sessions: users A and B of the latency measurement.
+
+**It writes to the remote Supabase project** (creates throwaway diagrams and deletes them at the end) and types A's and B's
+credentials into the sign-in panel, so ask the owner before running it. It needs `supabase/.env.remoto`
+(template: `supabase/.env.ejemplo`) and never prints credentials.
+
+```bash
+NODE_PATH="$T/node_modules" node --env-file=supabase/.env.remoto \
+  .claude/skills/run-trazo-mermaid/driver-colaborativo.cjs http://localhost:8000 "$T"
+```
+
+It creates one diagram where B is an editor and one where B is a viewer (with `supabase/scripts/preparar-diagrama.js`)
+and checks: both open and reach "Editando"; A draws and B sees it (prints the milliseconds from A to B); B renames and A
+sees it; A changes the direction and B's selector follows; B reloads and returns to the same diagram without signing in
+again; A undoes and B stops seeing it; a viewer cannot draw (notice, disabled buttons, no label editor) but sees what the
+owner draws; an unknown or foreign diagram says "No tienes acceso a este diagrama o no existe"; "Salir" returns to
+single-user mode; no console errors. Prints `OK` or `FALLO` and exits 0 / 1. Screenshots `10-A-dibuja.png`,
+`11-B-ve.png` and `12-lector.png` go to the output directory.
+
+To prepare a diagram by hand (for two real devices): `npm run preparar:diagrama -- --rol editor` prints the link;
+`npm run preparar:diagrama -- --borrar <id>` deletes it. The link uses `http://localhost:8000` unless you pass `--url`
+(for the tablet: `--url http://<ip-del-pc>:8000`).

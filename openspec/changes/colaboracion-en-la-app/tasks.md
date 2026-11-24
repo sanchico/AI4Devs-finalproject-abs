@@ -26,12 +26,12 @@ Node: cada tarea dice cómo se verifica.
 
 ## 4. Un diagrama que abrir (0,25 h)
 
-- [ ] 4.1 Crear `supabase/scripts/preparar-diagrama.js` (A crea el diagrama con `--tipo flow|state`, lo comparte con B con `--rol editor|viewer` y se escribe el id y el enlace; `--borrar <id>` lo borra) con el entorno de `supabase/.env.remoto` y sin imprimir credenciales; verificar con `node --check` y ejecutándolo una vez contra el remoto (con confirmación del PO, porque escribe en el proyecto) para ver que da un enlace `#/d/<id>` y que `--borrar` lo borra.
+- [x] 4.1 Crear `supabase/scripts/preparar-diagrama.js` (A crea el diagrama con `--tipo flow|state`, lo comparte con B con `--rol editor|viewer` y se escribe el id y el enlace; `--borrar <id>` lo borra) con el entorno de `supabase/.env.remoto` y sin imprimir credenciales; verificar con `node --check` y ejecutándolo una vez contra el remoto (con confirmación del PO, porque escribe en el proyecto) para ver que da un enlace `#/d/<id>` y que `--borrar` lo borra.
 
 ## 5. Prueba en el navegador real (0,5 h)
 
-- [ ] 5.1 Crear `.claude/skills/run-trazo-mermaid/driver-colaborativo.cjs` con dos contextos de Playwright (A editor y B lector o editor) y documentarlo en la skill; el escenario: ambos abren el mismo diagrama, A dibuja y B lo ve en menos de 3 s, B renombra y A lo ve, A cambia la dirección y el selector de B la sigue, A deshace y B deja de verlo, B recarga y vuelve al mismo diagrama, un lector no dibuja (aviso, botones desactivados, ve lo de A), un diagrama ajeno da "No tienes acceso…", y no hay errores en la consola; verificar que termina en `OK` (con confirmación del PO para escribir las credenciales de A y B en el panel).
-- [ ] 5.2 Anotar en `design.md` (Decisions, punto 11) el resultado de la prueba y el tiempo medido de A a B en el navegador, y borrar los diagramas de prueba con `--borrar`; verificar que quedan anotados y que el borrado devuelve sin error.
+- [x] 5.1 Crear `.claude/skills/run-trazo-mermaid/driver-colaborativo.cjs` con dos contextos de Playwright (A editor y B lector o editor) y documentarlo en la skill; el escenario: ambos abren el mismo diagrama, A dibuja y B lo ve en menos de 3 s, B renombra y A lo ve, A cambia la dirección y el selector de B la sigue, A deshace y B deja de verlo, B recarga y vuelve al mismo diagrama, un lector no dibuja (aviso, botones desactivados, ve lo de A), un diagrama ajeno da "No tienes acceso…", y no hay errores en la consola; verificar que termina en `OK` (con confirmación del PO para escribir las credenciales de A y B en el panel).
+- [x] 5.2 Anotar en `design.md` (Decisions, punto 11) el resultado de la prueba y el tiempo medido de A a B en el navegador, y borrar los diagramas de prueba con `--borrar`; verificar que quedan anotados y que el borrado devuelve sin error.
 
 ## 6. Documentación (0,25 h)
 
