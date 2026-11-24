@@ -5,8 +5,13 @@ import { $, canvas, resize, update, renderLegend } from './render.js';
 import { initInput, toggleMouseDraws, setRecorder } from './input.js';
 import * as grab from './grabacion.js';
 import * as colaboracion from './colaboracion.js';
+import { llevaSesion } from './ruta.js';
 
 const { state } = model;
+
+// The link in Auth's confirmation email brings the session back in the address. The app does not use it (the user signs in
+// with their password), so it is removed here, before anything else: no reload, no hashchange and no new history entry.
+if(llevaSesion(location.hash)) history.replaceState(null, '', location.pathname + location.search);
 
 // ---------- Toast ----------
 const toastEl = $('toast'); let toastT;

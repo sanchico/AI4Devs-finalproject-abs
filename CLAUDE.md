@@ -68,7 +68,10 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `input.js` recibe `locked()`, comprueba el resultado de cada gesto y lee la posición final de un nodo arrastrado por su id.
 - Gestión de diagramas (resto de F5, change `gestion-diagramas-minima`): `ruta.js` reconoce también `#/lista` (los
   diagramas del usuario) y `#/i/<64 hex>` (aceptar una invitación; otro token es `invalida`); las dos piden sesión, y sin
-  ruta o con una desconocida la app sigue sin sesión ni red. `gestion-supabase.js` (sin DOM, cliente inyectado; lo prueba
+  ruta o con una desconocida la app sigue sin sesión ni red. `llevaSesion(hash)` (también en `ruta.js`) detecta el
+  fragmento `#access_token=…&refresh_token=…` con el que vuelve el enlace de confirmación del correo, y `main.js` lo borra
+  de la dirección con `history.replaceState` al arrancar (la app no usa esa sesión: el invitado entra con su contraseña).
+  `gestion-supabase.js` (sin DOM, cliente inyectado; lo prueba
   `gestion-supabase.test.js` con el cliente falso, que ahora admite `is()`) hace `listarDiagramas` (los no borrados, por
   `updated_at` descendente; la RLS filtra los del miembro), `crearDiagrama`, `crearInvitacion` (siempre como editor) y
   `aceptarInvitacion`; sus errores llevan `status` y el que no lo lleva es una conexión perdida. `lista.js` (con DOM) pinta

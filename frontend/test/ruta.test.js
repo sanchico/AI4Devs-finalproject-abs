@@ -1,7 +1,7 @@
 // ruta.js: la dirección de la página decide si la app es solitaria o abre un diagrama compartido.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseRuta } from '../ruta.js';
+import { parseRuta, llevaSesion } from '../ruta.js';
 
 const ID = '3f2b8a1c-9d4e-4b7a-8c11-0a1b2c3d4e5f';
 const TOKEN = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';   // 64 hex, como el de create_invite
@@ -47,4 +47,17 @@ test('una dirección de invitación sin un token de 64 hex es inválida', () => 
 test('el UUID admite los 5 grupos de cualquier versión', () => {
   const v1 = '123e4567-e89b-12d3-a456-426614174000';
   assert.deepEqual(parseRuta(`#/d/${v1}`), { tipo: 'diagrama', id: v1 });
+});
+
+// ---------- Una sesión nunca se queda en la dirección ----------
+test('un fragmento con access_token o refresh_token lleva una sesión', () => {
+  for (const hash of ['#access_token=abc&refresh_token=def&type=signup', '#refresh_token=x', '#access_token=x', '#type=signup&access_token=x']) {
+    assert.equal(llevaSesion(hash), true, hash);
+  }
+});
+
+test('un error de Auth, una ruta y lo que no es texto no llevan sesión', () => {
+  for (const hash of ['#error=access_denied&error_code=otp_expired', '#/lista', `#/d/${ID}`, `#/i/${TOKEN}`, '', '#', undefined, null, 42, '#/otra?access_token=x', '#xaccess_token=1', '#mi_refresh_token=1']) {
+    assert.equal(llevaSesion(hash), false, String(hash));
+  }
 });

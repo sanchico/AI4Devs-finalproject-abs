@@ -37,9 +37,9 @@ grupos 0 y 4, Playwright (ver la skill `run-trazo-mermaid`).
 
 ## 4b. La sesión fuera de la dirección (0,25 h)
 
-- [ ] 4b.1 Añadir en rojo a `frontend/test/ruta.test.js` la función `llevaSesion(hash)`: verdadera con `#access_token=abc&refresh_token=def&type=signup`, con solo `#refresh_token=x` y con solo `#access_token=x`; falsa con `#error=access_denied&error_code=otp_expired`, `#/lista`, `#/d/<uuid>`, `#/i/<64 hex>`, `''`, `#`, `undefined` y `#/otra?access_token=x` (no es un fragmento de parámetros); verificar que falla porque la función no existe.
-- [ ] 4b.2 Implementar `llevaSesion` en `frontend/ruta.js` y usarla al principio de `frontend/main.js` con `history.replaceState(null, '', location.pathname + location.search)`; verificar con `node --test "frontend/**/*.test.js"` en verde y, sirviendo `frontend/`, abriendo `/#access_token=a&refresh_token=b&type=signup` en el navegador real: la dirección queda sin fragmento, abre el ejemplo, no hay peticiones a Supabase ni errores, y `#/lista` y `#/otra` no cambian.
-- [ ] 4b.3 Anotar la regla en `CLAUDE.md` (módulo de rutas) y en `design.md` (Risks: el invitado entra con su contraseña tras confirmar); verificar releyéndolos.
+- [x] 4b.1 Añadir en rojo a `frontend/test/ruta.test.js` la función `llevaSesion(hash)`: verdadera con `#access_token=abc&refresh_token=def&type=signup`, con solo `#refresh_token=x` y con solo `#access_token=x`; falsa con `#error=access_denied&error_code=otp_expired`, `#/lista`, `#/d/<uuid>`, `#/i/<64 hex>`, `''`, `#`, `undefined` y `#/otra?access_token=x` (no es un fragmento de parámetros); verificar que falla porque la función no existe.
+- [x] 4b.2 Implementar `llevaSesion` en `frontend/ruta.js` y usarla al principio de `frontend/main.js` con `history.replaceState(null, '', location.pathname + location.search)`; verificar con `node --test "frontend/**/*.test.js"` en verde y, sirviendo `frontend/`, abriendo `/#access_token=a&refresh_token=b&type=signup` en el navegador real: la dirección queda sin fragmento, abre el ejemplo, no hay peticiones a Supabase ni errores, y `#/lista` y `#/otra` no cambian.
+- [x] 4b.3 Anotar la regla en `CLAUDE.md` (módulo de rutas) y en `design.md` (Risks: el invitado entra con su contraseña tras confirmar); verificar releyéndolos.
 
 ## 5. Extras, solo si queda tiempo bajo el tope (fuera de este change hasta que se decida)
 

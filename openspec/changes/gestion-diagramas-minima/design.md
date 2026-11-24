@@ -121,6 +121,9 @@ lleva 1,75 h y no 1,5 h.
   volver de confirmar, para que no haga falta reabrir el enlace. Los textos del correo están en inglés (plantillas de Auth).
   Con un usuario ya confirmado (B), el flujo lista, enlace, aceptar y abrir también está verificado en el navegador
   (`driver-gestion.cjs`).
+- [El fragmento con la sesión del correo de confirmación queda en la barra y el historial] → se borra al arrancar
+  (decisión 10); el efecto es que el invitado, tras confirmar, entra con su correo y su contraseña y vuelve a abrir el
+  enlace de invitación, como ya se comprobó. Se evita así, además, que alguien pegue por error una sesión viva.
 - [Un enlace de invitación es un secreto en una URL: queda en el historial del navegador y se reutiliza hasta que
   caduca a los 7 días] → es la regla ya fijada en S2; `location.replace` evita que «Atrás» lo reabra. La revocación
   queda fuera.
