@@ -77,10 +77,10 @@ export function createCollab({ transport, onVisible = () => {}, onMode = () => {
       for (const e of loaded.log) if (take(e) === 'gap') throw new Error('hole in the loaded log');
       why = 'gap';
       for (const e of buffer) if (take(e) === 'gap') throw new Error('hole in the channel');
-    } catch {
+    } catch (error) {
       emitVisible();
       fail(why);
-      return { ok: false, reason: why };
+      return { ok: false, reason: why, error };   // the transport's own error, with its `status`, tells the caller why
     }
     buffer = [];
     emitVisible();

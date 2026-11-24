@@ -98,6 +98,31 @@ test('un fallo al suscribirse o al cargar deja el diagrama sin conexión', async
   }
 });
 
+for (const status of [404, 410]) {
+  test(`un fallo de carga con estado ${status} se devuelve con su error, sin mostrar un diagrama a medias`, async () => {
+    const c = cliente(new ServidorSimulado());
+    const error = Object.assign(new Error('sin acceso'), { status });
+    c.transport.load = async () => { throw error; };
+    const r = await c.colab.open();
+    assert.deepEqual([r.ok, r.reason], [false, 'load']);
+    assert.equal(r.error, error);
+    assert.equal(r.error.status, status);
+    assert.deepEqual(c.ultimoModo(), { mode: 'offline', reason: 'load' });
+    assert.equal(c.colab.visible(), null);
+    assert.equal(c.vistas.length, 0);
+  });
+}
+
+test('un fallo sin estado se devuelve con su error', async () => {
+  const c = cliente(new ServidorSimulado());
+  c.transport.fallaSuscripcion = true;
+  const r = await c.colab.open();
+  assert.equal(r.ok, false);
+  assert.ok(r.error instanceof Error);
+  assert.equal(r.error.status, undefined);
+  assert.equal(c.ultimoModo().mode, 'offline');
+});
+
 // ---------- Registro: una vez y en orden ----------
 test('una entrada con una secuencia ya aplicada se ignora', async () => {
   const s = new ServidorSimulado();

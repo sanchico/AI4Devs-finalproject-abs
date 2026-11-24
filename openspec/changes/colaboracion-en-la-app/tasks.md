@@ -8,9 +8,9 @@ Node: cada tarea dice cómo se verifica.
 
 ## 1. Rutas, textos y causa del fallo al abrir (0,5 h)
 
-- [ ] 1.1 Escribir en rojo `frontend/test/ruta.test.js` (sin hash y `#/` son solitario; `#/d/<uuid>` en minúsculas y mayúsculas es diagrama con su id; `#/d/`, `#/d/xyz` y un UUID con caracteres de más son inválida; otras rutas son solitario) y `frontend/test/avisos.test.js` (el texto de cada aviso, de cada modo y de cada error de apertura 404, 410 y otro, según el diseño); verificar que fallan porque los módulos no existen.
-- [ ] 1.2 Implementar `frontend/ruta.js` y `frontend/avisos.js`; verificar que `node --test frontend/test/ruta.test.js frontend/test/avisos.test.js` pasa.
-- [ ] 1.3 Añadir a `frontend/test/collab.test.js` (en rojo) los casos de la causa del fallo (la carga falla con estado 404, con 410 y sin estado: `open()` devuelve `{ok: false, reason: 'load', error}` con ese error y el diagrama queda sin conexión) e implementarlo en `frontend/collab.js`; verificar con `node --test "frontend/**/*.test.js"` en verde.
+- [x] 1.1 Escribir en rojo `frontend/test/ruta.test.js` (sin hash y `#/` son solitario; `#/d/<uuid>` en minúsculas y mayúsculas es diagrama con su id; `#/d/`, `#/d/xyz` y un UUID con caracteres de más son inválida; otras rutas son solitario) y `frontend/test/avisos.test.js` (el texto de cada aviso, de cada modo y de cada error de apertura 404, 410 y otro, según el diseño); verificar que fallan porque los módulos no existen.
+- [x] 1.2 Implementar `frontend/ruta.js` y `frontend/avisos.js`; verificar que `node --test frontend/test/ruta.test.js frontend/test/avisos.test.js` pasa.
+- [x] 1.3 Añadir a `frontend/test/collab.test.js` (en rojo) los casos de la causa del fallo (la carga falla con estado 404, con 410 y sin estado: `open()` devuelve `{ok: false, reason: 'load', error}` con ese error y el diagrama queda sin conexión) e implementarlo en `frontend/collab.js`; verificar con `node --test "frontend/**/*.test.js"` en verde.
 
 ## 2. Adaptador de supabase-js (0,75 h)
 
