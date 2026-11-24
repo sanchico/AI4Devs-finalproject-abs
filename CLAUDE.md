@@ -121,3 +121,9 @@ usuarios si no existen). En remoto, `npm run medir:latencia` (los dos usuarios s
   Los changes de OpenSpec de un bloque van en esa rama uno tras otro: cada uno se aplica y se archiva
   antes de proponer o rebasar el siguiente, porque el archivado reescribe `openspec/specs/` y el delta
   siguiente se escribe contra ese estado. Solo un arreglo urgente va en una rama y una PR aparte.
+
+# TDD Policy
+- Always follow Red → Green → Refactor.
+- Write the simplest failing test first.
+- Never delete or disable failing tests to make the suite pass.
+- Implement the minimum code needed. Refactor only when green.
