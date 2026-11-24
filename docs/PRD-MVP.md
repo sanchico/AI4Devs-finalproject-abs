@@ -338,8 +338,12 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   supabase-js (con la espera al mensaje `system` de Postgres Changes), la sesión mínima, abrir un diagrama por id,
   los avisos y el bloqueo visual (con `input.js` protegido) y la prueba en el navegador con dos usuarios contra el
   remoto (311, 709 y 244 ms de A a B en tres ejecuciones). El diagrama se abre con `#/d/<id>`; sin ruta la app es la de
-  un solo usuario. **Pendiente:** el resto de F5 (lista, «Nuevo», renombrar, borrar, invitar y roles), D1 (despliegue
-  y prueba con dos dispositivos reales) y el test de Realtime de S3.
+  un solo usuario. **Hecho después** (change `gestion-diagramas-minima`, con tope de 2,5 h para F5): la lista de
+  diagramas (`#/lista`), «Nuevo», «Compartir» (enlace de editor) y la aceptación por `#/i/<token>`, probados en el
+  navegador con dos usuarios. **Recortado de F5:** renombrar, borrar y `set_member_role` con su lista de miembros no
+  tienen interfaz (el backend los soporta y está probado); entrarán solo si queda tiempo bajo el tope. **Pendiente:** D1
+  (despliegue, «Site URL» de Auth para la confirmación del correo y prueba con dos dispositivos reales) y el test de
+  Realtime de S3.
 - Al abrir: primero se suscribe y guarda en espera lo que llegue; después carga el registro y aplica lo
   que esté en espera con secuencia posterior. La suscripción se da por hecha cuando llega el mensaje
   `system` de Postgres Changes con estado `ok`, no con `SUBSCRIBED`: en la medida, lo enviado entre los

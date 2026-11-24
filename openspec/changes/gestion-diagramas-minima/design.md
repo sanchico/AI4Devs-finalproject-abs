@@ -94,7 +94,15 @@ lleva 1,75 h y no 1,5 h.
 - [Un invitado nuevo no puede entrar porque la confirmación de correo del proyecto remoto no llega o redirige mal]
   → La tarea 1.1 lo comprueba antes de escribir código; si falla, se desactiva la confirmación en el panel de Auth
   o se prueba con «Auto confirm», y se anota en D1.
-- [`updated_at` no se mueve y la lista parece desordenada] → ver Decisión 4.
+- [`updated_at` no se mueve y la lista parece desordenada] → ver Decisión 4. **Comprobado en el remoto (24 nov):**
+  `apply_op` mueve `updated_at` (1,4 s después de crear, con una operación `setMeta`), así que la lista se ordena por
+  actividad real.
+- **Medido en el remoto (24 nov): `mailer_autoconfirm` es `false`.** Un invitado nuevo recibe «Cuenta creada: confirma
+  tu correo y entra» y no entra hasta confirmar. El correo de confirmación enlaza con la «Site URL» de Auth, que hoy no
+  es la app: hay que ponerla (y la URL de redirección) en la URL del despliegue al hacer D1, y antes de eso
+  conviene que el invitado abra otra vez el enlace de invitación a mano tras confirmar. **Sin comprobar con una cuenta
+  nueva y un buzón real** (enviaría un correo): lo hace el PO con una dirección propia. Con un usuario ya confirmado
+  (B), el flujo lista, enlace, aceptar y abrir está verificado en el navegador (`driver-gestion.cjs`).
 - [Un enlace de invitación es un secreto en una URL: queda en el historial del navegador y se reutiliza hasta que
   caduca a los 7 días] → es la regla ya fijada en S2; `location.replace` evita que «Atrás» lo reabra. La revocación
   queda fuera.
