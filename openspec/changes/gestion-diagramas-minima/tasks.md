@@ -1,7 +1,7 @@
 # Tasks
 
-Estimación del núcleo: 1,75 h (grupos 1 a 4), más 0,5 h del grupo 0, que no cuenta para el tope. **Tope duro de
-2,5 h para F5** (grupos 1 a 4 y los extras del grupo 5); ver `design.md`, decisión 9. Al terminar cada grupo se
+Estimación del núcleo: 2 h (grupos 1 a 4 y 4b), más 0,5 h del grupo 0, que no cuenta para el tope. **Tope duro de
+2,5 h para F5** (grupos 1 a 4, 4b y los extras del grupo 5); ver `design.md`, decisión 9. Al terminar cada grupo se
 apunta en esta lista el tiempo activo acumulado; si pasa de 2,5 h, se para y se documenta lo que falte. Los grupos 1
 y 2 siguen la política TDD del proyecto (primero los tests en rojo, después el código mínimo, sin editar los tests
 anteriores). Los grupos 3 y 4 son código de navegador, que no se puede probar en Node: cada tarea dice cómo se
@@ -34,6 +34,12 @@ grupos 0 y 4, Playwright (ver la skill `run-trazo-mermaid`).
 
 - [x] 4.1 Ampliar `.claude/skills/run-trazo-mermaid/driver-colaborativo.cjs` con el recorrido lista, «Nuevo», «Compartir» y aceptar: A crea un diagrama desde la lista, dibuja, copia el enlace, B lo abre, entra y ve lo de A, y B no ve los diagramas ajenos; verificar que termina en `OK` (con confirmación del PO, porque escribe en el remoto con las credenciales de A y B) y borrar los diagramas de prueba con `npm run preparar:diagrama -- --borrar <id>`.
 - [x] 4.2 Actualizar `CLAUDE.md` (rutas `#/lista` y `#/i/<token>`, `gestion-supabase.js` y `lista.js`, cómo probar) y `docs/PRD-MVP.md` (F5: núcleo hecho; renombrar, borrar y `set_member_role` según lo que entre, o «backend listo, interfaz pendiente»); verificar con `node --test "frontend/**/*.test.js"` en verde, y anotar el tiempo acumulado de F5 frente al tope.
+
+## 4b. La sesión fuera de la dirección (0,25 h)
+
+- [ ] 4b.1 Añadir en rojo a `frontend/test/ruta.test.js` la función `llevaSesion(hash)`: verdadera con `#access_token=abc&refresh_token=def&type=signup`, con solo `#refresh_token=x` y con solo `#access_token=x`; falsa con `#error=access_denied&error_code=otp_expired`, `#/lista`, `#/d/<uuid>`, `#/i/<64 hex>`, `''`, `#`, `undefined` y `#/otra?access_token=x` (no es un fragmento de parámetros); verificar que falla porque la función no existe.
+- [ ] 4b.2 Implementar `llevaSesion` en `frontend/ruta.js` y usarla al principio de `frontend/main.js` con `history.replaceState(null, '', location.pathname + location.search)`; verificar con `node --test "frontend/**/*.test.js"` en verde y, sirviendo `frontend/`, abriendo `/#access_token=a&refresh_token=b&type=signup` en el navegador real: la dirección queda sin fragmento, abre el ejemplo, no hay peticiones a Supabase ni errores, y `#/lista` y `#/otra` no cambian.
+- [ ] 4b.3 Anotar la regla en `CLAUDE.md` (módulo de rutas) y en `design.md` (Risks: el invitado entra con su contraseña tras confirmar); verificar releyéndolos.
 
 ## 5. Extras, solo si queda tiempo bajo el tope (fuera de este change hasta que se decida)
 

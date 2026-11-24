@@ -17,6 +17,9 @@ colabora sin script»:
 - **Ruta de invitación** (`#/i/<token>`): pide sesión si falta, acepta la invitación y abre el diagrama. Sin esta
   ruta el enlace copiado no serviría de nada.
 - Entrada a la lista desde el modo solitario (botón «Mis diagramas») sin cambiar lo que hace la app sin ruta.
+- **Sesión fuera de la dirección:** al volver del enlace de confirmación del correo, Auth deja `access_token` y
+  `refresh_token` en el fragmento de la URL; la app los ignora, pero se quedan en la barra y el historial. Se quitan al
+  arrancar. Se añadió tras probar con un invitado nuevo (sesión 11).
 - Un orden de trabajo y un tope: primero PR y flujo del invitado nuevo (el riesgo real), después el núcleo, después
   renombrar y borrar si queda tiempo, y `set_member_role` solo si aún sobra. **Tope duro de 2,5 h para F5 (sin contar
   la PR ni la prueba del invitado)**; lo que no entre se documenta como «backend listo, interfaz pendiente».
@@ -39,7 +42,8 @@ Corresponde al bloque F5 del PRD (HU-03) y, de rebote, a la prueba de D1 con un 
 
 ### Modified Capabilities
 - `user-session`: «Sin diagrama compartido no se pide sesión» pasa a decir que las rutas de la lista y de la
-  invitación también la piden; sin ruta o con una ruta desconocida sigue sin sesión ni red.
+  invitación también la piden; sin ruta o con una ruta desconocida sigue sin sesión ni red. Requisito nuevo: una
+  sesión nunca se queda en la dirección.
 
 ## Impact
 

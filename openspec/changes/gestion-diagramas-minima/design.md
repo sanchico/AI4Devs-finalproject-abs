@@ -75,6 +75,17 @@ token` (en la tablet, `http://<ip>:8000`; en producción, el dominio con HTTPS).
 solo el dueño, borrado), invitación no válida o caducada (el mismo texto para las dos, para no revelar nada) y lista
 que no carga.
 
+**10. Quitar la sesión de la dirección con `history.replaceState`, en lugar de pasar a PKCE.** Un `ruta.js` puro gana
+`llevaSesion(hash)` (verdadero si el fragmento, leído como parámetros, lleva `access_token` o `refresh_token`; un
+`#error=…` no cuenta) y `main.js` lo usa al arrancar para dejar la dirección sin fragmento antes de hacer nada más.
+`replaceState` no recarga ni dispara `hashchange`, y la app abre como solitaria, que es lo que ya hacía con ese hash.
+- *Alternativa descartada:* PKCE (`flowType: 'pkce'`). La URL llevaría un `?code=` de un solo uso, pero en la consulta, no
+  en el fragmento: llegaría al servidor que sirva la app y a sus registros, y exige además recoger el código y
+  canjearlo, con lo que la app pasaría a usar la sesión que hoy ignora. Más código y más superficie para lo mismo.
+- *Alternativa descartada:* dejar el token y avisar. No arregla el historial ni las capturas.
+- Consecuencia: la sesión del correo se pierde a propósito; el invitado entra con su correo y contraseña (el paso
+  que ya hacía).
+
 **9. Orden de trabajo y tope (decisión del consejo de la sesión 11).**
 
 | Orden | Pieza | Estimación | Regla |
