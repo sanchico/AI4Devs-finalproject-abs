@@ -98,11 +98,18 @@ lleva 1,75 h y no 1,5 h.
   `apply_op` mueve `updated_at` (1,4 s después de crear, con una operación `setMeta`), así que la lista se ordena por
   actividad real.
 - **Medido en el remoto (24 nov): `mailer_autoconfirm` es `false`.** Un invitado nuevo recibe «Cuenta creada: confirma
-  tu correo y entra» y no entra hasta confirmar. El correo de confirmación enlaza con la «Site URL» de Auth, que hoy no
-  es la app: hay que ponerla (y la URL de redirección) en la URL del despliegue al hacer D1, y antes de eso
-  conviene que el invitado abra otra vez el enlace de invitación a mano tras confirmar. **Sin comprobar con una cuenta
-  nueva y un buzón real** (enviaría un correo): lo hace el PO con una dirección propia. Con un usuario ya confirmado
-  (B), el flujo lista, enlace, aceptar y abrir está verificado en el navegador (`driver-gestion.cjs`).
+  tu correo y entra» y no entra hasta confirmar. **Probado a mano por el PO con una cuenta nueva y un buzón real:** el
+  correo («Confirm your email address») llega, y su enlace pasa por `/auth/v1/verify` y vuelve a la app con
+  `redirect_to=http://localhost:8000/`, es decir, la «Site URL» de Auth hoy es la del desarrollo local, y la sesión viaja
+  en el hash (`#access_token=…&refresh_token=…&type=signup`). La app lo trata como una ruta desconocida: abre el ejemplo
+  en modo solitario, sin error y sin recoger esa sesión (`detectSessionInUrl` está desactivado). El invitado vuelve a abrir
+  el enlace de invitación, entra con su correo y su contraseña, la invitación se acepta y acaba dentro del diagrama:
+  **el flujo funciona, con un paso manual** (reabrir el enlace tras confirmar).
+  → En D1 hay que poner en Auth la «Site URL» y la URL de redirección de la app desplegada (hoy solo funciona en la
+  máquina de desarrollo). Mejora fuera de este change: recordar el token de la invitación en `sessionStorage` y aceptarlo al
+  volver de confirmar, para que no haga falta reabrir el enlace. Los textos del correo están en inglés (plantillas de Auth).
+  Con un usuario ya confirmado (B), el flujo lista, enlace, aceptar y abrir también está verificado en el navegador
+  (`driver-gestion.cjs`).
 - [Un enlace de invitación es un secreto en una URL: queda en el historial del navegador y se reutiliza hasta que
   caduca a los 7 días] → es la regla ya fijada en S2; `location.replace` evita que «Atrás» lo reabra. La revocación
   queda fuera.

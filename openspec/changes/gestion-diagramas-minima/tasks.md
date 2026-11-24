@@ -11,7 +11,7 @@ grupos 0 y 4, Playwright (ver la skill `run-trazo-mermaid`).
 ## 0. Antes de escribir código: la PR y el invitado nuevo (0,5 h, fuera del tope)
 
 - [x] 0.1 Subir `feat/f4-cliente-colaborativo` y abrir la PR contra `develop` (pedir confirmación al PO: publica 22 commits); verificar que la PR existe con `gh pr view` y que no hay conflictos con `develop`.
-- [ ] 0.2 Con el script `preparar:diagrama` y un correo nuevo, recorrer en el remoto lo que hará un invitado: abrir `#/d/<id>` sin cuenta, crear la cuenta, confirmar el correo (o ver que el proyecto no lo exige) y volver al enlace; verificar que acaba dentro del diagrama o anotar en `design.md` (Risks) el motivo exacto del fallo y el ajuste de Auth que se haga (confirmación desactivada o URL de redirección). Comprobar también, con una operación guardada, que `diagrams.updated_at` cambia (decisión 4).
+- [x] 0.2 Con el script `preparar:diagrama` y un correo nuevo, recorrer en el remoto lo que hará un invitado: abrir `#/d/<id>` sin cuenta, crear la cuenta, confirmar el correo (o ver que el proyecto no lo exige) y volver al enlace; verificar que acaba dentro del diagrama o anotar en `design.md` (Risks) el motivo exacto del fallo y el ajuste de Auth que se haga (confirmación desactivada o URL de redirección). Comprobar también, con una operación guardada, que `diagrams.updated_at` cambia (decisión 4).
 
 ## 1. Rutas y textos (0,25 h)
 
