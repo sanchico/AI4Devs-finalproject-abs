@@ -2,9 +2,11 @@
 // Only used when the address is a shared diagram (#/d/<id>); without it the app is the single-user app it always was.
 // Everything that can be tested without a browser lives elsewhere (ruta.js, avisos.js, transporte-supabase.js, collab.js).
 import { parseRuta } from './ruta.js';
-import { textoAviso, textoModo, textoErrorApertura } from './avisos.js';
+import { textoAviso, textoModo, textoErrorApertura, textoGestion, AVISO_ENLACE_COPIADO, AVISO_ENLACE_MANUAL } from './avisos.js';
 import { createCollab } from './collab.js';
 import { crearTransporte } from './transporte-supabase.js';
+import { crearInvitacion, aceptarInvitacion } from './gestion-supabase.js';
+import { mostrarLista } from './lista.js';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
 import * as model from './model.js';
 import { $, update, renderLegend } from './render.js';
@@ -74,23 +76,88 @@ async function asegurarSesion(client) {
   });
 }
 
-// ---------- Opening ----------
-// Called by main.js when the address is not the single-user one.
-export async function iniciar({ toast }) {
-  if (ruta.tipo === 'invalida') { fijarModo('offline', 'La dirección del diagrama no es válida'); return; }
-  if (!window.supabase) { fijarModo('offline', 'No se pudo cargar la conexión con el servidor'); return; }
-
-  // detectSessionInUrl is off: the address hash is the route, and there is no magic link or OAuth here
+// ---------- Client and session, shared by the three addresses that need one ----------
+// detectSessionInUrl is off: the address hash is the route, and there is no magic link or OAuth here
+function crearCliente() {
   const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: { detectSessionInUrl: false } });
   client.auth.onAuthStateChange((_evento, sesion) => { if (sesion) client.realtime.setAuth(sesion.access_token); });
+  return client;
+}
 
-  fijarModo('loading', 'Entra para abrir el diagrama');
+async function entrar(client) {
   await asegurarSesion(client);
   $('salir').hidden = false;
   $('salir').addEventListener('click', async () => {
     await client.auth.signOut();
     location.hash = '';                               // a hash change reloads the page, in single-user mode
   });
+}
+
+// ---------- Sharing: an invitation as editor, as a link ----------
+function mostrarEnlace(enlace) {
+  const texto = $('enlaceTexto');
+  $('enlace').hidden = false;
+  texto.value = enlace;                               // the browser would not let us copy it: the user does it by hand
+  texto.focus(); texto.select();
+}
+
+function activarCompartir(client, toast) {
+  $('enlaceCerrar').addEventListener('click', () => { $('enlace').hidden = true; });
+  $('compartir').hidden = false;
+  $('compartir').addEventListener('click', async () => {
+    const boton = $('compartir');
+    boton.disabled = true;
+    try {
+      const token = await crearInvitacion(client, ruta.id);
+      const enlace = location.origin + location.pathname + '#/i/' + token;
+      try { await navigator.clipboard.writeText(enlace); toast(AVISO_ENLACE_COPIADO); }
+      catch { mostrarEnlace(enlace); toast(AVISO_ENLACE_MANUAL); }   // no clipboard on http://<ip>, for one
+    } catch (e) {
+      toast(textoGestion('compartir', e));
+    } finally {
+      boton.disabled = false;
+    }
+  });
+}
+
+// ---------- Opening ----------
+// Called by main.js when the address is not the single-user one.
+export async function iniciar({ toast }) {
+  if (ruta.tipo === 'invalida') { fijarModo('offline', 'La dirección del diagrama no es válida'); return; }
+  if (!window.supabase) { fijarModo('offline', 'No se pudo cargar la conexión con el servidor'); return; }
+
+  const client = crearCliente();
+  if (ruta.tipo === 'lista') return abrirLista(client);
+  if (ruta.tipo === 'invitacion') return aceptar(client, toast);
+  return abrirDiagrama(client, toast);
+}
+
+async function abrirLista(client) {
+  fijarModo('loading', 'Entra para ver tus diagramas');
+  await entrar(client);
+  fijarModo('loading', 'Mis diagramas');
+  await mostrarLista(client);
+}
+
+// An invitation link: sign in (or create the account) with the token still in the address, accept it and open the diagram.
+// `replace`, not `assign`: "Back" must not bring the link up again.
+async function aceptar(client, toast) {
+  fijarModo('loading', 'Entra para aceptar la invitación');
+  await entrar(client);
+  fijarModo('loading', 'Aceptando la invitación…');
+  try {
+    location.replace('#/d/' + await aceptarInvitacion(client, ruta.token));
+  } catch (e) {
+    const texto = textoGestion('aceptar', e);
+    fijarModo('offline', texto);
+    toast(texto);
+  }
+}
+
+async function abrirDiagrama(client, toast) {
+  fijarModo('loading', 'Entra para abrir el diagrama');
+  await entrar(client);
+  activarCompartir(client, toast);
 
   fijarModo('loading', textoModo({ mode: 'loading' }));
   const colab = createCollab({

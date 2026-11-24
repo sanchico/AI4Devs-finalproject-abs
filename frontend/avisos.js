@@ -36,3 +36,34 @@ export function textoErrorApertura(error) {
   if (error?.status === 410) return AVISOS.diagram_deleted;
   return SIN_CONEXION;
 }
+
+// ---------- Managing diagrams: the list, creating, sharing and accepting an invitation ----------
+export const AVISO_ENLACE_COPIADO = 'Enlace de invitación copiado';
+export const AVISO_ENLACE_MANUAL = 'Copia el enlace de invitación';
+
+// What went wrong with an action: `error` is what gestion-supabase.js threw (its `status`, or none when the server never answered).
+// Accepting says the same for an unknown and an expired invitation, so the answer does not reveal which one it was.
+export function textoGestion(accion, error) {
+  const status = error?.status;
+  switch (accion) {
+    case 'crear': return 'No se pudo crear el diagrama';
+    case 'lista': return 'No se pudo cargar tu lista de diagramas';
+    case 'compartir':
+      if (status === 403) return 'Solo el dueño puede invitar';
+      if (status === 410) return AVISOS.diagram_deleted;
+      return 'No se pudo crear el enlace de invitación';
+    case 'renombrar':
+      if (status === 422) return 'El título debe tener entre 1 y 200 caracteres';
+      if (status === 403) return 'Tu rol no permite renombrar este diagrama';
+      if (status === 410) return AVISOS.diagram_deleted;
+      return 'No se pudo renombrar el diagrama';
+    case 'borrar':
+      if (status === 403) return 'Solo el dueño puede borrar el diagrama';
+      return 'No se pudo borrar el diagrama';
+    case 'aceptar':
+      if (status === 404) return 'El enlace de invitación no es válido o caducó';
+      if (status === 410) return AVISOS.diagram_deleted;
+      return SIN_CONEXION;
+    default: return SIN_CONEXION;
+  }
+}

@@ -66,6 +66,23 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   y bloquea la barra y el lienzo cuando no se puede editar. `config.js` lleva la URL y la clave pública del remoto (la
   barrera es la RLS); supabase-js 2.119.0 va por CDN con integridad (la UMD, que define `window.supabase`).
   `input.js` recibe `locked()`, comprueba el resultado de cada gesto y lee la posición final de un nodo arrastrado por su id.
+- Gestión de diagramas (resto de F5, change `gestion-diagramas-minima`): `ruta.js` reconoce también `#/lista` (los
+  diagramas del usuario) y `#/i/<64 hex>` (aceptar una invitación; otro token es `invalida`); las dos piden sesión, y sin
+  ruta o con una desconocida la app sigue sin sesión ni red. `llevaSesion(hash)` (también en `ruta.js`) detecta el
+  fragmento `#access_token=…&refresh_token=…` con el que vuelve el enlace de confirmación del correo, y `main.js` lo borra
+  de la dirección con `history.replaceState` al arrancar (la app no usa esa sesión: el invitado entra con su contraseña).
+  `gestion-supabase.js` (sin DOM, cliente inyectado; lo prueba
+  `gestion-supabase.test.js` con el cliente falso, que ahora admite `is()`) hace `listarDiagramas` (los no borrados, por
+  `updated_at` descendente; la RLS filtra los del miembro), `crearDiagrama`, `crearInvitacion` (siempre como editor) y
+  `aceptarInvitacion`; sus errores llevan `status` y el que no lo lleva es una conexión perdida. `lista.js` (con DOM) pinta
+  la lista con `textContent` y el botón «Nuevo» (desactivado mientras crea); «Compartir» copia el enlace
+  `<origen>#/i/<token>` (si no hay portapapeles, lo muestra) y solo el dueño puede (403 → «Solo el dueño puede invitar»);
+  aceptar entra con `location.replace` a `#/d/<id>`. Los textos están en `avisos.js` (`textoGestion`). Cada fila de la lista abre, «Renombrar»
+  (`prompt()`; se guarda como `setMeta` con `apply_op`, el cliente valida 1 a 200 unidades UTF-16 y no solo blancos, y un
+  editor también puede) y «Borrar» (`confirm()`; `delete_diagram`, borrado lógico, solo el dueño). **Recortado con
+  tope de 2,5 h (decisión de la sesión 11):** `set_member_role` y la lista de miembros no tienen interfaz; el backend
+  los soporta y está probado, y tampoco hay botón de restaurar. En el remoto Auth exige confirmar el correo: la «Site URL» de Auth debe ser la de la app
+  desplegada (D1).
 - `render.js` (lienzo, vista previa Mermaid, leyenda), `input.js` (Pointer Events: `pen` dibuja, `touch`
   mueve, ratón configurable; toque = editar etiqueta) y `main.js` (arranque, barra de herramientas, aviso).
 - `test/`: `baseline.test.js` fija el código Mermaid del ejemplo y la clasificación de trazos sintéticos;

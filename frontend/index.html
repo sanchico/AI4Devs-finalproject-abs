@@ -23,6 +23,8 @@
   <button class="btn" id="mode" title="Solo afecta al ratón: con lápiz siempre se dibuja y con el dedo siempre se mueve">Ratón: dibuja</button>
   <span class="spacer"></span>
   <span class="estado" id="estado" role="status" aria-live="polite" hidden></span>
+  <button class="btn" id="compartir" hidden title="Crea un enlace de invitación como editor y lo copia">Compartir</button>
+  <button class="btn" id="misDiagramas" title="Tus diagramas compartidos (pide entrar)">Mis diagramas</button>
   <button class="btn" id="salir" hidden>Salir</button>
   <button class="btn" id="undo">Deshacer</button>
   <button class="btn" id="clear">Limpiar</button>
@@ -72,6 +74,30 @@
       <button class="btn" id="loginCrear" type="button">Crear cuenta</button>
     </div>
   </form>
+</div>
+
+<div class="login" id="lista" hidden>
+  <div class="login-card lista-card">
+    <h2>Mis diagramas</h2>
+    <div class="login-btns">
+      <select id="listaTipo" aria-label="Tipo de diagrama nuevo">
+        <option value="flow">Flujo</option>
+        <option value="state">Estados (UML)</option>
+      </select>
+      <button class="btn on" id="listaNuevo" type="button">Nuevo</button>
+    </div>
+    <p class="login-msg" id="listaMsg" role="status"></p>
+    <ul class="lista-items" id="listaItems"></ul>
+  </div>
+</div>
+
+<div class="login" id="enlace" hidden>
+  <div class="login-card">
+    <h2>Enlace de invitación</h2>
+    <p class="login-msg" style="color:var(--ink-2)">Cópialo y envíaselo a quien quieras invitar como editor.</p>
+    <input id="enlaceTexto" type="text" readonly aria-label="Enlace de invitación">
+    <div class="login-btns"><button class="btn" id="enlaceCerrar" type="button">Cerrar</button></div>
+  </div>
 </div>
 
 <!-- Al cambiar de versión de supabase-js hay que cambiar también el hash `integrity`:

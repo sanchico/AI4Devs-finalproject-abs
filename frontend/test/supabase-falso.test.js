@@ -79,3 +79,12 @@ test('un canal guarda sus manejadores y el test controla los estados y los mensa
   f.removeChannel(canal);
   assert.equal(f.canalesQuitados.length, 1);
 });
+
+test('is filtra por nulo (también las filas sin la columna) y la consulta recuerda columnas, filtros y orden', async () => {
+  const f = new SupabaseFalso({ tablas: { diagrams: [
+    { id: 'a', deleted_at: null, updated_at: 1 }, { id: 'b', deleted_at: '2026-11-24', updated_at: 2 }, { id: 'c', updated_at: 3 },
+  ] } });
+  const r = await f.from('diagrams').select('id, updated_at').is('deleted_at', null).order('updated_at', { ascending: false });
+  assert.deepEqual(r.data.map(x => x.id), ['c', 'a']);
+  assert.deepEqual(f.consultas[0], { tabla: 'diagrams', columnas: 'id, updated_at', filtros: {}, nulos: { deleted_at: null }, orden: { columna: 'updated_at', ascendente: false }, rango: null });
+});

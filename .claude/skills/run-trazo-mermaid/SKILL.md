@@ -130,6 +130,28 @@ owner draws; an unknown or foreign diagram says "No tienes acceso a este diagram
 single-user mode; no console errors. Prints `OK` or `FALLO` and exits 0 / 1. Screenshots `10-A-dibuja.png`,
 `11-B-ve.png` and `12-lector.png` go to the output directory.
 
+### Diagram management (`driver-gestion.cjs`)
+
+A third driver, same rules (**writes to the remote project**, ask the owner first, same env file and the same two users),
+covers `#/lista`, «Nuevo», «Compartir» and `#/i/<token>`:
+
+```bash
+NODE_PATH="$T/node_modules" node --env-file=supabase/.env.remoto \
+  .claude/skills/run-trazo-mermaid/driver-gestion.cjs http://localhost:8000 "$T"
+```
+
+A creates a diagram whose title is `<img src=x onerror=alert(1)>` (the list must show it as text), opens the list (it asks
+to sign in first), makes a State diagram with «Nuevo», draws, clicks «Compartir» (the link lands in the clipboard) and makes
+a second diagram that it does not share. B counts its list, opens the link, ends up inside A's diagram as an editor and sees
+what A drew; B's list gains exactly one diagram, repeating the link adds nothing, A's private diagram does not open for B,
+B's «Compartir» says only the owner can, and `#/i/xyz` warns without calling the server. Then, on the list: cancelling the
+rename prompt sends nothing, a 201-character or blank title warns without calling the server, A renames a diagram of hers,
+B (an editor) renames A's one with an HTML title (shown as text) and A sees it after reloading, B's «Borrar» says only the
+owner can, A cancels and then confirms the delete, and the diagram leaves both lists. Prompts and confirms are answered
+from a queue per user (`u.cola`); an alert counts as a bug. It deletes everything it created.
+Prints `OK` or `FALLO` and exits 0 / 1. It does **not** cover a brand-new account (that needs a real mailbox: the remote
+requires confirming the email).
+
 To prepare a diagram by hand (for two real devices): `npm run preparar:diagrama -- --rol editor` prints the link;
 `npm run preparar:diagrama -- --borrar <id>` deletes it. The link uses `http://localhost:8000` unless you pass `--url`
 (for the tablet: `--url http://<ip-del-pc>:8000`).
