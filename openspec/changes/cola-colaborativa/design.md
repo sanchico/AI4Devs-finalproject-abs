@@ -129,9 +129,10 @@ guardan sin aplicar.
 
 Modos: `loading`, `edit`, `readonly` (con `reason`: `role`, `deleted`, `no-access`) y `offline` (con `reason`:
 `gap`, `closed`, `network`, `load`). `onMode({mode, reason})` y `onNotice(key)` son funciones que pasa quien crea la
-cola; el texto de los avisos es del change siguiente. En `readonly` y `offline` la cola descarta lo que quede
-pendiente, pero sigue aplicando el registro mientras el canal esté abierto (un lector ve lo que escriben los
-editores); en `offline` por hueco o cierre deja de aplicar.
+cola; el texto de los avisos es del change siguiente. En `readonly` por un rechazo (403, 404, 410) la cola
+descarta lo pendiente y sigue aplicando el registro mientras el canal esté abierto (un lector ve lo que escriben
+los editores). En `offline` deja de enviar y de aplicar y **conserva el diagrama que se veía, con lo pendiente
+incluido**: no hay nada mejor que enseñar y el aviso pide recargar.
 
 - *Descartado: reintentar sin límite.* Bloquea el diagrama sin avisar si el servidor no responde.
 - *Descartado: no reintentar.* Un parpadeo de la red dejaría al usuario en solo lectura; el reintento es seguro
