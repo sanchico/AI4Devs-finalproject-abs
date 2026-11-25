@@ -12,5 +12,5 @@ test('un usuario nuevo tiene sesión y su propio id', async () => {
 
 test('el cliente anónimo no tiene sesión', async () => {
   const { data } = await anonimo().auth.getSession();
-  assert.notEqual(data.session, null); // MUTACIÓN TEMPORAL (tarea 1b.4): debe fallar en el CI
+  assert.equal(data.session, null);
 });
