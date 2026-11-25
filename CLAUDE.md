@@ -136,7 +136,10 @@ Prueba en el navegador real con la skill `run-trazo-mermaid`.
 Tests del backend (hace falta Docker en marcha; el frontend no instala nada, esto sí): `npm install`,
 `npx supabase start` (la primera vez descarga imágenes) y `npm run test:backend`. `npx supabase db reset`
 vuelve a aplicar las migraciones desde cero y `npx supabase stop` apaga el entorno. Los tests apuntan solo al
-entorno local.
+entorno local. El CI (`.github/workflows/ci.yml`) ejecuta los tests del frontend y los del backend en cada PR contra
+`develop` y en cada push a `develop`, con un job por conjunto: `npm ci`, `npx supabase start -x …` (sin Storage,
+Studio ni los demás servicios que los tests no usan) y `npm run test:backend`. No usa secretos y es informativo: no
+bloquea la publicación.
 
 Proyecto remoto (adelantado de D1 a la sesión 9): se enlaza con `npx supabase login` y
 `npx supabase link --project-ref <ref>`, y las migraciones se suben con `npx supabase db push`. La contraseña de la
@@ -152,6 +155,22 @@ crea un diagrama, lo comparte con B y escribe el enlace `http://localhost:8000/#
 `-- --url http://<ip>:8000` para la tablet y `-- --borrar <id>` para borrarlo). Con `frontend/` servido, se abre ese enlace
 en dos navegadores (dos usuarios) o se ejecuta `driver-colaborativo.cjs` de la skill `run-trazo-mermaid`, que lo recorre
 con dos contextos de Playwright.
+
+## Despliegue
+URL pública: `https://sanchico.github.io/AI4Devs-finalproject-abs/` (GitHub Pages, sin dominio propio). La publica
+`.github/workflows/pages.yml` en cada push a `develop` (o a mano con «Run workflow»): primero
+`node --test "frontend/**/*.test.js"` y, solo si pasa, sube `frontend/` sin `frontend/test/`. Al entregar, el
+disparador pasa de `develop` a `main`.
+
+Pasos manuales (el agente no puede hacerlos: no hay claves de administración en el repositorio):
+- GitHub: Settings → Pages → Source «GitHub Actions», y Settings → Environments → `github-pages` → permitir la rama
+  `develop` (si solo admite la rama por defecto, el despliegue falla por la protección del entorno).
+- Supabase: Authentication → URL Configuration → «Site URL» `https://sanchico.github.io/AI4Devs-finalproject-abs/`
+  (con la barra final) y, en las redirecciones, esa misma URL y `http://localhost:8000/`. `signUp` no pasa
+  `emailRedirectTo`, así que el enlace de confirmación del correo vuelve a la «Site URL».
+
+La app funciona bajo el subdirectorio porque no hay rutas absolutas y los enlaces salen de `location.pathname`. La
+caché de Pages es de 10 minutos: justo después de publicar, recargar sin caché si algo no cuadra.
 
 ## Hoja de ruta (ideas, por orden aproximado)
 1. ~~Separar `app.js` en módulos ES~~ (hecho en el cambio `modularizar-frontend`).

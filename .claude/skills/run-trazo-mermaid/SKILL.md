@@ -155,3 +155,10 @@ requires confirming the email).
 To prepare a diagram by hand (for two real devices): `npm run preparar:diagrama -- --rol editor` prints the link;
 `npm run preparar:diagrama -- --borrar <id>` deletes it. The link uses `http://localhost:8000` unless you pass `--url`
 (for the tablet: `--url http://<ip-del-pc>:8000`).
+
+### Against the deployed app
+
+Both drivers take the base URL as their first argument, so they also run against GitHub Pages: pass
+`https://sanchico.github.io/AI4Devs-finalproject-abs` (with the subdirectory; a trailing slash is stripped). Nothing
+needs serving locally. `driver-gestion.cjs` then also checks that «Compartir» copies a link that starts with that URL,
+subdirectory included. For a link by hand, `npm run preparar:diagrama -- --url <the same URL>`.
