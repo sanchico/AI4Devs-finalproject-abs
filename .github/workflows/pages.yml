@@ -1,0 +1,52 @@
+# Publica frontend/ en GitHub Pages cuando se integra en develop, solo si pasan los tests del frontend.
+# Change despliegue-github-pages (D1): decisiones 1 a 7 de su design.md. Los tests del backend van en ci.yml y no
+# bloquean esta publicación. Al entregar, el disparador pasa de develop a main.
+name: Pages
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+# Dos pushes seguidos no se pisan a mitad de despliegue ni cancelan uno que ya publica.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # Sin npm install: los tests del frontend no tienen dependencias.
+      - run: node --test "frontend/**/*.test.js"
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+      # Solo lo que usa el navegador: fuera los tests y las muestras de trazos.
+      - run: |
+          mkdir _site
+          cp -r frontend/. _site
+          rm -rf _site/test
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v5
