@@ -116,7 +116,11 @@ Alternativa descartada: solo el backend en `ci.yml`; entonces una PR no mostrar�
 `supabase/setup-cli`, para no tener dos versiones. Los tests necesitan base de datos, Auth, PostgREST, Realtime y la
 pasarela; se excluyen con `-x` al menos Studio, imgproxy, Storage, edge-runtime y los de logs, y la lista exacta se
 fija al implementar con `npx supabase start --help` y la primera ejecución. `supabase start` aplica las migraciones
-desde cero, que es lo que pide la spec. Alternativas descartadas: *`supabase db start` solo* (no arranca Auth ni
+desde cero, que es lo que pide la spec. **Lista fijada (26 nov):** `-x
+storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor` (nombres de `npx supabase
+start --help` en la 3.2.0); quedan la base de datos, gotrue, realtime, postgrest y kong. Por decisión del PO no se
+probó antes en local (Docker parado) sino en la PR #15: aplicó las 6 migraciones y pasó los 146 tests de los 13
+archivos, sin saltados, con el job entero en 1 min 39 s. Alternativas descartadas: *`supabase db start` solo* (no arranca Auth ni
 Realtime, que los tests usan); *cachear las imágenes de Docker* (ahorra un minuto a cambio de complejidad; se
 reconsidera si el job pasa de 8 minutos).
 
@@ -124,8 +128,9 @@ reconsidera si el job pasa de 8 minutos).
 
 - **[El entorno `github-pages` solo admite desplegar desde la rama por defecto]** Al activar Pages con Actions,
   GitHub crea el entorno con una regla de ramas que puede dejar fuera `develop` y el despliegue falla con un
-  mensaje de protección de entorno → paso manual 9a: añadir `develop` a las ramas permitidas. Es de memoria y se
-  confirma en el primer despliegue.
+  mensaje de protección de entorno → paso manual 9a: añadir `develop` a las ramas permitidas. **Confirmado el 26
+  nov:** el entorno se creó con una regla de ramas propia; el PO añadió `develop` y `gh api
+  …/environments/github-pages/deployment-branch-policies` devuelve `develop` y `main`.
 - **[Caché de 10 minutos de GitHub Pages]** Justo después de desplegar pueden mezclarse módulos ES de dos
   versiones y la app romper unos minutos → se acepta para el curso; si molesta, recargar sin caché. No se
   versionan los módulos con `?v=` para no tocar `frontend/`.
@@ -139,6 +144,8 @@ reconsidera si el job pasa de 8 minutos).
 - **[`realtime.test.js` intermitente en el ejecutor]** Sus esperas están pensadas para una máquina local; en un
   ejecutor compartido y recién arrancado pueden quedarse cortas → no bloquea nada (decisión 11); si falla de forma
   intermitente, se mira la salida y se sube la espera de ese test con su motivo, sin desactivarlo (política TDD).
+  Visto en la PR #15: sus dos tests consultan el catálogo (qué tabla y qué eventos publica Realtime), no tiempos de
+  entrega, así que el riesgo es bajo hasta que S3 añada pruebas de suscripción reales.
 - **[`supabase start` lento o roto en el ejecutor]** La primera descarga de imágenes y el arranque pueden llevar
   varios minutos, o fallar por un puerto o una imagen → `timeout-minutes` en el job y la tarea de comprobarlo en una
   PR real antes de dar el grupo por hecho.

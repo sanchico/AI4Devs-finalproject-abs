@@ -16,8 +16,8 @@ sesión, el proyecto remoto con los usuarios A y B de la medida (`supabase/.env.
 ## 1b. El CI (0,5 h)
 
 - [x] 1b.1 Escribir `.github/workflows/ci.yml` según las decisiones 11 a 14: disparadores `pull_request` y `push` contra `develop`, `permissions: contents: read`, sin secretos; job `frontend` (Node 22, `node --test "frontend/**/*.test.js"`) y job `backend` sin `needs` entre ellos (Node 22, `npm ci`, `npx supabase start -x …`, `npm run test:backend`, `timeout-minutes`); verificar que el archivo no usa `pull_request_target` ni `secrets.` (`grep` vacío) y que ningún job de `pages.yml` depende de él.
-- [ ] 1b.2 Fijar la lista de servicios excluidos: comprobar con `npx supabase start --help` los nombres que admite `-x` en la 3.2.0 y, en local con Docker, que `npx supabase stop` seguido de `npx supabase start -x <lista>` y `npm run test:backend` pasan entero (13 archivos); anotar la lista en `design.md` (decisión 14).
-- [ ] 1b.3 Comprobarlo en la PR real (tras 3.1): las ejecuciones `frontend` y `backend` aparecen por separado en la PR y acaban en verde (`gh pr checks`); anotar la duración del job `backend`. Si `realtime.test.js` falla por tiempos, anotarlo en `design.md` (Risks) y ajustar su espera con su motivo, sin desactivarlo.
+- [x] 1b.2 Fijar la lista de servicios excluidos: comprobar con `npx supabase start --help` los nombres que admite `-x` en la 3.2.0 y, en local con Docker, que `npx supabase stop` seguido de `npx supabase start -x <lista>` y `npm run test:backend` pasan entero (13 archivos); anotar la lista en `design.md` (decisión 14).
+- [x] 1b.3 Comprobarlo en la PR real (tras 3.1): las ejecuciones `frontend` y `backend` aparecen por separado en la PR y acaban en verde (`gh pr checks`); anotar la duración del job `backend`. Si `realtime.test.js` falla por tiempos, anotarlo en `design.md` (Risks) y ajustar su espera con su motivo, sin desactivarlo.
 - [ ] 1b.4 Comprobar el escenario «Un test del backend falla»: en un commit temporal de la rama, cambiar una aserción de un test del backend para que falle, ver que el job `backend` queda en rojo con su salida y que `frontend` sigue en verde, y revertir el commit; verificar con `gh pr checks` antes y después.
 
 ## 2. Documentación (0,25 h)
@@ -28,8 +28,8 @@ sesión, el proyecto remoto con los usuarios A y B de la medida (`supabase/.env.
 
 ## 3. Pasos manuales del PO y primer despliegue (0,25 h)
 
-- [ ] 3.1 Subir la rama `feat/d1-despliegue` y abrir la PR contra `develop` (pedir confirmación al PO antes de publicar); verificar con `gh pr view` que existe y que no tiene conflictos.
-- [ ] 3.2 El PO activa Pages (Settings → Pages → Source «GitHub Actions») y permite `develop` en Settings → Environments → `github-pages`; verificar con `gh api repos/sanchico/AI4Devs-finalproject-abs/pages` que devuelve la configuración y con `gh api repos/sanchico/AI4Devs-finalproject-abs/environments/github-pages` las ramas permitidas.
+- [x] 3.1 Subir la rama `feat/d1-despliegue` y abrir la PR contra `develop` (pedir confirmación al PO antes de publicar); verificar con `gh pr view` que existe y que no tiene conflictos.
+- [x] 3.2 El PO activa Pages (Settings → Pages → Source «GitHub Actions») y permite `develop` en Settings → Environments → `github-pages`; verificar con `gh api repos/sanchico/AI4Devs-finalproject-abs/pages` que devuelve la configuración y con `gh api repos/sanchico/AI4Devs-finalproject-abs/environments/github-pages` las ramas permitidas.
 - [ ] 3.3 Fusionar la PR (la fusiona el PO) y vigilar la ejecución con `gh run watch`; verificar que `test` y `deploy` acaban en verde y que `curl -sI https://sanchico.github.io/AI4Devs-finalproject-abs/` da 200. Si el despliegue falla por la protección del entorno, anotar el motivo en `design.md` (Risks) y repetir 3.2.
 - [ ] 3.4 El PO pone en Supabase (Authentication → URL Configuration) la «Site URL» `https://sanchico.github.io/AI4Devs-finalproject-abs/` y las redirecciones con esa URL y `http://localhost:8000/`; verificar en el punto 4.3.
 
