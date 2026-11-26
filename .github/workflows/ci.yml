@@ -1,0 +1,42 @@
+# Integración continua: tests del frontend y del backend en cada PR contra develop y en cada push a develop.
+# Change despliegue-github-pages: decisiones 11 a 14 de su design.md. Es informativo: no bloquea la publicación de
+# pages.yml (el backend no se despliega desde aquí; las migraciones se suben a mano con db push).
+# Sin secretos ni permisos de escritura, por eso puede correr con pull_request (nunca pull_request_target).
+name: CI
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node --test "frontend/**/*.test.js"
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      # La CLI de Supabase del package-lock.json: la misma versión que en local.
+      - run: npm ci
+      # Aplica las migraciones sobre una base vacía. Los tests usan la base de datos, Auth, PostgREST y Realtime
+      # (a través de kong); el resto de servicios no se arranca.
+      - run: npx supabase start -x storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - run: npm run test:backend
+      - if: always()
+        run: npx supabase stop --no-backup

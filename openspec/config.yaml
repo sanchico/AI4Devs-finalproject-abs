@@ -18,8 +18,12 @@ context: |
     fijo); quien no es miembro recibe cero filas; claves de servicio fuera del repo.
   Fuera de alcance del MVP: tipos nuevos de diagrama, pan/zoom, cursores remotos,
   presencia, reconexión automática, instantáneas, Edge Functions, edición offline
-  con fusión, historial, IA de visión, CI. El backend en Java
+  con fusión, historial, IA de visión. El backend en Java
   (docs/PRD-backend-java.md) es una mejora para después de la entrega.
+  CI: solo hay dos workflows (change despliegue-github-pages): pages.yml publica
+  el frontend tras sus tests y ci.yml prueba frontend y backend en cada PR, de
+  forma informativa. Siguen fuera el lint, las vistas previas por PR y el
+  despliegue automático del backend.
 
 rules:
   proposal:

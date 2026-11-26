@@ -2186,3 +2186,195 @@ propón colaboracion-en-la-app
 - **Proyección:** F5 (≈3 h) + D1 (0,5 h) + S3 (≈0,75 h) + P2 (3 h) son unas 7,25 h, o sea unas 32,25 h en total. Cabe en 33 h y en dos días a 6 h, pero sin margen: hay que proteger P2.
 
 **Horas:** 2,5 (acumulado 25,0 h de 33). El PRD preveía 22,25 h tras la sesión 10: vamos 2,75 h por encima, pero F4 entero (servidor, cola y app) quedó hecho en esta sesión.
+
+---
+
+## Sesión 11 · 24 nov 2026 · Resto de F5: el consejo decide el recorte y el change `gestion-diagramas-minima` (lista, Nuevo, Compartir, invitaciones, renombrar y borrar)
+
+**Objetivo:** F5 (HU-03), que quedaba sin hacer tras la sesión 10 con unas 7,25 h pendientes entre F5, D1, S3 y P2 y sin margen. Decidir qué entra y qué no, y construirlo de modo que un usuario real cree, comparta y colabore sin el script `preparar:diagrama`.
+
+**Fase del ciclo de vida:** tickets de trabajo, arquitectura y seguridad (el token de sesión en la URL), y pull request.
+
+### Prompts
+
+**Prompt 1: Recortar F5 (primer consejo)**
+
+```
+/llm-council discute el punto 1 Recortar F5
+```
+
+- **Qué hizo el agente:** leyó el PRD (criterios de terminado y F5), enmarcó la pregunta con las horas (25,0 h gastadas, 7,25 h pendientes) y lanzó cinco asesores en paralelo, luego cinco revisiones anónimas. Veredicto: ordenar por valor y no recortar a ciegas; «Nuevo + lista mínima + copiar enlace» es el núcleo, `set_member_role` se corta, renombrar y borrar son baratos pero no esenciales, D1 y S3 no se tocan y P2 baja a 1,5 h. La revisión sacó lo que ningún asesor había dicho: el invitado nuevo exige sesión y confirmar el correo, y faltaba un plan B para D1.
+- **Resultado:** el veredicto en el chat; sin cambios en el repo.
+- **Impacto:** cambia el orden de F5 y fija el riesgo real (el invitado nuevo) antes de tocar código.
+
+**Prompt 2: La pregunta que cuestiona la premisa**
+
+```
+/llm-council ¿consideras realmente necesario recortar F5?
+```
+
+- **Qué hizo el agente:** repitió el consejo con la cuenta delante (25 + 7,25 = 32,25 de 33: sin recortar nada cabe por 0,75 h). Los asesores y los revisores coincidieron en que ese margen es ficticio por el historial de desvíos (F1 5,25 h frente a 3, la sesión 4 +2,25 h, la sesión 10 +2,75 h) y porque la suma no incluye bitácora, PR ni entrega. El veredicto fue no decidir hoy el recorte sino el orden y el corte: PR e invitado nuevo primero, núcleo después, renombrar y borrar si queda tiempo, `set_member_role` el último, con un tope duro de 2,5 h. Dejó dos preguntas al PO: si las 33 h son un tope duro y qué puntúa la rúbrica.
+- **Resultado:** el orden y el tope, que se convierten en el diseño del change.
+- **Impacto:** la decisión queda justificada con datos del propio proyecto, no con una opinión.
+
+**Prompt 3: Proponer el change**
+
+```
+/opsx:propose con este orden y este tope
+```
+
+- **Qué hizo el agente:** leyó `colaboracion.js`, `ruta.js`, `transporte-supabase.js`, las migraciones de invitaciones, las políticas RLS y las specs existentes. Descubrió que **no existía ninguna ruta que aceptara invitaciones**: sin `#/i/<token>` el enlace copiado no habría llevado a ningún sitio. Creó el change con la capability nueva `diagram-management` y la modificación de `user-session`, con un diseño de nueve decisiones y tareas con un grupo 0 (PR e invitado nuevo) fuera del tope.
+- **Resultado:** `openspec/changes/gestion-diagramas-minima/` (proposal, 2 specs delta, design, tasks), validado con `--strict`.
+- **Impacto:** cierra el hueco que el PRD no veía (la ruta de aceptación) y deja el tope escrito.
+
+**Prompt 4: Aplicar, y la corrección del PO sobre la PR de F4**
+
+```
+/opsx:apply
+```
+
+Respuesta del PO al cuadro de preguntas del agente (la tarea 0.1 pedía subir la rama de F4 y abrir la PR):
+
+```
+La PR de f4 ya debería estar fusionada con develop. Compruebalo y en caso afirmativo crea una rama a partir de develop para f5 y trabaja desde allí
+```
+
+- **Qué hizo el agente:** comprobó con `gh pr list` que la PR #13 estaba fusionada en `develop`, creó `feat/f5-gestion-de-diagramas` desde `origin/develop` y quitó el upstream (la rama apuntaba a `develop`, y un `git push` habría escrito en ella). Implementó en TDD: rutas `#/lista` y `#/i/<token>` y los avisos (grupo 1), `gestion-supabase.js` con un cliente falso ampliado con `is()` (grupo 2), la lista, «Compartir» y la aceptación con la sesión compartida (grupo 3) y el driver de dos usuarios `driver-gestion.cjs` (grupo 4). Antes de escribir en el remoto pidió permiso («Sí, usa A y B del remoto»). El primer recorrido pasó entero; reforzó un check que llevaba `|| true`.
+- **Resultado:** 307 tests; commits `4283393` a `be9d59b`.
+- **Impacto:** el ciclo crear, compartir y colaborar funciona sin script, demostrado en el navegador real con dos usuarios.
+
+**Prompt 5: La prueba del invitado nuevo**
+
+```
+ayudame con el 0.2 que está pendiente ¿qué debo hacer exactamente?
+```
+
+- **Qué hizo el agente:** descartó crear él una cuenta de prueba (habría enviado un correo real). Comprobó sin enviar nada que el remoto exige confirmar el correo (`mailer_autoconfirm: false`, por el endpoint público de ajustes de Auth) y que `updated_at` sí cambia con una operación. Dio al PO los pasos exactos, con una ventana normal y otra privada.
+- **Resultado:** una lista de pasos y tres cosas que el PO debía contar.
+- **Impacto:** el único riesgo real de la demo lo prueba una persona con un buzón real.
+
+**Prompt 6: Resultado de la prueba (con un token vivo pegado)**
+
+```
+Ya lo he probado, el correo decía: Confirm your email address
+Follow the link below to confirm this email address and finish signing up. Creé la cuenta pulsando el enlace. En el paso 3 me llevó a una página con el diagrama de ejemplo. El enlace del correo es https://hbgoremyrsmwuukoglvy.supabase.co/auth/v1/verify?token=[omitido]&type=signup&redirect_to=http://localhost:8000/ y la URL en la barra del navegador pone 
+
+[bloque pegado omitido: la URL con un access_token y un refresh_token vivos de la cuenta de prueba]
+
+El paso 4 acabó dentro del diagrama.
+```
+
+- **Qué hizo el agente:** anotó en `design.md` el resultado (el correo llega, el redirect va a `http://localhost:8000/` porque la «Site URL» de Auth es la de desarrollo, la sesión vuelve en el fragmento de la URL y la app, que la ignora, abre el ejemplo; el invitado entra con su contraseña tras reabrir el enlace). No copió los tokens a ningún archivo y avisó al PO de que seguían vivos.
+- **Resultado:** tarea 0.2 cerrada; `9f6beac`.
+- **Impacto:** el flujo funciona con un paso manual, y aparece un fallo de seguridad menor.
+
+**Prompt 7: ¿Es seguro el token en la URL?**
+
+```
+He visto que el token aparece en la URL ¿esto es seguro?
+```
+
+- **Qué hizo el agente:** distinguió dos tokens. La sesión del correo viaja en el fragmento (no llega a servidores ni al `Referer`) pero queda en la barra, el historial y las capturas, y el `refresh_token` es lo delicado; propuso borrarla al arrancar. El token de invitación es un secreto portador por diseño de S2 (siete días, reutilizable, sin revocación), acotado por el fragmento y por `location.replace`.
+- **Resultado:** respuesta razonada y una propuesta de tarea.
+- **Impacto:** convierte una duda del PO en un requisito de seguridad.
+
+**Prompt 8: Añadir la tarea y hacerla**
+
+```
+Sí, añade la tarea al change
+```
+
+Después, `Sí, haz el grupo 4b`.
+
+- **Qué hizo el agente:** añadió a `user-session` el requisito «Una sesión nunca se queda en la dirección», la decisión de diseño 10 (`history.replaceState` frente a PKCE, con las alternativas descartadas) y el grupo 4b. En TDD: `llevaSesion(hash)` en `ruta.js` y su uso en `main.js`. Lo comprobó en el navegador sin tocar el remoto: la sesión sale de la dirección; `#error=…`, `#/lista` y `#/otra` no cambian.
+- **Resultado:** 309 tests; `0f0991d` y `072c3e3`.
+- **Impacto:** una sesión viva ya no se queda en el historial ni se pega por error en un chat.
+
+**Prompt 9: Subir la rama y abrir la PR**
+
+```
+sube la rama y abre la PR contra develop
+```
+
+- **Qué hizo el agente:** subió `feat/f5-gestion-de-diagramas` y abrió la PR #14 con la descripción de lo que entra, lo recortado, cómo se probó y el pendiente de D1.
+- **Resultado:** PR #14 abierta contra `develop`.
+- **Impacto:** F5 queda en revisión con su trazabilidad (change, tareas y pruebas).
+
+**Prompt 10: La decisión de corte**
+
+```
+Sí, la tarea 5.1 entra
+```
+
+- **Qué hizo el agente:** entendió que entraban renombrar y borrar y, siguiendo la propia tarea, añadió antes de escribir código sus requisitos (seis escenarios de renombrar y cuatro de borrar), la decisión de diseño 11 y el grupo 5. En TDD: `renombrarDiagrama` (guarda un `setMeta` con `apply_op`, valida 1 a 200 unidades UTF-16 sin transformar el texto) y `borrarDiagrama`, los textos de aviso y tres botones por fila. El driver (con una cola de respuestas para `prompt` y `confirm`) pasó a la primera. Para comprobar que detecta algo, subió a propósito el límite del cliente a 300 caracteres: fallaron el driver y los tests unitarios; restauró el archivo.
+- **Resultado:** 319 tests; `004f1e8` y `152ef53`.
+- **Impacto:** F5 queda completa salvo `set_member_role`, sin pasar del tope de 2,5 h según la estimación de abajo.
+
+**Prompt 11: Archivar**
+
+```
+/opsx:archive
+```
+
+Después, `Sí, haz el commit y sube la rama`.
+
+- **Qué hizo el agente:** comprobó 4 artefactos y 21 de 21 tareas, evaluó el delta (una capability nueva, una modificada) y, con la elección del PO («Sync now»), creó `openspec/specs/diagram-management/spec.md` (7 requisitos, 34 escenarios), modificó `user-session`, validó las 14 specs y movió el change a `archive/2026-11-24-gestion-diagramas-minima/`. Hizo el commit del archivado y subió la rama.
+- **Resultado:** `747f995`; la PR #14 llega a 10 commits.
+- **Impacto:** el archivado deja las specs principales al día con la funcionalidad.
+
+**Prompt 12: Limpieza del 0.2**
+
+```
+antes vamos con la limpieza del 0.2
+```
+
+- **Qué hizo el agente:** listó en solo lectura los diagramas de A y sus miembros, vio que solo uno seguía vivo («Prueba renombrar», con la cuenta de prueba del PO como editora), lo borró (borrado lógico, reversible) y comprobó que no quedaba ninguno vivo. Dijo que no podía borrar la cuenta de prueba (no hay clave de servicio en el repositorio, por diseño) y le explicó cómo hacerlo desde el panel de Auth.
+- **Resultado:** cero diagramas vivos de A; la cuenta queda por borrar.
+- **Impacto:** el remoto vuelve a un estado limpio sin saltarse la regla de la clave de servicio.
+
+**Prompt 13: La descripción de la PR**
+
+```
+Edita la deescripción del PR para reflejar que renombrar y borrar sí entran
+```
+
+- **Qué hizo el agente:** reescribió el título y el cuerpo de la PR #14 (renombrar y borrar entre lo que hace, 319 tests, la mutación comprobada, `set_member_role` como lo único recortado) y comprobó que el texto nuevo estaba y el viejo no.
+- **Resultado:** PR #14 al día.
+- **Impacto:** la PR cuenta lo que de verdad contiene.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2. Arquitectura | 3 (la ruta de aceptación que faltaba), 8 (`replaceState` frente a PKCE) y 10 (renombrar con `apply_op` desde la lista) |
+| 2.5 Seguridad | 6 y 7 (la sesión en la URL y el token de invitación como secreto portador) y 8 (quitarla al arrancar) |
+| 2.6 Tests | 4 (TDD, cliente falso, driver de dos usuarios) y 10 (mutación para comprobar que el test detecta) |
+| 6. Tickets de trabajo | 3, 8 y 10 (el change con su tope, la tarea añadida y la decisión de corte) |
+| 7. Pull Requests | 9, 11 y 13 (la PR #14: apertura, archivado y descripción) |
+| Nota sobre el proceso | 1 y 2 (el consejo cuestiona la premisa), 4 (la corrección del PO sobre la PR de F4) y 6 (un token vivo pegado) |
+
+### Correcciones
+
+- **Pedí abrir la PR de F4 sin comprobar que ya estaba fusionada (prompt 4).** Me fié del «pendiente» de la bitácora de la sesión 10 («22 commits sin subir y sin PR»), que ya estaba desfasado. El PO lo corrigió; comprobé con `gh pr list` que la PR #13 estaba fusionada y creé la rama desde `develop`.
+- **Dejé la rama nueva apuntando a `develop`.** `git switch -c … origin/develop` fija ese upstream, y un `git push` habría escrito en `develop`. Lo vi antes de empujar y quité el upstream.
+- **Marqué la tarea 3.2 como hecha antes de verificarla.** La verificación (el driver sin ruta y las rutas nuevas sin sesión) vino después y salió bien; el orden fue el equivocado.
+- **Cambié el texto «La dirección del diagrama no es válida» a «La dirección no es válida»** al reutilizarlo para las invitaciones, sin mirar que una spec archivada lo fija. Lo detecté con un `grep` antes de probar y lo restauré.
+- **Un check del driver llevaba `|| true`** y no comprobaba nada. Lo noté al revisar los resultados («pasa a la primera») y lo cambié por una comprobación real. El mismo recelo me llevó a hacer la mutación del límite de título.
+- **Usé `python` para editar un archivo y no existe** (es el alias de la tienda de Microsoft, que la skill ya avisa). Rehice el cambio con la herramienta de edición.
+- **Tres comandos de shell se rompieron por las comillas o por su tamaño:** uno escribió las tareas del grupo 4b con los acentos graves interpretados como sustitución de comandos (salió `ℹ tests 0` dentro del texto), otro lo denegó la comprobación de seguridad sin ejecutarse, y esta misma entrada de la bitácora falló la primera vez. Lo vi al listar el resultado y lo rehice con la herramienta de edición o con un archivo intermedio.
+- **Dije dos veces que los commits de renombrar y borrar estaban «solo en local»** sin comprobarlo con `git log origin/…..HEAD`. Al hacer el push el rango empezaba en `152ef53`: ya estaban en el remoto. Lo corregí al verlo.
+- **El PO pegó un `access_token` y un `refresh_token` vivos en el chat** (prompt 6). No es un fallo mío, pero el literal de la bitácora y el archivo de la sesión van a git: los he omitido de los dos, y le recomendé borrar la cuenta de prueba.
+
+### Pendiente
+
+- **Cuenta de prueba del 0.2:** borrarla en el panel de Supabase (Authentication → Users). Mientras exista, el `refresh_token` pegado sigue siendo válido.
+- **PR #14:** revisar y fusionar contra `develop`.
+- **D1 (0,5 h):** hosting estático con HTTPS; poner en Auth la «Site URL» y la URL de redirección de la app desplegada (hoy `http://localhost:8000/`); prueba con la tablet y el S Pen reales; repetir `npm run medir:latencia` con la app desplegada.
+- **S3 (≈0,75 h):** el test de Realtime con un usuario ajeno y con la clave pública sin sesión (criterio 7).
+- **P2 (3 h, recortable a 1,5 h):** el readme sigue dibujando un «Servidor de colaboración WebSocket» y pidiendo Java 21 y Maven; que abra con una captura y los pasos para probar con dos usuarios.
+- **`set_member_role` y su lista de miembros:** sin interfaz, en otro change y solo si quedan 0,5 h.
+- **Mejora fuera del change:** recordar el token de invitación al crear la cuenta y aceptarlo al volver de confirmar el correo, para ahorrar el paso manual.
+- **Preguntas del PO:** si las 33 h son un tope duro y qué puntúa la rúbrica del curso.
+- **Sin probar con el S Pen real** en la gestión de diagramas: el driver usa el ratón.
+
+**Horas:** 2,75 (acumulado 27,75 h de 33). El PRD preveía 26,25 h tras la sesión 11, así que quedan 1,5 h por encima del plan. Descontando el consejo y la propuesta (prompts 1 a 3, unos 25 min de reloj), F5 quedó en torno a 2,25 a 2,5 h, dentro del tope (estimación mía: el script no separa las partes). Quedan D1, S3 y P2: con P2 en 1,5 h son unas 2,75 h y el total llegaría a 30,5 h, con 2,5 h de margen.
