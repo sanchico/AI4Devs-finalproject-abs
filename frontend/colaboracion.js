@@ -1,7 +1,7 @@
 // ---------- Shared diagrams: session, opening, and the link between the model and the collaboration queue (browser only) ----------
 // Only used when the address is a shared diagram (#/d/<id>); without it the app is the single-user app it always was.
 // Everything that can be tested without a browser lives elsewhere (ruta.js, avisos.js, transporte-supabase.js, collab.js).
-import { parseRuta } from './ruta.js';
+import { parseRuta, urlDeVuelta } from './ruta.js';
 import { textoAviso, textoModo, textoErrorApertura, textoGestion, AVISO_ENLACE_COPIADO, AVISO_ENLACE_MANUAL } from './avisos.js';
 import { createCollab } from './collab.js';
 import { crearTransporte } from './transporte-supabase.js';
@@ -60,7 +60,9 @@ async function asegurarSesion(client) {
       botones.forEach(b => { b.disabled = true; });
       try {
         const credenciales = { email: $('loginCorreo').value.trim(), password: $('loginClave').value };
-        const r = crear ? await client.auth.signUp(credenciales) : await client.auth.signInWithPassword(credenciales);
+        const r = crear
+          ? await client.auth.signUp({ ...credenciales, options: { emailRedirectTo: urlDeVuelta(location) } })
+          : await client.auth.signInWithPassword(credenciales);
         if (r.error) { msg.textContent = r.error.message; return; }
         if (!r.data?.session) { msg.textContent = 'Cuenta creada: confirma tu correo y entra'; return; }
         panel.hidden = true;

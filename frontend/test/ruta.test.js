@@ -1,7 +1,7 @@
 // ruta.js: la dirección de la página decide si la app es solitaria o abre un diagrama compartido.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseRuta, llevaSesion } from '../ruta.js';
+import { parseRuta, llevaSesion, urlDeVuelta } from '../ruta.js';
 
 const ID = '3f2b8a1c-9d4e-4b7a-8c11-0a1b2c3d4e5f';
 const TOKEN = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';   // 64 hex, como el de create_invite
@@ -60,4 +60,26 @@ test('un error de Auth, una ruta y lo que no es texto no llevan sesión', () => 
   for (const hash of ['#error=access_denied&error_code=otp_expired', '#/lista', `#/d/${ID}`, `#/i/${TOKEN}`, '', '#', undefined, null, 42, '#/otra?access_token=x', '#xaccess_token=1', '#mi_refresh_token=1']) {
     assert.equal(llevaSesion(hash), false, String(hash));
   }
+});
+
+// urlDeVuelta: adónde vuelve el enlace de confirmación del correo (emailRedirectTo de signUp). Sin ella, Supabase usa el
+// Referer, que el navegador recorta al origen, y la vuelta pierde el subdirectorio de GitHub Pages.
+test('urlDeVuelta conserva el subdirectorio de la app desplegada', () => {
+  assert.equal(urlDeVuelta({ origin: 'https://sanchico.github.io', pathname: '/AI4Devs-finalproject-abs/' }),
+    'https://sanchico.github.io/AI4Devs-finalproject-abs/');
+});
+
+test('urlDeVuelta en local es la raíz del servidor', () => {
+  assert.equal(urlDeVuelta({ origin: 'http://localhost:8000', pathname: '/' }), 'http://localhost:8000/');
+});
+
+test('urlDeVuelta no lleva el # ni la consulta de la página (ni la ruta del diagrama ni el token de una invitación)', () => {
+  const loc = { origin: 'https://sanchico.github.io', pathname: '/AI4Devs-finalproject-abs/', hash: `#/i/${TOKEN}`, search: '?grabar' };
+  const url = urlDeVuelta(loc);
+  assert.equal(url, 'https://sanchico.github.io/AI4Devs-finalproject-abs/');
+  assert.ok(!url.includes(TOKEN) && !url.includes('#') && !url.includes('?'));
+});
+
+test('urlDeVuelta devuelve tal cual una ruta sin barra final', () => {
+  assert.equal(urlDeVuelta({ origin: 'https://ejemplo.test', pathname: '/app/index.html' }), 'https://ejemplo.test/app/index.html');
 });
