@@ -2546,3 +2546,114 @@ Al abrir el enlace https://sanchico.github.io/AI4Devs-finalproject-abs/#/d/16caa
 - **Preguntas del PO sin respuesta:** si las 33 h son un tope duro y qué puntúa la rúbrica del curso.
 
 **Horas:** 3,25 (acumulado 31 h de 33). El PRD preveía 29,25 h al acabar la sesión 12, con P2 incluido. Quedan S3 (0,75 h) y P2 (1,5 h en su versión recortada): son 33,25 h, 0,25 h por encima del tope. De las 3,25 h, unas 0,5 h fueron el CI del backend (decisión del PO) y otras 0,5 h el arreglo del correo de confirmación, que habría sido más corto si hubiera leído el código de Supabase al escribir la decisión 8 (cifras mías, el script no separa las partes). Habrá que recortar S3 o P2.
+
+---
+
+## Sesión 13 · 26 nov 2026 · S3: Realtime solo reparte las operaciones a los miembros (change `realtime-con-rls`)
+
+**Objetivo:** S3 (tests del backend), la parte que quedaba tras la auditoría de la sesión 10: probar con clientes reales que Realtime no entrega nada a quien no es miembro (criterio de terminado 7). P2 queda para después.
+
+**Fase del ciclo de vida:** tests (backend), seguridad (RLS en Realtime) y pull request.
+
+### Prompts
+
+**Prompt 1: Lo que quedaba de S3 y P2**
+
+```
+Al final de la sesion 12 decias que había pendiente partes de S3 y P2
+```
+
+- **Qué hizo el agente:** tras `/opsx:explore` había ofrecido seis direcciones y no puso S3 ni P2 delante. Leyó el final de la sesión 12 en la bitácora y las secciones S3, F4 y P2 del PRD. Resumió qué faltaba de cada una (el test de Realtime de S3, ≈0,75 h; el readme y `prompts.md` de P2, 1,5 h recortado), el problema de horas (31 h de 33; S3 + P2 = 33,25 h) y la pregunta sin responder: si 33 h son un tope duro.
+- **Resultado:** el PO decidió seguir con S3.
+- **Impacto:** deja claro el alcance de lo que se hace en esta sesión y que P2 no se recorta.
+
+**Prompt 2: Empezar por S3**
+
+```
+Vamos ya con S3. P2 creo que puede caber porque he ido documentando casi todo con los prompts y la bitácora
+```
+
+- **Qué hizo el agente:** como seguía en modo exploración, no escribió código. Leyó `realtime.test.js` (solo mira el catálogo), `medir-latencia.js` y `helpers/`, y propuso la forma del test: cuatro clientes sobre el mismo canal (dueño, miembro, ajeno, anónimo) y una operación centinela para demostrar el «no recibe nada» sin esperas fijas. Planteó cuatro decisiones: sacar `suscribir` a un helper, cubrir `apply_ops`, dejar fuera la pérdida de acceso con el canal abierto y evitar el falso verde de un canal que no llegó a unirse.
+- **Resultado:** se pasó a `/opsx:propose`.
+- **Impacto:** la decisión del centinela y la del falso verde acabaron en el diseño.
+
+**Prompt 3: Proponer el change**
+
+```
+/opsx:propose realtime-con-rls
+```
+
+- **Qué hizo el agente:** creó el change con `openspec new change` y escribió `proposal.md`, una delta de `diagram-storage` (requisito nuevo con cinco escenarios), `design.md` (seis decisiones con alternativas descartadas) y `tasks.md` (10 tareas en tres grupos, con la verificación de cada una). Pasó `openspec validate --strict`. Supuestos anotados: extraer el helper y cubrir `apply_ops`.
+- **Resultado:** artefactos completos, sin código.
+- **Impacto:** el change nace con una tarea (2.3) que rompe la política a propósito para comprobar que el test detecta la brecha.
+
+**Prompt 4: Comprobar la PR #17 y cambiar de rama**
+
+```
+la PR de esta rama es la #17 ya se ha completado. Compruebalo y  en caso positivo crea la rama feat que has propuesto y lleva los cambios allí
+```
+
+- **Qué hizo el agente:** `gh pr view 17` confirmó que estaba fusionada en `develop`. Creó `feat/s3-realtime-con-rls` desde `origin/develop` (los archivos sin seguimiento viajaron con el cambio de rama) y le quitó el upstream que git le había puesto (`origin/develop`) para que un push sin más no fuera a `develop`.
+- **Resultado:** rama creada y limpia salvo el change.
+- **Impacto:** cumple una rama por bloque del PRD.
+
+**Prompt 5: Commitear el change y aplicarlo**
+
+```
+commitea los artefactos del change y luego /opsx:apply
+```
+
+- **Qué hizo el agente:** commit `bab6f22`. Escribió el helper `supabase/tests/helpers/realtime.js` y lo importó desde `medir-latencia.js`, y escribió los dos tests (`apply_op` y `apply_ops`). Al ejecutarlos en el Supabase local fallaron: Realtime rechazaba la suscripción del anónimo con `invalid column for filter diagram_id`, porque valida el filtro contra las columnas que el suscriptor puede leer y `anon` no tiene `SELECT`. Probó los cuatro clientes por separado para ver cuál fallaba, paró y le explicó al PO que contradecía su spec y su decisión 4. El PO respondió «Sí, aplica la opción 1» (cambiar la spec: el anónimo debe ser rechazado). Entonces actualizó spec, diseño, propuesta y test; con la política `diagram_ops_lectura` abierta a `using (true)` el test falló (el ajeno recibió las operaciones) y `db reset` lo devolvió a verde. Cinco ejecuciones seguidas, backend 148/148, frontend 323/323, y `medir-latencia.js` en local con el mismo informe que antes.
+- **Resultado:** `75ba6fc`, `e76adfc`, `d0dbb88` y `14a3560`.
+- **Impacto:** el test de S3 detecta de verdad una brecha en la RLS, y descubrimos que Realtime niega la suscripción al anónimo, una barrera más fuerte que la que se había supuesto.
+
+**Prompt 6: ¿Por qué archivar después de fusionar?**
+
+```
+¿por qué propones opsx archive despues de fusionar?
+```
+
+- **Qué hizo el agente:** reconoció que no tenía una razón sólida: lo había escrito en el «Workflow follow-up» de `tasks.md` por inercia, copiando el caso de la #17. Señaló que `CLAUDE.md` dice que cada change se archiva dentro de la rama antes de proponer el siguiente, y recomendó archivar antes de la PR.
+- **Resultado:** el PO respondió que en el caso de la #17 hubo que hacer una PR antes para probar el CI recién implementado, y pidió archivar ya.
+- **Impacto:** corrige una propuesta mía contraria a la convención del repositorio.
+
+**Prompt 7: Archivar, subir y abrir la PR**
+
+```
+En ese caso hubo que hacer una PR antes para probar la CI implementada. Ahora /opsx:archive y luego push y PR
+```
+
+- **Qué hizo el agente:** `/opsx:archive`: avisó de que quedaba la tarea 3.3 sin marcar y de que el delta añadía un solo requisito; el PO eligió «Sincronizar y archivar». Añadió el requisito a `openspec/specs/diagram-storage/spec.md` (10 → 11 requisitos, `validate --strict` en verde) y movió el change a `archive/2026-11-26-realtime-con-rls/`. Hizo push con upstream propio y abrió la PR #18 contra `develop`; después marcó la 3.3.
+- **Resultado:** `7549d70`, `4f6b9bf` y PR #18. El job `frontend` del CI pasó; el de `backend` seguía en curso al cerrar.
+- **Impacto:** S3 queda cerrado en el código, la spec principal y el PRD, con la PR lista para fusionar.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2.5 Seguridad | 5 (Realtime niega la suscripción al anónimo y la RLS reparte solo a miembros) |
+| 2.6 Tests | 2 (el centinela en lugar de esperas fijas) y 5 (romper la política a propósito para comprobar que el test falla) |
+| 6. Tickets de trabajo | 3 (el change y sus 10 tareas) |
+| 7. Pull Requests | 4, 6 y 7 (rama por bloque, archivar antes de la PR y PR #18) |
+| Nota sobre el proceso | 5 (el resultado real contradijo mi spec y se paró para decidirlo) y 6 (una propuesta mía contra la convención del repositorio) |
+
+### Correcciones
+
+- **Mi primer resumen de la sesión no puso S3 ni P2 delante.** Tras `/opsx:explore` ofrecí seis direcciones y las dos tareas que la sesión 12 dejó pendientes quedaron mezcladas entre otras. El PO tuvo que recordármelo (prompt 1).
+- **Supuse que el anónimo se suscribiría y llegaría a `system ok`.** La spec, la decisión 4 del diseño y la propuesta lo daban por hecho y no lo comprobé en local antes de escribirlos. Lo desmintió la primera ejecución. Me paré, expliqué qué se contradecía y el PO eligió reescribir la spec en lugar de forzar el test.
+- **El proceso de `node --test` se quedó colgado** en la primera ejecución: `montar()` no cerraba los canales si una suscripción fallaba. Lo detecté porque pasó el límite de 180 s, paré la tarea y añadí la limpieza en el `catch`.
+- **Propuse archivar después de fusionar sin motivo.** Lo había copiado de la sesión anterior y contradice `CLAUDE.md`. El PO me lo preguntó (prompt 6) y le di la razón; su explicación fue que la #17 necesitaba la PR antes para probar el CI.
+- **Pequeños fallos de herramienta:** intenté leer las instrucciones con `python` y no está instalado (usé `node`); un `node -e` con backticks dentro de comillas dobles de bash ejecutó `apply_op` y `test` como comandos (solo afectó a un reemplazo que era un no-op); y el primer intento de editar el PRD falló porque el archivo usa CRLF.
+- **Arranqué Docker Desktop por mi cuenta** al ver que estaba parado, sin preguntar. Era necesario para probar y no destruye nada, pero era una acción en tu máquina fuera de lo pedido.
+
+### Pendiente
+
+- **Fusionar la PR #18** cuando el job `backend` del CI termine en verde (es la primera vez que ejecuta allí el test de Realtime, sin Storage ni otros servicios). Después, borrar la rama.
+- **P2:** el readme sigue con el «Servidor de colaboración WebSocket» y Java 21 con Maven; debe abrir con la URL pública, `docs/img/app-desplegada.png` y cómo probar con dos usuarios. Más las secciones 2, 3, 4 y 6 y `prompts.md`.
+- **Al entregar:** el disparador de `pages.yml` pasa de `develop` a `main`.
+- Siguen de la sesión 12 (las cuentas de prueba de Supabase ya las borró el PO): decidir cuándo borrar el diagrama `16caa1fb-…`, el aviso neutro al crear una cuenta con correo ya registrado (≈0,25 h), recordar el token de invitación al volver de confirmar el correo, el CI obligatorio para fusionar, y probar la gestión de diagramas con el S Pen.
+- **Sin cubrir en S3:** perder el acceso con el canal ya abierto (borrar el diagrama, cambiar el rol) y Realtime contra el proyecto remoto.
+- **`http-server` y Docker** siguen en marcha en esta máquina.
+- **Preguntas del PO sin respuesta:** si las 33 h son un tope duro y qué puntúa la rúbrica del curso.
+
+**Horas:** 1 (acumulado 32 h de 33). Quedan P2 (1,5 h en su versión recortada) y el cambio de `pages.yml` a `main`: el total llegaría a unas 33,5 h, 0,5 h por encima del tope. P2 no se recorta (requisito del curso), así que habrá que decidir qué se deja fuera dentro de P2.
