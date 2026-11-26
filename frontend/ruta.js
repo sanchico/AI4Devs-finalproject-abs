@@ -28,3 +28,11 @@ export function llevaSesion(hash) {
   const parametros = new URLSearchParams(hash.slice(1));
   return parametros.has('access_token') || parametros.has('refresh_token');
 }
+
+// Where Auth's confirmation link must come back to (signUp's emailRedirectTo): this app's address, subdirectory included.
+// Without it Supabase falls back to the Referer, which the browser cuts down to the origin, and the link lands on the
+// domain root. No hash (a diagram route or an invitation token, which must not travel by email; Auth adds its own) and
+// no query.
+export function urlDeVuelta({ origin, pathname }) {
+  return origin + pathname;
+}
