@@ -14,11 +14,12 @@ llegarían a quien no debe verlas aunque la API las niegue.
 
 - Un test de Realtime con cuatro clientes sobre el mismo canal y el mismo filtro: el dueño que escribe, un
   miembro, un usuario con sesión que no es miembro y la clave pública sin sesión. El miembro recibe cada
-  operación; el ajeno y el anónimo no reciben ninguna.
+  operación; el ajeno no recibe ninguna y la clave pública sin sesión es rechazada al suscribirse
+  (Realtime no deja suscribirse a quien no puede leer la tabla).
 - La ausencia de entregas se demuestra con una operación centinela enviada al final: cuando el miembro ya
-  tiene las dos, el ajeno y el anónimo tienen cero. Sin esperas fijas, que darían falsos verdes.
-- El test exige que el ajeno y el anónimo **sí** lleguen a la confirmación de Postgres Changes: un canal que
-  nunca se llegó a unir no probaría nada.
+  tiene las dos, el ajeno tiene cero. Sin esperas fijas, que darían falsos verdes.
+- El test exige que el ajeno **sí** llegue a la confirmación de Postgres Changes (un canal que nunca se unió
+  no probaría nada) y que el anónimo sea rechazado con el error concreto de Realtime.
 - Se prueba tanto una operación suelta (`apply_op`) como un gesto de varias (`apply_ops`), que es la ruta del
   cliente real.
 - La suscripción con espera al mensaje `system` pasa de `scripts/medir-latencia.js` a un helper compartido
