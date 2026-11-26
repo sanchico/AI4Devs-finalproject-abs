@@ -71,6 +71,7 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   ruta o con una desconocida la app sigue sin sesión ni red. `llevaSesion(hash)` (también en `ruta.js`) detecta el
   fragmento `#access_token=…&refresh_token=…` con el que vuelve el enlace de confirmación del correo, y `main.js` lo borra
   de la dirección con `history.replaceState` al arrancar (la app no usa esa sesión: el invitado entra con su contraseña).
+  `urlDeVuelta(location)` (también en `ruta.js`) da el `emailRedirectTo` de `signUp`: origen y ruta, sin `#` ni consulta.
   `gestion-supabase.js` (sin DOM, cliente inyectado; lo prueba
   `gestion-supabase.test.js` con el cliente falso, que ahora admite `is()`) hace `listarDiagramas` (los no borrados, por
   `updated_at` descendente; la RLS filtra los del miembro), `crearDiagrama`, `crearInvitacion` (siempre como editor) y
@@ -166,9 +167,10 @@ Pasos manuales (el agente no puede hacerlos: no hay claves de administración en
 - GitHub: Settings → Pages → Source «GitHub Actions», y Settings → Environments → `github-pages` → permitir la rama
   `develop` (si solo admite la rama por defecto, el despliegue falla por la protección del entorno).
 - Supabase: Authentication → URL Configuration → «Site URL» `https://sanchico.github.io/AI4Devs-finalproject-abs/`
-  (con la barra final) y, en las redirecciones, esa misma URL y `http://localhost:8000/`. `signUp` no pasa
-  `emailRedirectTo`, así que el enlace de confirmación del correo vuelve siempre a la «Site URL», también para una
-  cuenta creada desde `localhost` (la cuenta confirmada entra igual en local).
+  (con la barra final) y, en las redirecciones, esa misma URL y `http://localhost:8000/`. `signUp` pasa
+  `emailRedirectTo` con `urlDeVuelta(location)` (`ruta.js`: origen y ruta, sin `#` ni consulta), así que el enlace
+  de confirmación del correo vuelve a la app desde la que se creó la cuenta. Sin él, Supabase usa el `Referer`,
+  que el navegador recorta al origen, y el enlace acaba en la raíz del dominio (un 404 en Pages).
 
 La app funciona bajo el subdirectorio porque no hay rutas absolutas y los enlaces salen de `location.pathname`. La
 caché de Pages es de 10 minutos: justo después de publicar, recargar sin caché si algo no cuadra.
@@ -180,10 +182,8 @@ caché de Pages es de 10 minutos: justo después de publicar, recargar sin cach�
 4. Nuevos tipos: diagrama de clases UML, secuencia, ER.
 5. Pan/zoom del lienzo, autolayout opcional, guardado/carga (JSON y Mermaid).
 6. Reconocimiento de escritura a mano para etiquetas (ML Kit Digital Ink si se empaqueta como app Android).
-7. Que el enlace de confirmación del correo vuelva a donde se creó la cuenta: pasar
-   `emailRedirectTo: location.origin + location.pathname` en `signUp` (`colaboracion.js`). Hoy vuelve siempre a la
-   «Site URL» (la app desplegada); la lista de redirecciones de Auth ya admite `http://localhost:8000/`. Descartado
-   en D1 para no tocar `frontend/` (change `despliegue-github-pages`, decisión 8).
+7. ~~Que el enlace de confirmación del correo vuelva a donde se creó la cuenta~~ (hecho en D1, change
+   `despliegue-github-pages`, decisión 8: `emailRedirectTo` con `urlDeVuelta`).
 
 ## Convenciones
 - Interfaz y textos en español.

@@ -36,8 +36,8 @@ sesión, el proyecto remoto con los usuarios A y B de la medida (`supabase/.env.
 
 ## 3b. La vuelta del correo de confirmación (0,5 h, añadido tras el 404 de la 4.3)
 
-- [ ] 3b.1 Añadir en rojo a `frontend/test/ruta.test.js` los casos de `urlDeVuelta({origin, pathname})` (decisión 8): la URL pública con su subdirectorio y barra final; `http://localhost:8000/`; el resultado no lleva el `#` ni la consulta de la página (por ejemplo desde `#/i/<token>` o `?grabar`); y una ruta sin barra final se devuelve tal cual. Verificar con `node --test frontend/test/ruta.test.js` que fallan porque la función no existe.
-- [ ] 3b.2 Implementar `urlDeVuelta` en `frontend/ruta.js` y pasarla como `options.emailRedirectTo` en el `signUp` de `frontend/colaboracion.js` (solo al crear cuenta, no al entrar); verificar con `node --test "frontend/**/*.test.js"` en verde y con `grep -n emailRedirectTo frontend/colaboracion.js` que solo está en `signUp`.
+- [x] 3b.1 Añadir en rojo a `frontend/test/ruta.test.js` los casos de `urlDeVuelta({origin, pathname})` (decisión 8): la URL pública con su subdirectorio y barra final; `http://localhost:8000/`; el resultado no lleva el `#` ni la consulta de la página (por ejemplo desde `#/i/<token>` o `?grabar`); y una ruta sin barra final se devuelve tal cual. Verificar con `node --test frontend/test/ruta.test.js` que fallan porque la función no existe.
+- [x] 3b.2 Implementar `urlDeVuelta` en `frontend/ruta.js` y pasarla como `options.emailRedirectTo` en el `signUp` de `frontend/colaboracion.js` (solo al crear cuenta, no al entrar); verificar con `node --test "frontend/**/*.test.js"` en verde y con `grep -n emailRedirectTo frontend/colaboracion.js` que solo está en `signUp`.
 - [ ] 3b.3 Corregir `CLAUDE.md` (sección «Despliegue»: la vuelta es a la dirección desde la que se creó la cuenta; quitar el punto 7 de la hoja de ruta, que pasa a estar hecho) y abrir la PR de `feat/d1-enlace-de-confirmacion` contra `develop` (con la confirmación del PO); verificar que el CI de la PR queda en verde y, tras fusionarla, que el despliegue de Pages acaba en verde.
 
 ## 4. Aceptación en la URL pública (0,5 h)
