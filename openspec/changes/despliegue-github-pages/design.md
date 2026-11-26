@@ -78,9 +78,20 @@ acciones oficiales de GitHub. Vigentes el 26 nov 2026 (`gh api repos/actions/<no
 `deploy-pages@v5` (5.0.1).
 
 **8. Ajustes de Auth: «Site URL» = `https://sanchico.github.io/AI4Devs-finalproject-abs/` y redirecciones con esa
-URL y `http://localhost:8000/`.** Como `signUp` no pasa `emailRedirectTo`, basta la «Site URL»; las redirecciones
-permiten que, si algún día se pasa, no se rechace. La barra final y el subdirectorio importan: la coincidencia
-con la lista es exacta. No se toca `frontend/`.
+URL y `http://localhost:8000/`; el enlace de confirmación lleva siempre a la app desplegada.** Antes la «Site
+URL» era `http://localhost:3000` (el valor por defecto de Supabase), una dirección donde no hay nada, así que
+cualquier enlace de confirmación del remoto acababa en una página inexistente. Como `signUp` no pasa
+`emailRedirectTo`, Supabase usa siempre la «Site URL» y no mira la lista de redirecciones, que solo vale para las URL
+que pide el cliente: una cuenta creada desde `http://localhost:8000/` también vuelve a la URL pública. **Se acepta
+así (decisión del PO, sesión 12)**, y se corrige la spec, que en su primera versión prometía la vuelta a local sin
+que nada lo hiciera posible. Motivos: en local casi nunca se crean cuentas en el remoto (los usuarios A y B de la
+medida ya existen y los drivers los usan), los tests del backend usan su propio Supabase con la confirmación
+desactivada, y la cuenta confirmada sirve igual en local. `http://localhost:8000/` se queda en la lista: no
+molesta y deja preparada la alternativa. La barra final y el subdirectorio importan, porque la coincidencia con la
+lista es exacta. Alternativa descartada por ahora: pasar `emailRedirectTo: location.origin + location.pathname` en
+`signUp` (`colaboracion.js:63`), con la que cada cuenta vuelve a donde se creó. Es una línea, pero cambia
+`frontend/`, que este change no toca, y pide probarlo con una cuenta nueva en cada sitio; queda en la hoja de ruta
+de `CLAUDE.md`.
 
 **9. Los dos pasos manuales y su comprobación.** (a) En el repositorio: Settings → Pages → Source «GitHub
 Actions»; y, en Settings → Environments → `github-pages`, permitir desplegar desde `develop` (ver riesgos).

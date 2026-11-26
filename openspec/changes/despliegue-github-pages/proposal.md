@@ -18,7 +18,8 @@ Supabase en su equipo.
 - URL pública: `https://sanchico.github.io/AI4Devs-finalproject-abs/` (sin dominio propio; `pen2mermaid.app` queda
   como idea futura).
 - Auth de Supabase: «Site URL» = la URL de Pages (con su subdirectorio y la barra final) y lista de redirecciones
-  con esa misma URL y `http://localhost:8000/`, para seguir probando en local.
+  con esa misma URL y `http://localhost:8000/`. El enlace de confirmación del correo lleva siempre a la URL
+  pública, también para una cuenta creada en local (ver `design.md`, decisión 8).
 - Dos pasos manuales que no puede hacer el agente (el repositorio no guarda claves de administración): activar
   Pages con origen «GitHub Actions» en el repositorio y poner los ajustes de Auth en el panel de Supabase. Se
   documentan en el change y en `CLAUDE.md`.

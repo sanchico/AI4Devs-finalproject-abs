@@ -167,7 +167,8 @@ Pasos manuales (el agente no puede hacerlos: no hay claves de administración en
   `develop` (si solo admite la rama por defecto, el despliegue falla por la protección del entorno).
 - Supabase: Authentication → URL Configuration → «Site URL» `https://sanchico.github.io/AI4Devs-finalproject-abs/`
   (con la barra final) y, en las redirecciones, esa misma URL y `http://localhost:8000/`. `signUp` no pasa
-  `emailRedirectTo`, así que el enlace de confirmación del correo vuelve a la «Site URL».
+  `emailRedirectTo`, así que el enlace de confirmación del correo vuelve siempre a la «Site URL», también para una
+  cuenta creada desde `localhost` (la cuenta confirmada entra igual en local).
 
 La app funciona bajo el subdirectorio porque no hay rutas absolutas y los enlaces salen de `location.pathname`. La
 caché de Pages es de 10 minutos: justo después de publicar, recargar sin caché si algo no cuadra.
@@ -179,6 +180,10 @@ caché de Pages es de 10 minutos: justo después de publicar, recargar sin cach�
 4. Nuevos tipos: diagrama de clases UML, secuencia, ER.
 5. Pan/zoom del lienzo, autolayout opcional, guardado/carga (JSON y Mermaid).
 6. Reconocimiento de escritura a mano para etiquetas (ML Kit Digital Ink si se empaqueta como app Android).
+7. Que el enlace de confirmación del correo vuelva a donde se creó la cuenta: pasar
+   `emailRedirectTo: location.origin + location.pathname` en `signUp` (`colaboracion.js`). Hoy vuelve siempre a la
+   «Site URL» (la app desplegada); la lista de redirecciones de Auth ya admite `http://localhost:8000/`. Descartado
+   en D1 para no tocar `frontend/` (change `despliegue-github-pages`, decisión 8).
 
 ## Convenciones
 - Interfaz y textos en español.

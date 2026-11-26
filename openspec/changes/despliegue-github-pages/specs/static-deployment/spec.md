@@ -65,17 +65,17 @@ navegador MUST llevar a aceptar la invitación en la app desplegada.
 - **THEN** la dirección cambia solo en su parte tras `#`, sin salir del subdirectorio, y el diagrama se abre
 
 ### Requirement: El enlace de confirmación del correo vuelve a la app desplegada
-El sistema SHALL configurar Supabase Auth de modo que el enlace de confirmación del correo lleve a la URL
-pública de la app, y no a `localhost`. La URL de desarrollo `http://localhost:8000/` SHALL seguir admitida para
-probar en local. Al volver, la app MUST quitar de la dirección la sesión que añade el enlace, como ya hace en local.
+El sistema SHALL configurar Supabase Auth de modo que el enlace de confirmación del correo lleve siempre a la URL
+pública de la app, y no a `localhost`, sea cual sea la dirección desde la que se creó la cuenta. Al volver, la app
+MUST quitar de la dirección la sesión que añade el enlace, como ya hace en local.
 
 #### Scenario: Crear cuenta desde la app desplegada
 - **WHEN** una persona crea una cuenta desde la URL pública y pulsa el enlace de confirmación del correo
 - **THEN** el navegador abre la URL pública, la dirección no conserva ningún `access_token` ni `refresh_token` y la app muestra el panel de entrada
 
-#### Scenario: Seguir probando en local
-- **WHEN** una persona crea una cuenta desde `http://localhost:8000/` con el mismo proyecto de Supabase
-- **THEN** el enlace de confirmación vuelve a `http://localhost:8000/`
+#### Scenario: Crear cuenta desde la app en local
+- **WHEN** una persona crea una cuenta desde `http://localhost:8000/` con el mismo proyecto de Supabase y pulsa el enlace de confirmación del correo
+- **THEN** el navegador abre la URL pública (no `localhost`), y la cuenta queda confirmada y sirve para entrar también en local
 
 ### Requirement: Dos dispositivos colaboran a través de la URL pública
 El sistema SHALL permitir que dos usuarios, cada uno en un dispositivo distinto, abran el mismo diagrama desde la
