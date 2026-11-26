@@ -2378,3 +2378,171 @@ Edita la deescripción del PR para reflejar que renombrar y borrar sí entran
 - **Sin probar con el S Pen real** en la gestión de diagramas: el driver usa el ratón.
 
 **Horas:** 2,75 (acumulado 27,75 h de 33). El PRD preveía 26,25 h tras la sesión 11, así que quedan 1,5 h por encima del plan. Descontando el consejo y la propuesta (prompts 1 a 3, unos 25 min de reloj), F5 quedó en torno a 2,25 a 2,5 h, dentro del tope (estimación mía: el script no separa las partes). Quedan D1, S3 y P2: con P2 en 1,5 h son unas 2,75 h y el total llegaría a 30,5 h, con 2,5 h de margen.
+
+---
+
+## Sesión 12 · 24 a 26 nov 2026 · D1: despliegue en GitHub Pages, CI del backend y el enlace de confirmación del correo (change `despliegue-github-pages`)
+
+**Objetivo:** D1 (despliegue). Publicar `frontend/` en una URL pública con HTTPS, con los tests antes de publicar, y comprobar con dos dispositivos reales que la colaboración funciona a través de ella (criterio de HU-02). El PO añadió por el camino un CI para el backend.
+
+**Fase del ciclo de vida:** arquitectura (despliegue), seguridad (Auth y RLS en la prueba real), tests (CI) y pull request.
+
+### Prompts
+
+**Prompt 1: Dónde alojarlo**
+
+```
+vamos con D1, explora dónde alojarlo
+```
+
+- **Qué hizo el agente:** leyó el PRD (D1), el repositorio (público, rama por defecto `main`, sin `.github/`) y `frontend/` (438 KB, sin build, rutas por hash). Comparó GitHub Pages con Actions, Cloudflare Pages y Netlify y recomendó GitHub Pages por tener todo en el repositorio y los tests en el mismo workflow. Preguntó por el dominio `pen2mermaid.app`; el PO respondió «No tenog dominio comprado», así que se usa la URL gratuita. Comprobó en `colaboracion.js` que el enlace de invitación (`location.origin + location.pathname`) no se rompe en un subdirectorio.
+- **Resultado:** decisión de alojamiento, sin archivos.
+- **Impacto:** la elección queda razonada con alternativas, que es lo que pide la sección 2 de `prompts.md`.
+
+**Prompt 2: ¿Hay dependencias?**
+
+```
+el proyecto no tiene dependencias, ¿verdad? todo se descarga desde CDN
+```
+
+- **Qué hizo el agente:** lo comprobó en `package.json` y `index.html`. `frontend/` no tiene dependencias propias y el navegador descarga supabase-js y mermaid (con `integrity`) y las fuentes de Google. Las de la raíz (`supabase`, `postgres`, `openspec`) son solo del backend y de desarrollo.
+- **Resultado:** el job de tests del frontend puede ir sin `npm install`.
+- **Impacto:** simplifica el workflow y deja dicho que sin red a los CDN la app no arranca.
+
+**Prompt 3: Proponer el change**
+
+```
+Vale, GitHub Pages desde develop, con /opsx:propose
+```
+
+- **Qué hizo el agente:** creó la rama `feat/d1-despliegue` desde `origin/develop` y le pasó con `cherry-pick` el commit de la bitácora de la sesión 11, que no había llegado a `develop`. Creó el change `despliegue-github-pages` con proposal, spec `static-deployment` (5 requisitos), design (10 decisiones con alternativas) y tasks. Dejó escrito que choca con «CI» de la lista de fuera de alcance, y un riesgo: el entorno `github-pages` puede restringir las ramas.
+- **Resultado:** change válido; los pasos manuales (Pages, entorno, Auth) quedan para el PO.
+- **Impacto:** primer change cuya spec nace de un compromiso explícito con el «fuera de alcance» del MVP.
+
+**Prompt 4: ¿Un job de backend?**
+
+```
+¿tendria sentido añadir un job de backend ?
+```
+
+- **Qué hizo el agente:** comprobó que es viable (Docker en `ubuntu-latest`, `npm ci` con el lockfile, `helpers/entorno.js` lee las claves de `supabase status`, sin secretos). Recomendó un workflow aparte, `ci.yml`, que corre en PR y no bloquea la publicación, y explicó por qué no meterlo en el de Pages. El PO aceptó con «Sí, añádelo como capability aparte»: añadió la capability `continuous-integration` (3 requisitos), las decisiones 11 a 14 y el grupo 1b, y subió la estimación de 1,25 a 1,75 h.
+- **Resultado:** `ci.yml` con dos jobs independientes (`frontend` y `backend`) y `pull_request`, no `pull_request_target`.
+- **Impacto:** los 146 tests de RLS y funciones pasan a ejecutarse solos, incluido el que cruza las fixtures del cliente con `validate_op`.
+
+**Prompt 5: Subir la rama, abrir la PR y comprobar Pages**
+
+```
+1 Sí, sube la rama y abre la PR. 2 prueba directamente en la PR. 3 Hecho ¿puedes comprobarlo?
+```
+
+- **Qué hizo el agente:** comprobó con `gh api` que Pages estaba en «GitHub Actions», con HTTPS forzado, y que el entorno `github-pages` admitía `develop` y `main`. Subió la rama, abrió la PR #15 y probó el CI en ella. El job `backend` aplicó las 6 migraciones y pasó 146 tests de 13 archivos en 1 min 39 s. Después provocó un fallo a propósito (cambió una aserción de `entorno.test.js`): `backend` quedó en rojo (`not ok 79`, 145 de 146) y `frontend` en verde. Lo revirtió y volvió a verde.
+- **Resultado:** PR #15; tareas 1b.1 a 1b.4 comprobadas con el CI real.
+- **Impacto:** el escenario «Un test del backend falla» de la spec está demostrado, no solo escrito.
+
+**Prompt 6: Qué poner en Site URL y en las redirecciones**
+
+```
+En supabase, en site URL pone http://localhost:3000 ¿en las redirecciones debo poner https://sanchico.github.io/AI4Devs-finalproject-abs/ y http://localhost:8000 o http://localhost:3000?
+```
+
+- **Qué hizo el agente:** respondió que `localhost:3000` es el valor por defecto de Supabase y que aquí no lo usa nada. Dijo la «Site URL» de Pages con barra final y las redirecciones de Pages y `localhost:8000`. Al revisarlo vio que su spec prometía volver a local sin que `signUp` pasara `emailRedirectTo`, y propuso dos salidas.
+- **Resultado:** configuración de Auth indicada al PO; fallo en la spec detectado.
+- **Impacto:** primera de las dos veces en que la decisión sobre el enlace del correo se corrigió (ver Correcciones).
+
+**Prompt 7: Corregir la spec**
+
+```
+La 1, corrige la spec. Comenta en design.md por qué se ha tomado esta decision y añade la opcion 2 a la hoja de ruta de CLAUDE.md
+```
+
+- **Qué hizo el agente:** cambió el requisito para que el enlace llevara siempre a la app desplegada, explicó la decisión 8 en `design.md`, ajustó la propuesta y la tarea 4.3 y añadió el punto 7 a la hoja de ruta. Lo subió a la PR #15.
+- **Resultado:** `e4913cc`. Quedó fuera de la fusión (ver Correcciones).
+- **Impacto:** decisión documentada con su alternativa, aunque luego resultó equivocada.
+
+**Prompt 8: Ejecutar la aceptación en la URL pública**
+
+```
+Sí, ejecuta 4.2, 4.5 y 4.6, y prepárame el enlace
+```
+
+- **Qué hizo el agente:** tras el aviso del PO de que la «Site URL» estaba cambiada y la PR fusionada, comprobó que `test` y `deploy` acababan en verde, que la URL daba 200, que `test/` daba 404 y que `http` redirigía a `https`. Instaló `playwright-core` en el scratchpad y ejecutó contra la URL pública `driver-colaborativo.cjs` (23 checks, 259 ms de A a B) y `driver-gestion.cjs` (27 checks; el enlace de «Compartir» lleva el subdirectorio). Midió la latencia (p50 314 ms, p95 534,8 ms, máx 582 ms, sin pérdidas). Hizo la captura `docs/img/app-desplegada.png` y creó el diagrama de prueba para la tablet.
+- **Resultado:** tareas 4.1, 4.2, 4.5 y 4.6 hechas; enlace `…/#/d/16caa1fb-…` para el PO.
+- **Impacto:** primer despliegue verificado de extremo a extremo y la medida de latencia de la sesión 9 repetida con la app desplegada.
+
+**Prompt 9: La prueba real da un 404**
+
+```
+4.3 da un 404. La URL es https://sanchico.github.io/#access_token=[token]
+```
+
+- **Qué hizo el agente:** leyó `GetReferrer` en `supabase/auth` y encontró la causa: sin `emailRedirectTo`, Supabase usa la cabecera `Referer` antes que la «Site URL», y el navegador la recorta al origen. Propuso la opción 2 (pasar `emailRedirectTo`) y el PO la aceptó («Sí, amplíalo así»). Creó la rama `feat/d1-enlace-de-confirmacion`, rehízo la spec y la decisión 8, añadió el grupo 3b y escribió en TDD `urlDeVuelta` en `ruta.js` (4 tests en rojo, luego verde; 323 en total). Abrió la PR #16, cuyo CI pasó en verde antes de que el PO la fusionara, y vigiló el despliegue.
+- **Resultado:** `20484cc` (arreglo) y PR #16; la URL pública sirve `emailRedirectTo`.
+- **Impacto:** un fallo que solo salía con una cuenta real en la URL desplegada; el change creció 0,5 h y tocó `frontend/`, que debía quedar intacto.
+
+**Prompt 10: Correo ya registrado**
+
+```
+4.3 ok en los dos sitios. Al utilizar un email ya dado de alta no envía el correo, sin embargo aparece el mismo mensaje: "correo enviado..." en vez de "el usuario ya existe..."
+```
+
+- **Qué hizo el agente:** explicó que es el comportamiento anti-enumeración de Supabase (`signUp` responde como si creara la cuenta, con `identities` vacío), avisó de que lo sabía por la documentación y no lo había comprobado en el código, y ofreció dos opciones: un aviso neutro (recomendada) o detectar `identities.length === 0`. Marcó la 4.3 como hecha y lo dejó fuera del change.
+- **Resultado:** 4.3 comprobada en los dos sitios; mejora anotada como pendiente.
+- **Impacto:** distingue un comportamiento de seguridad del proveedor de un fallo de la app.
+
+**Prompt 11: El diagrama de la tablet**
+
+```
+Al abrir el enlace https://sanchico.github.io/AI4Devs-finalproject-abs/#/d/16caa1fb-9bdd-4b02-8318-a1209cb9513d con la cuenta nueva me dice que ese diagrama no existe. He entrado en supabase y he visto que es del usuario medir-a@pen2mermaid.test. He entrado con ese usuario y el diagrama estaba vacio. He rellenado y he entrado desde otro dispositivo con el usuario medir-b@pen2mermaid.test. Puedo ver los cambios de medir-a y viceversa
+```
+
+- **Qué hizo el agente:** explicó que el mensaje es correcto: el diagrama es de A y B es el editor, y una cuenta nueva que no es miembro recibe cero filas y el mismo «no existe» (la RLS no revela qué diagramas hay). El enlace de la 4.4 estaba pensado para entrar con A y con B, no con una cuenta nueva.
+- **Resultado:** el comportamiento es el correcto; la 4.4 se anota con A en el ordenador y B en la tablet.
+- **Impacto:** la prueba accidental con una cuenta ajena es una comprobación real de la RLS en producción.
+
+**Prompt 12: Cerrar la 4.4 y archivar**
+
+```
+1 Sí, probado con dos dispositivos: ordenador con ratón y tablet con S pen. 2 no lo borres. 3 /opsx:archive
+```
+
+- **Qué hizo el agente:** marcó la 4.4 (ordenador con ratón y tablet con S Pen, el Mermaid coincide) y dejó el diagrama de prueba. Archivó el change en una rama nueva (`docs/d1-archiva-despliegue`): creó las specs principales `static-deployment` (6 requisitos, 16 escenarios) y `continuous-integration` (3 y 7), con un Purpose redactado desde la propuesta, comprobó que las cabeceras coincidían con las de los deltas y validó las 16 specs.
+- **Resultado:** `fe73720`, solo en local.
+- **Impacto:** D1 cerrado con 23 de 23 tareas, y 16 specs principales.
+
+### Uso en `prompts.md`
+
+| Sección de `prompts.md` | Prompts candidatos |
+|---|---|
+| 2. Arquitectura | 1 (dónde alojarlo, con alternativas) y 3 (GitHub Pages desde `develop`) |
+| 2.5 Seguridad | 4 (`pull_request` sin secretos, nunca `pull_request_target`), 9 (el `Referer` gana a la «Site URL») y 11 (la RLS con una cuenta ajena) |
+| 2.6 Tests | 4 y 5 (un CI de backend en un workflow aparte y una mutación para comprobar que detecta un fallo) y 8 (los drivers contra la URL pública) |
+| 6. Tickets de trabajo | 3, 4 y 9 (el change crece dos veces: el CI y el grupo 3b) |
+| 7. Pull Requests | 5 y 9 (PR #15 y PR #16) |
+| Nota sobre el proceso | 6 y 9 (suponer el comportamiento de un proveedor sin leer su código falló dos veces) |
+
+### Correcciones
+
+- **Supuse cómo elige Supabase la vuelta del correo, y me equivoqué dos veces.** La primera spec daba por hecho que, sin `emailRedirectTo`, se volvía a la «Site URL» y prometía volver a local. Al detectarlo (prompt 6) la cambié para que el enlace fuese «siempre a la app desplegada» y lo presenté como un hecho. La prueba real (prompt 9) dio un 404: gana el `Referer`. Solo entonces leí el código de Supabase Auth. Debí leerlo antes de escribir la decisión 8.
+- **La corrección de la spec (`e4913cc`) quedó fuera de la fusión de la PR #15.** El commit llegó a la rama de la PR, pero la fusión (`41c8fef`) solo recoge hasta `9ae29e6`. No sé si el PO fusionó justo antes de mi push; lo cierto es que no comprobé con `gh pr view` qué commits tenía la PR antes de dar el paso por hecho. Lo detecté al cambiar de rama y lo pasé con `cherry-pick` a la PR #16.
+- **Mal comando al revertir la mutación del CI.** Usé `git revert --no-edit … -q` (el `-q` no existe), falló, y entonces reescribí con `--amend` el mensaje del commit de la mutación sin quitar la mutación. El push se rechazó y no llegó nada al remoto. Restauré la rama con `reset --hard origin/…` y la revertí bien.
+- **Un permiso denegado:** intenté validar el YAML de `pages.yml` descargando un paquete con `npx` y el clasificador automático lo bloqueó. No insistí; se comprobó al ejecutarse el workflow. Por eso la 1.2 quedó pendiente hasta el primer despliegue.
+- **Texto a medio pensar en `design.md`.** Escribí en una alternativa descartada «mandaría la ruta y el `#`… no, el `#` nunca va». Lo vi al releer y lo reescribí antes del commit.
+- **Un comando para esperar al CI no esperó.** `gh run list --commit a9c364c` no acepta el SHA corto; busqué el run por su id.
+- **No probé la lista de servicios de `supabase start -x` en local** (Docker estaba parado); el PO prefirió probarla en la PR, y salió bien.
+
+### Pendiente
+
+- **Subir `docs/d1-archiva-despliegue`** (archivado) y esta bitácora: abrir la PR contra `develop` con confirmación del PO.
+- **Cuentas de prueba:** borrar en Supabase → Authentication → Users las de la 4.3 y, sobre todo, la del primer intento, cuyo token salió en la dirección.
+- **Diagrama `16caa1fb-…`** de medir-a: se conserva para la demo; el PO decide cuándo borrarlo.
+- **`http-server` en el puerto 8000** sigue en marcha en segundo plano.
+- **Aviso al crear cuenta con un correo ya registrado:** hoy dice lo mismo que con una cuenta nueva (es anti-enumeración de Supabase). Propuesta: aviso neutro («Si el correo es nuevo, te hemos enviado un enlace; si ya tienes cuenta, pulsa Entrar»), con su test y el escenario de `user-session`. Unos 0,25 h.
+- **Recordar el token de invitación** al crear la cuenta y aceptarlo al volver de confirmar el correo (ya pendiente de la sesión 11).
+- **CI obligatorio para fusionar** en `develop`, con una regla de protección de rama: decisión del PO.
+- **S3 (≈0,75 h):** el test de Realtime con un usuario ajeno y con la clave pública sin sesión. El CI ya lo ejecutará.
+- **P2:** el readme sigue con el «Servidor de colaboración WebSocket» y Java 21 con Maven; debe abrir con la URL pública, `docs/img/app-desplegada.png` y cómo probar con dos usuarios.
+- **Al entregar:** el disparador de `pages.yml` pasa de `develop` a `main`.
+- **Sin probar con el S Pen:** la gestión de diagramas (lista, compartir, renombrar, borrar); los drivers usan el ratón.
+- **Preguntas del PO sin respuesta:** si las 33 h son un tope duro y qué puntúa la rúbrica del curso.
+
+**Horas:** 3,25 (acumulado 31 h de 33). El PRD preveía 29,25 h al acabar la sesión 12, con P2 incluido. Quedan S3 (0,75 h) y P2 (1,5 h en su versión recortada): son 33,25 h, 0,25 h por encima del tope. De las 3,25 h, unas 0,5 h fueron el CI del backend (decisión del PO) y otras 0,5 h el arreglo del correo de confirmación, que habría sido más corto si hubiera leído el código de Supabase al escribir la decisión 8 (cifras mías, el script no separa las partes). Habrá que recortar S3 o P2.
