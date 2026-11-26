@@ -24,7 +24,7 @@ correo (`enable_confirmations = false`).
 
 **Goals:**
 - Una URL pública con HTTPS que se actualiza sola al integrar en `develop` y solo si los tests del frontend pasan.
-- Que no haya que tocar `frontend/` para que funcione bajo un subdirectorio; si la prueba real lo desmiente, se arregla entonces.
+- Que no haya que tocar `frontend/` para que funcione bajo un subdirectorio; si la prueba real lo desmiente, se arregla entonces. (Lo desmintió para el correo de confirmación: decisión 8.)
 - Que los pasos manuales (que el agente no puede hacer) queden escritos y comprobables.
 - Que los tests del backend corran en cada PR contra `develop` sin secretos y sin bloquear la publicación.
 
@@ -78,20 +78,31 @@ acciones oficiales de GitHub. Vigentes el 26 nov 2026 (`gh api repos/actions/<no
 `deploy-pages@v5` (5.0.1).
 
 **8. Ajustes de Auth: «Site URL» = `https://sanchico.github.io/AI4Devs-finalproject-abs/` y redirecciones con esa
-URL y `http://localhost:8000/`; el enlace de confirmación lleva siempre a la app desplegada.** Antes la «Site
-URL» era `http://localhost:3000` (el valor por defecto de Supabase), una dirección donde no hay nada, así que
-cualquier enlace de confirmación del remoto acababa en una página inexistente. Como `signUp` no pasa
-`emailRedirectTo`, Supabase usa siempre la «Site URL» y no mira la lista de redirecciones, que solo vale para las URL
-que pide el cliente: una cuenta creada desde `http://localhost:8000/` también vuelve a la URL pública. **Se acepta
-así (decisión del PO, sesión 12)**, y se corrige la spec, que en su primera versión prometía la vuelta a local sin
-que nada lo hiciera posible. Motivos: en local casi nunca se crean cuentas en el remoto (los usuarios A y B de la
-medida ya existen y los drivers los usan), los tests del backend usan su propio Supabase con la confirmación
-desactivada, y la cuenta confirmada sirve igual en local. `http://localhost:8000/` se queda en la lista: no
-molesta y deja preparada la alternativa. La barra final y el subdirectorio importan, porque la coincidencia con la
-lista es exacta. Alternativa descartada por ahora: pasar `emailRedirectTo: location.origin + location.pathname` en
-`signUp` (`colaboracion.js:63`), con la que cada cuenta vuelve a donde se creó. Es una línea, pero cambia
-`frontend/`, que este change no toca, y pide probarlo con una cuenta nueva en cada sitio; queda en la hoja de ruta
-de `CLAUDE.md`.
+URL y `http://localhost:8000/`; `signUp` pasa `emailRedirectTo` con la dirección de la app sin `#` ni consulta.**
+Antes la «Site URL» era `http://localhost:3000` (el valor por defecto de Supabase), donde no hay nada.
+
+*Cómo elige Supabase la vuelta* (`GetReferrer` en `internal/utilities/request.go` de `supabase/auth`, leído el 26
+nov): primero el `redirect_to` que manda el cliente, si es válido; si no, **la cabecera `Referer` de la petición**,
+si es válida; y solo al final la «Site URL». Es válida cualquier URL con el mismo esquema y host que la «Site URL»
+(el puerto da igual en `localhost`) y las de la lista de redirecciones.
+
+*Historia de la decisión.* La primera versión no pasaba `emailRedirectTo` y daba por hecho que se volvería a la
+«Site URL», con la vuelta a local en la spec. Al ver que nada la hacía posible se cambió la spec para que el enlace
+llevara siempre a la app desplegada (decisión del PO, sesión 12). La prueba real (tarea 4.3) lo desmintió también:
+una cuenta creada en la URL pública volvió a `https://sanchico.github.io/#access_token=…`, un 404. La petición de
+`signUp` va a otro dominio y el navegador manda como `Referer` solo el origen (política por defecto
+`strict-origin-when-cross-origin`); ese origen tiene el mismo host que la «Site URL», así que Supabase lo da por
+bueno y se pierde el subdirectorio. El error de fondo fue suponer el comportamiento de Supabase sin leerlo.
+
+*Decisión (PO, sesión 12): pasar `emailRedirectTo` en `signUp`* con `origin + pathname` de la página. Así gana el
+primer punto del orden: desde Pages es válida por el host y desde `localhost:8000` por la lista. Se quita el `#`
+(la ruta del diagrama o el token de una invitación, que es un secreto y no debe viajar por correo; además Supabase
+añade su propio `#access_token=…`) y la consulta. La URL se calcula en una función pura de `ruta.js`, probada con
+`node --test`, y `colaboracion.js` solo la usa. La barra final y el subdirectorio importan porque la lista
+compara la URL completa. Alternativas descartadas: *solo la «Site URL», sin `emailRedirectTo`* (es lo que falló: el
+`Referer` gana); *`Referrer-Policy: unsafe-url` en `index.html`* (mandaría a Supabase la ruta completa y la consulta en
+todas las peticiones, y depende de un efecto secundario del navegador en vez de pedir la vuelta de forma explícita); *conservar el `#` para volver al diagrama* (sacaría el token de invitación
+en el correo; volver al diagrama tras confirmar queda como mejora, ya en los pendientes).
 
 **9. Los dos pasos manuales y su comprobación.** (a) En el repositorio: Settings → Pages → Source «GitHub
 Actions»; y, en Settings → Environments → `github-pages`, permitir desplegar desde `develop` (ver riesgos).

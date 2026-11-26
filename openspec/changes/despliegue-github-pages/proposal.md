@@ -18,15 +18,17 @@ Supabase en su equipo.
 - URL pública: `https://sanchico.github.io/AI4Devs-finalproject-abs/` (sin dominio propio; `pen2mermaid.app` queda
   como idea futura).
 - Auth de Supabase: «Site URL» = la URL de Pages (con su subdirectorio y la barra final) y lista de redirecciones
-  con esa misma URL y `http://localhost:8000/`. El enlace de confirmación del correo lleva siempre a la URL
-  pública, también para una cuenta creada en local (ver `design.md`, decisión 8).
+  con esa misma URL y `http://localhost:8000/`. Al crear la cuenta, la app pide que el enlace de confirmación del
+  correo vuelva a la dirección desde la que se creó (`emailRedirectTo`, sin `#` ni consulta): sin eso, Supabase
+  usa el `Referer` y la vuelta pierde el subdirectorio (ver `design.md`, decisión 8).
 - Dos pasos manuales que no puede hacer el agente (el repositorio no guarda claves de administración): activar
   Pages con origen «GitHub Actions» en el repositorio y poner los ajustes de Auth en el panel de Supabase. Se
   documentan en el change y en `CLAUDE.md`.
 - Comprobación en el subdirectorio: el enlace de invitación (`location.origin + location.pathname`), la
   navegación por hash y el retorno del enlace de confirmación del correo funcionan bajo
-  `/AI4Devs-finalproject-abs/`. La lectura del código indica que no hace falta tocar `frontend/`; la prueba real
-  lo confirma.
+  `/AI4Devs-finalproject-abs/`. La lectura del código indicaba que no hacía falta tocar `frontend/`; la prueba real
+  lo confirmó para la invitación y la navegación, pero no para el correo de confirmación, que necesita el cambio
+  de `signUp` de arriba.
 - Prueba de aceptación con dos usuarios desde la URL pública (PC y tablet), y repetir `npm run medir:latencia`
   apuntando al remoto como en la sesión 9.
 - Un segundo workflow, de integración continua, ejecuta en cada PR contra `develop` y en cada push a `develop` los
@@ -36,8 +38,8 @@ Supabase en su equipo.
   hace es dejar visible en la PR, antes de fusionar, si se rompe la RLS, una función o el acuerdo entre `ops.js` y
   `validate_op` (`fixtures-ops.test.js`).
 
-Bloque del PRD: **D1 · Despliegue**; criterio de la HU-02 (colaborar entre dos dispositivos). No cambia código de
-`frontend/` ni de `supabase/`.
+Bloque del PRD: **D1 · Despliegue**; criterio de la HU-02 (colaborar entre dos dispositivos). En `frontend/` solo
+cambia la URL de vuelta del correo de confirmación (`ruta.js` y `colaboracion.js`); nada en `supabase/`.
 
 **Choca con el «fuera de alcance» del MVP:** la lista de exclusiones del proyecto incluye «CI». Este change
 añade integración continua de verdad: el workflow de despliegue prueba el frontend antes de publicar y el de CI
@@ -55,11 +57,14 @@ fuera el lint, la vista previa por PR y cualquier despliegue automático del bac
   cada push a `develop`, contra un Supabase local creado desde las migraciones, y el resultado queda en la PR.
 
 ### Modified Capabilities
-<!-- Ninguna: el comportamiento de la app no cambia; solo dónde y cómo se publica. -->
+<!-- Ninguna. La vuelta del correo de confirmación es un cambio de la app, pero se especifica en `static-deployment`
+     porque solo existe por servirse bajo un subdirectorio; `user-session` cubre qué hace la app al volver del enlace
+     (quitar la sesión de la dirección) y no cambia, no adónde lleva el enlace. -->
 
 ## Impact
 
-- Nuevos archivos: `.github/workflows/pages.yml` y `.github/workflows/ci.yml`; nada en `frontend/` ni en `supabase/`.
+- Nuevos archivos: `.github/workflows/pages.yml` y `.github/workflows/ci.yml`. En `frontend/`: una función pura
+  nueva en `ruta.js` con su test y su uso en el `signUp` de `colaboracion.js`. Nada en `supabase/`.
 - `CLAUDE.md`: sección de despliegue y de los dos pasos manuales; la lista de «fuera de alcance» de
   `openspec/config.yaml` ya no es cierta para «CI» y se anota allí.
 - Sistemas externos: ajustes del repositorio de GitHub (Pages) y de Supabase Auth (URLs). Sin cambios de
