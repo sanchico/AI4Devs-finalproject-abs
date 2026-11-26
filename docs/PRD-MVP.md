@@ -313,6 +313,10 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   al final todos tienen el mismo grafo que resulta de reproducir `diagram_ops`.
 - **Diagramas:** un `setMeta` con título cambia `diagrams.title`; solo el dueño borra y restaura; borrar
   oculta el diagrama a los miembros y restaurarlo lo devuelve intacto, con sus operaciones.
+- **Hecho** (change `realtime-con-rls`, el último hueco tras la auditoría de la sesión 10): `realtime.test.js` suscribe a
+  cuatro clientes al mismo canal. El editor recibe cada operación (de `apply_op` y de un gesto de `apply_ops`), el usuario
+  ajeno con sesión se suscribe y no recibe nada, y la clave pública sin sesión es rechazada al suscribirse
+  (`invalid column for filter diagram_id`: `anon` no tiene `SELECT`). Con la política de lectura abierta a propósito, el test falla.
 - **Aceptación:** `node --test` en verde con el entorno local arrancado.
 
 ### F4 · Cliente colaborativo (3,25 h)
@@ -341,9 +345,8 @@ operaciones pendientes reciben el mismo registro ordenado y acaban con el mismo 
   un solo usuario. **Hecho después** (change `gestion-diagramas-minima`, con tope de 2,5 h para F5): la lista de
   diagramas (`#/lista`), «Nuevo», «Compartir» (enlace de editor), la aceptación por `#/i/<token>`, y renombrar y borrar desde la lista (la decisión de
   corte los dejó entrar), probados en el navegador con dos usuarios. **Recortado de F5:** `set_member_role` con su
-  lista de miembros no tiene interfaz (el backend lo soporta y está probado), ni hay botón de restaurar. **Pendiente:** D1
-  (despliegue, «Site URL» de Auth para la confirmación del correo y prueba con dos dispositivos reales) y el test de
-  Realtime de S3.
+  lista de miembros no tiene interfaz (el backend lo soporta y está probado), ni hay botón de restaurar. D1 (despliegue) está hecho y el
+  test de Realtime de S3 también (change `realtime-con-rls`).
 - Al abrir: primero se suscribe y guarda en espera lo que llegue; después carga el registro y aplica lo
   que esté en espera con secuencia posterior. La suscripción se da por hecha cuando llega el mensaje
   `system` de Postgres Changes con estado `ok`, no con `SUBSCRIBED`: en la medida, lo enviado entre los

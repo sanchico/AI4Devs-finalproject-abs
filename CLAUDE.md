@@ -98,7 +98,7 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `grabacion.test.js` prueba el estado de la grabación y `reconocedor.test.js` exige ≥ 90 % por forma y tipo de diagrama con los trazos del S Pen, en cada archivo de `fixtures/trazos/` y en el conjunto; `abiertos.test.js` fija que una línea, una "L", una "U" y un arco siguen siendo trazos abiertos (conectores).
 - `supabase/` (backend, bloques S1 y S2): `config.toml`, `migrations/` y `tests/*.test.js` con `node --test` y
   supabase-js contra el Supabase local; `tests/helpers/entorno.js` lee las claves de `supabase status` y da
-  `admin()`, `anonimo()`, `usuario()` y `sql`, y `helpers/datos.js` prepara datos (`escenario()` siembra con la clave
+  `admin()`, `anonimo()`, `usuario()` y `sql`, `helpers/realtime.js` suscribe al canal de un diagrama (`suscribir`, que espera al mensaje `system` de Postgres Changes; lo usa también `scripts/medir-latencia.js`), `autenticarRealtime` pasa el token de la sesión y `cerrar` retira los canales para que `node --test` termine; `helpers/datos.js` prepara datos (`escenario()` siembra con la clave
   de servicio; `equipo()` crea el diagrama con `create_diagram`, que es lo que hay que usar para probar escrituras).
   Ninguna escritura directa en las tablas: solo estas funciones, `security definer` con `search_path` vacío y
   ejecutables solo por `authenticated` (parámetros con prefijo `p_`): `create_diagram(p_kind)`, `delete_diagram` y
@@ -117,7 +117,7 @@ Los cinco primeros módulos son puros (no tocan el DOM) y se pueden importar des
   `op_limit`), que PostgREST devuelve como ese estado HTTP; las auxiliares (`raise_api_error`,
   `diagram_role_or_fail`, `validate_op`…) no se exponen. `fixtures-ops.test.js` envía al servidor las fixtures de
   `frontend/test/fixtures/ops/` y exige que acepte lo que el cliente acepta o descarta por el grafo y rechace lo
-  que el cliente rechaza por su forma. Borrar un diagrama lo marca con `deleted_at` y solo lo ve su dueño.
+  que el cliente rechaza por su forma. `realtime.test.js` comprueba también el reparto: el miembro recibe cada operación (de `apply_op` y de `apply_ops`), el usuario ajeno con sesión no recibe nada y la clave pública sin sesión ni puede suscribirse (Realtime rechaza el filtro porque `anon` no tiene `SELECT`). Borrar un diagrama lo marca con `deleted_at` y solo lo ve su dueño.
   `scripts/medir-latencia.js` (change `medir-latencia`) mide cuánto tarda una operación de `apply_op` en llegar
   por Realtime a otro miembro: dos usuarios en un proceso, 100 operaciones sueltas y una ráfaga de 30, con
   p50, p95 y máximo (`--json` para la salida en JSON). Usa la clave pública y la sesión de cada usuario,
