@@ -11,6 +11,7 @@ import { performance } from 'node:perf_hooks';
 import { setTimeout as esperar } from 'node:timers/promises';
 import { createClient } from '@supabase/supabase-js';
 import { percentiles, emparejar, duracionRafaga } from './medida.js';
+import { suscribir } from '../tests/helpers/realtime.js';
 
 const CALENTAMIENTO = 5;      // operaciones iniciales que no cuentan
 const SERIE = 100;            // operaciones sueltas que sí cuentan
@@ -49,31 +50,6 @@ async function rpc(cliente, funcion, args) {
   const { data, error } = await cliente.rpc(funcion, args);
   if (error) throw new Error(`${funcion} rechazada: ${error.code} ${error.message} ${error.details ?? ''}`.trim());
   return data;
-}
-
-/** Suscribe al canal del diagrama y resuelve en SUBSCRIBED; cada INSERT recibido se anota con su hora. */
-// SUBSCRIBED solo dice que el canal se ha unido: Postgres Changes empieza a entregar cuando Realtime manda el
-// mensaje `system` con `extension: 'postgres_changes'` y `status: 'ok'`. Lo enviado entre uno y otro se pierde.
-// Devuelve cuánto tardó cada uno desde la llamada, en ms.
-function suscribir(cliente, diagramaId, recepciones) {
-  const inicio = performance.now();
-  let unido = null;
-  return new Promise((resolver, rechazar) => {
-    const plazo = setTimeout(() => rechazar(new Error('Realtime: Postgres Changes no confirmó la suscripción en 15 s')), 15000);
-    cliente.channel(`diagram:${diagramaId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'diagram_ops', filter: `diagram_id=eq.${diagramaId}` },
-        cambio => recepciones.push({ opId: cambio.new.op_id, seq: cambio.new.seq, t1: performance.now() }))
-      .on('system', {}, mensaje => {
-        if (mensaje?.extension !== 'postgres_changes') return;
-        clearTimeout(plazo);
-        if (mensaje.status === 'ok') resolver({ unido: redondear(unido), listo: redondear(performance.now() - inicio) });
-        else rechazar(new Error(`Realtime: ${mensaje.message ?? 'error en Postgres Changes'}`));
-      })
-      .subscribe((estado, err) => {
-        if (estado === 'SUBSCRIBED') unido = performance.now() - inicio;
-        else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') { clearTimeout(plazo); rechazar(new Error(`Realtime: ${estado} ${err?.message ?? ''}`.trim())); }
-      });
-  });
 }
 
 /** Envía una operación con A y anota cuándo salió y cuándo volvió la secuencia. */
