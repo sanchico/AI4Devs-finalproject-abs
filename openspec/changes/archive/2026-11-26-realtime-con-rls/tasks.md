@@ -17,7 +17,7 @@
 
 - [x] 3.1 Ejecutar `npm run test:backend` y `node --test "frontend/**/*.test.js"` completos. Verificar: ambos en verde.
 - [x] 3.2 Marcar S3 como hecho en `docs/PRD-MVP.md` (sección de F4/S3 y plan de sesiones) y en `CLAUDE.md` si cambia lo que cuenta. Verificar: `grep` de «test de Realtime de S3» no deja ningún «pendiente».
-- [ ] 3.3 Commits pequeños en español con conventional commits, en la rama `feat/s3-realtime-con-rls` y PR contra `develop` con confirmación del PO. Verificar: el CI de backend de la PR pasa.
+- [x] 3.3 Commits pequeños en español con conventional commits, en la rama `feat/s3-realtime-con-rls` y PR contra `develop` con confirmación del PO. Verificar: el CI de backend de la PR pasa.
 
 ## Workflow follow-up
 
